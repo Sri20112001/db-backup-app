@@ -1,0 +1,119 @@
+syntax = "proto3";
+
+package backup.agent.v1;
+
+option go_package = "github.com/backup-saas/server/proto/agentpb";
+
+service AgentService {
+  rpc Connect(stream AgentEvent) returns (stream ServerCommand);
+  rpc ReportProgress(ProgressRequest) returns (ProgressResponse);
+  rpc GetJobConfig(JobConfigRequest) returns (JobConfigResponse);
+}
+
+message AgentEvent {
+  string agent_id    = 1;
+  string agent_token = 2;
+  oneof payload {
+    AgentConnected   connected         = 3;
+    AgentHealth      health            = 4;
+    BackupStarted    backup_started    = 5;
+    BackupProgress   backup_progress   = 6;
+    BackupCompleted  backup_completed  = 7;
+    BackupFailed     backup_failed     = 8;
+    RestoreStarted   restore_started   = 9;
+    RestoreCompleted restore_completed = 10;
+    RestoreFailed    restore_failed    = 11;
+  }
+}
+
+message AgentConnected {
+  string hostname = 1;
+  string version  = 2;
+  string os       = 3;
+}
+
+message AgentHealth {
+  bool   healthy         = 1;
+  double cpu_percent     = 2;
+  double memory_percent  = 3;
+  double disk_percent    = 4;
+}
+
+message BackupStarted   { string run_id = 1; string job_id = 2; }
+message BackupProgress  {
+  string run_id           = 1;
+  int64  bytes_read       = 2;
+  int64  bytes_compressed = 3;
+  int64  bytes_uploaded   = 4;
+  double percent          = 5;
+}
+message BackupCompleted {
+  string run_id           = 1;
+  int64  bytes_read       = 2;
+  int64  bytes_compressed = 3;
+  int64  bytes_uploaded   = 4;
+  string checksum         = 5;
+  string storage_path     = 6;
+}
+message BackupFailed     { string run_id = 1; string error = 2; }
+message RestoreStarted   { string restore_id = 1; }
+message RestoreCompleted { string restore_id = 1; }
+message RestoreFailed    { string restore_id = 1; string error = 2; }
+
+message ServerCommand {
+  oneof command {
+    RunBackupCommand    run_backup    = 1;
+    CancelBackupCommand cancel_backup = 2;
+    StartRestoreCommand start_restore = 3;
+    GetStatusCommand    get_status    = 4;
+  }
+}
+
+message RunBackupCommand    { string run_id = 1; string job_id = 2; }
+message CancelBackupCommand { string run_id = 1; }
+message StartRestoreCommand {
+  string restore_id       = 1;
+  string backup_run_id    = 2;
+  string destination_path = 3;
+  string target_database  = 4;
+}
+message GetStatusCommand {}
+
+message ProgressRequest {
+  string agent_id         = 1;
+  string agent_token      = 2;
+  string run_id           = 3;
+  int64  bytes_read       = 4;
+  int64  bytes_compressed = 5;
+  int64  bytes_uploaded   = 6;
+  double percent          = 7;
+  string status           = 8;
+  string error            = 9;
+  string checksum         = 10;
+  string storage_path     = 11;
+}
+message ProgressResponse { bool accepted = 1; }
+
+message JobConfigRequest {
+  string agent_id    = 1;
+  string agent_token = 2;
+  string job_id      = 3;
+}
+message JobConfigResponse {
+  string job_id              = 1;
+  string source_type         = 2;
+  string source_path         = 3;
+  string source_database     = 4;
+  string include_patterns    = 5;
+  string exclude_patterns    = 6;
+  string mode                = 7;
+  bool   encrypted           = 8;
+  string cron_expr           = 9;
+  string storage_type        = 10;
+  string storage_bucket      = 11;
+  string storage_region      = 12;
+  string storage_endpoint    = 13;
+  string storage_access_key  = 14;
+  string storage_secret_key  = 15;
+  string storage_path        = 16;
+}

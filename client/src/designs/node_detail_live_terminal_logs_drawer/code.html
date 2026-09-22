@@ -1,0 +1,839 @@
+<!DOCTYPE html>
+
+<html lang="en"><head><meta charset="utf-8"/><meta content="width=device-width, initial-scale=1.0" name="viewport"/><meta content="web_dashboard" name="shell-type"/><link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200" rel="stylesheet"/><link href="https://fonts.googleapis.com" rel="preconnect"/><link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/><link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;family=JetBrains+Mono:wght@400;500&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/><style>@layer base{html,body{margin:0;padding:0;}body{overscroll-behavior:none;}main>:first-child{margin-top:0!important;}main>:last-child{margin-bottom:0!important;}}::-webkit-scrollbar{display:none;}</style><script src="https://cdn.tailwindcss.com"></script><script id="tailwind-config">tailwind.config={darkMode:"class",theme:{extend:{"colors":{"surface-dim":"#d3daef","tertiary":"#3e3fcc","error":"#ba1a1a","secondary":"#006591","secondary-fixed-dim":"#89ceff","on-primary-fixed":"#00174b","surface-bright":"#f9f9ff","on-tertiary-fixed-variant":"#2f2ebe","surface-tint":"#0053db","tertiary-fixed-dim":"#c0c1ff","on-secondary-fixed":"#001e2f","on-primary-container":"#eeefff","on-primary":"#ffffff","on-tertiary":"#ffffff","on-tertiary-container":"#f1eeff","primary-container":"#2563eb","primary-fixed-dim":"#b4c5ff","tertiary-fixed":"#e1e0ff","surface-variant":"#dce2f7","background":"#f9f9ff","inverse-surface":"#293040","surface-container-high":"#e1e8fd","on-surface":"#141b2b","secondary-container":"#39b8fd","on-secondary-fixed-variant":"#004c6e","surface":"#f9f9ff","on-error":"#ffffff","surface-container-lowest":"#ffffff","on-tertiary-fixed":"#07006c","on-error-container":"#93000a","surface-container-low":"#f1f3ff","primary-fixed":"#dbe1ff","surface-container-highest":"#dce2f7","on-secondary":"#ffffff","on-secondary-container":"#004666","inverse-on-surface":"#edf0ff","outline-variant":"#c3c6d7","on-primary-fixed-variant":"#003ea8","inverse-primary":"#b4c5ff","secondary-fixed":"#c9e6ff","surface-container":"#e9edff","error-container":"#ffdad6","outline":"#737686","tertiary-container":"#585be6","primary":"#004ac6","on-surface-variant":"#434655","on-background":"#141b2b"},"borderRadius":{"DEFAULT":"0.125rem","lg":"0.25rem","xl":"0.5rem","full":"0.75rem"},"spacing":{"margin":"1.5rem","space-sm":"0.5rem","space-md":"0.75rem","space-lg":"1rem","gutter":"1rem","space-xs":"0.25rem","space-xl":"1.5rem"},"fontFamily":{"label-primary":["Inter"],"code-sm":["JetBrains Mono"],"code-default":["JetBrains Mono"],"caption-muted":["Inter"],"title-lg":["Inter"],"section-header":["Inter"],"body-medium":["Inter"],"body-default":["Inter"],"caption-medium":["Inter"]},"fontSize":{"label-primary":["13px",{"lineHeight":"18px","letterSpacing":"-0.005em","fontWeight":"500"}],"code-sm":["12px",{"lineHeight":"16px","letterSpacing":"0em","fontWeight":"500"}],"code-default":["13px",{"lineHeight":"18px","letterSpacing":"-0.01em","fontWeight":"400"}],"caption-muted":["12px",{"lineHeight":"16px","letterSpacing":"0em","fontWeight":"400"}],"title-lg":["20px",{"lineHeight":"28px","letterSpacing":"-0.015em","fontWeight":"600"}],"section-header":["14px",{"lineHeight":"20px","letterSpacing":"0.04em","fontWeight":"600"}],"body-medium":["14px",{"lineHeight":"20px","letterSpacing":"0em","fontWeight":"500"}],"body-default":["14px",{"lineHeight":"20px","letterSpacing":"0em","fontWeight":"400"}],"caption-medium":["12px",{"lineHeight":"16px","letterSpacing":"0.01em","fontWeight":"500"}]}}}}</script></head><body class="bg-surface font-body-default text-body-default text-on-surface antialiased"><aside class="fixed left-4 top-1/2 -translate-y-1/2 w-14 bg-surface-container-lowest border border-outline-variant/40 rounded-xl shadow-[0_4px_16px_rgba(20,27,43,0.06)] z-50 flex flex-col items-center py-3 gap-2"><div class="flex items-center justify-center p-1 mb-1"><img alt="VaultGuard Shield Logo" class="w-8 h-8 object-contain" src="https://lh3.googleusercontent.com/aida/AEtjO1VSwzriI8Li162QkZ8VYiuIGtZGtAXLBcXBLYRK-nv1c9NYR2jIXfNigzT4UmcZcCBi8_liragDuXSGbBf1aJOXjjm5YmztZavPvb_KH7fu-SsLr08QTqIOJ46G3nNJikO0RmEmk9TMcaUs8UT28iK7PWHsmV0DnIOWH39e3nLBAWASAKM42HkA_dRewWrqUXt2sGOLSTQGNGGLNOVP_LzGBwetRh5jPgpCpJ-ykMuVewJxOjg0EEIZFZ58"/></div><nav class="flex flex-col items-center gap-1.5 w-full px-2" data-active-classes="bg-primary-container text-on-primary rounded-lg"><a class="relative group flex items-center justify-center w-10 h-10 rounded-lg text-on-surface-variant hover:bg-surface-container hover:text-on-surface transition-colors" data-path="system-overview" href="#" title="System Overview"><span class="material-symbols-outlined text-[20px]">shield</span><span class="absolute left-14 px-2 py-1 bg-inverse-surface text-inverse-on-surface font-caption-medium text-caption-medium rounded shadow-md opacity-0 pointer-events-none group-hover:opacity-100 transition-opacity z-50 whitespace-nowrap">System Overview</span></a><a class="relative group flex items-center justify-center w-10 h-10 rounded-lg text-on-surface-variant hover:bg-surface-container hover:text-on-surface transition-colors" data-path="backup-jobs" href="#" title="Backup Jobs"><span class="material-symbols-outlined text-[20px]">archive</span><span class="absolute left-14 px-2 py-1 bg-inverse-surface text-inverse-on-surface font-caption-medium text-caption-medium rounded shadow-md opacity-0 pointer-events-none group-hover:opacity-100 transition-opacity z-50 whitespace-nowrap">Backup Jobs</span></a><a class="relative group flex items-center justify-center w-10 h-10 rounded-lg text-on-surface-variant hover:bg-surface-container hover:text-on-surface transition-colors" data-path="history-and-runs" href="#" title="History &amp; All Runs"><span class="material-symbols-outlined text-[20px]">history</span><span class="absolute left-14 px-2 py-1 bg-inverse-surface text-inverse-on-surface font-caption-medium text-caption-medium rounded shadow-md opacity-0 pointer-events-none group-hover:opacity-100 transition-opacity z-50 whitespace-nowrap">History &amp; Runs</span></a><a class="relative group flex items-center justify-center w-10 h-10 rounded-lg text-on-surface-variant hover:bg-surface-container hover:text-on-surface transition-colors" data-path="restores-workspace" href="#" title="Restores &amp; Disaster Recovery"><span class="material-symbols-outlined text-[20px]">restore</span><span class="absolute left-14 px-2 py-1 bg-inverse-surface text-inverse-on-surface font-caption-medium text-caption-medium rounded shadow-md opacity-0 pointer-events-none group-hover:opacity-100 transition-opacity z-50 whitespace-nowrap">Restores</span></a><a class="relative group flex items-center justify-center w-10 h-10 rounded-lg text-on-surface-variant hover:bg-surface-container hover:text-on-surface transition-colors" data-path="agents" href="#" title="Agents &amp; Infrastructure Fleet"><span class="material-symbols-outlined text-[20px]">dns</span><span class="absolute left-14 px-2 py-1 bg-inverse-surface text-inverse-on-surface font-caption-medium text-caption-medium rounded shadow-md opacity-0 pointer-events-none group-hover:opacity-100 transition-opacity z-50 whitespace-nowrap">Agents &amp; Machines Fleet</span></a><a class="relative group flex items-center justify-center w-10 h-10 rounded-lg text-on-surface-variant hover:bg-surface-container hover:text-on-surface transition-colors" data-path="storage-vaults" href="#" title="Storage Clusters &amp; Vaults"><span class="material-symbols-outlined text-[20px]">database</span><span class="absolute left-14 px-2 py-1 bg-inverse-surface text-inverse-on-surface font-caption-medium text-caption-medium rounded shadow-md opacity-0 pointer-events-none group-hover:opacity-100 transition-opacity z-50 whitespace-nowrap">Storage Targets</span></a><a class="relative group flex items-center justify-center w-10 h-10 rounded-lg text-on-surface-variant hover:bg-surface-container hover:text-on-surface transition-colors" data-path="security-alerts" href="#" title="Incidents &amp; Alerts"><span class="material-symbols-outlined text-[20px]">notifications</span><span class="absolute top-1.5 right-1.5 w-2 h-2 rounded-full bg-error ring-2 ring-surface-container-lowest"></span><span class="absolute left-14 px-2 py-1 bg-inverse-surface text-inverse-on-surface font-caption-medium text-caption-medium rounded shadow-md opacity-0 pointer-events-none group-hover:opacity-100 transition-opacity z-50 whitespace-nowrap">Alerts (Active)</span></a></nav><div class="mt-auto pt-2 border-t border-outline-variant/40 w-full px-2"><a class="relative group flex items-center justify-center w-10 h-10 rounded-lg text-on-surface-variant hover:bg-surface-container hover:text-on-surface transition-colors" data-path="platform-settings" href="#" title="Configuration &amp; Settings"><span class="material-symbols-outlined text-[20px]">settings</span><span class="absolute left-14 px-2 py-1 bg-inverse-surface text-inverse-on-surface font-caption-medium text-caption-medium rounded shadow-md opacity-0 pointer-events-none group-hover:opacity-100 transition-opacity z-50 whitespace-nowrap">Settings</span></a></div></aside><div class="fixed top-4 right-6 z-40"><div class="flex items-center gap-3 px-3 py-1.5 bg-surface-container-lowest border border-outline-variant/40 rounded-full shadow-[0_2px_8px_rgba(20,27,43,0.05)] hover:border-outline transition-colors cursor-pointer"><div class="flex items-center gap-2"><span class="font-label-primary text-label-primary text-on-surface font-medium">Acme Logistics Corp</span><span class="px-1.5 py-0.5 rounded bg-primary/10 text-primary font-caption-medium text-caption-medium uppercase tracking-wider font-semibold">Admin</span></div><div class="h-4 w-[1px] bg-outline-variant/50"></div><img alt="Profile" class="w-7 h-7 rounded-full object-cover" src="https://lh3.googleusercontent.com/aida-public/AB6AXuAGdKylIV3b4ScRH7e3bU-qMRa45g8FK1K2_0Y4wPmPjrWDdghpW0LAp58DA_4MBM1URFqkMd2Zd8faudI2MHbXnFZLYB5kSjMBwpcZtKmxl_TpNa0PzgAkXkAsOpl8owInxBXdt0LJQ1S_9cTyBjioQg2dmR51F2Ki3SWAAmL1vfUqOdMChzEHRNHxKgflg7UfFyCRD5gDELmN997pHkwEaZZqfW7okHU-Vd63gCDAMJpKWq2fX3uKgQ"/><span class="material-symbols-outlined text-on-surface-variant text-[18px]">expand_more</span></div></div><main class="w-full min-h-screen bg-surface pl-24 pr-8 py-6"><div class="flex flex-col w-full">
+<!-- Top Command Ribbon & Breadcrumbs -->
+<div class="flex flex-col gap-space-sm mb-space-lg">
+<!-- Breadcrumb Pathway -->
+<div class="flex items-center gap-space-xs text-on-surface-variant font-caption-medium text-caption-medium">
+<span class="hover:text-primary transition-colors cursor-pointer">VAULTGUARD OPERATIONS</span>
+<span class="material-symbols-outlined text-[14px] text-outline">chevron_right</span>
+<span class="hover:text-primary transition-colors cursor-pointer">Fleet &amp; Infrastructure</span>
+<span class="material-symbols-outlined text-[14px] text-outline">chevron_right</span>
+<span class="hover:text-primary transition-colors cursor-pointer">Agent Nodes</span>
+<span class="material-symbols-outlined text-[14px] text-outline">chevron_right</span>
+<span class="font-code-sm text-code-sm text-primary font-semibold bg-surface-container-high px-1.5 py-0.5 rounded">WIN-SRV-01</span>
+</div>
+<!-- Title & Action Bar -->
+<div class="flex flex-wrap items-center justify-between gap-space-md bg-surface-container-lowest p-space-lg rounded-xl shadow-sm">
+<div class="flex flex-col gap-1">
+<div class="flex flex-wrap items-center gap-space-sm">
+<h1 class="font-title-lg text-title-lg text-on-surface flex items-center gap-2">
+<span class="material-symbols-outlined text-primary text-[24px]">dns</span>
+            WIN-SRV-01 (Prod MSSQL Primary)
+          </h1>
+<span class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-surface-container-high text-on-surface font-caption-medium text-caption-medium">
+<span class="w-2 h-2 rounded-full bg-primary animate-ping"></span>
+<span class="font-semibold text-primary">ONLINE</span>
+<span class="text-on-surface-variant font-normal">• Heartbeat: 3s ago</span>
+</span>
+<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-surface-container text-on-surface-variant font-code-sm text-code-sm">
+<span class="material-symbols-outlined text-[14px] text-primary">verified</span>
+            Daemon v2.4.1-rc3 (Latest)
+          </span>
+<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-surface-variant text-on-surface-variant font-caption-muted text-caption-muted">
+<span class="material-symbols-outlined text-[14px]">hub</span>
+            Cluster: us-east-prod-mesh
+          </span>
+</div>
+<p class="font-body-default text-body-default text-on-surface-variant">
+          Enterprise Database Cluster Host • Tier-0 Active Primary • VSS Integrated Snapshot Fabric
+        </p>
+</div>
+<!-- Action Cluster -->
+<div class="flex items-center flex-wrap gap-2">
+<!-- Maintenance Mode Toggle -->
+<label class="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-surface-container-low cursor-pointer hover:bg-surface-container transition-colors">
+<input class="sr-only peer" id="maintToggle" type="checkbox"/>
+<div class="w-8 h-4 bg-outline-variant rounded-full peer peer-checked:bg-primary relative transition-colors after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-surface-container-lowest after:rounded-full after:h-3 after:w-3 after:transition-all peer-checked:after:translate-x-4"></div>
+<span class="font-label-primary text-label-primary text-on-surface select-none">Maint Mode</span>
+</label>
+<button class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-surface-container hover:bg-surface-container-high text-on-surface font-label-primary text-label-primary transition-colors" onclick="triggerToast('Restarting daemon agent on WIN-SRV-01...')">
+<span class="material-symbols-outlined text-[18px]">restart_alt</span>
+          Restart Daemon
+        </button>
+<button class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-surface-container hover:bg-surface-container-high text-on-surface font-label-primary text-label-primary transition-colors" onclick="triggerToast('Diagnostic dump requested. File compiling...')">
+<span class="material-symbols-outlined text-[18px]">file_download</span>
+          Diagnostic Dump
+        </button>
+<button class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-surface-container hover:bg-surface-container-high text-on-surface font-label-primary text-label-primary transition-colors" onclick="triggerToast('Running real-time VSS Writer parity probe...')">
+<span class="material-symbols-outlined text-[18px]">rule</span>
+          Test VSS Writers
+        </button>
+<button class="flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg bg-primary hover:bg-primary-container text-on-primary font-label-primary text-label-primary transition-colors shadow-sm ring-2" onclick="toggleTerminalModal()">
+<span class="material-symbols-outlined text-[18px]">terminal</span>
+          Terminal / Live Logs
+        </button>
+</div>
+</div>
+</div>
+<!-- Notification Toast Container -->
+<div class="fixed bottom-6 right-6 z-50 flex flex-col gap-2 pointer-events-none" id="toastContainer"></div>
+<!-- Top KPI Telemetry Bar (4 Cards) -->
+<div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-space-md mb-space-lg">
+<!-- KPI 1: Latency & Connection -->
+<div class="bg-surface-container-lowest p-space-lg rounded-xl shadow-sm flex flex-col justify-between">
+<div class="flex items-center justify-between mb-2">
+<span class="font-section-header text-section-header uppercase tracking-wider text-on-surface-variant flex items-center gap-1.5">
+<span class="material-symbols-outlined text-primary text-[18px]">network_check</span>
+          Connection &amp; Latency
+        </span>
+<span class="px-2 py-0.5 rounded-full bg-surface-container-high text-primary font-code-sm text-code-sm font-semibold">100% SLA</span>
+</div>
+<div>
+<div class="flex items-baseline gap-2 mb-1">
+<span class="text-[26px] leading-[32px] font-bold text-on-surface">14ms</span>
+<span class="font-caption-medium text-caption-medium text-primary">Direct TCP Stream</span>
+</div>
+<div class="font-code-sm text-code-sm text-on-surface-variant flex flex-col gap-0.5 mt-2 bg-surface-container-low p-2 rounded">
+<div class="flex justify-between"><span>IP Addr:</span><span class="text-on-surface font-semibold">10.0.4.12:443</span></div>
+<div class="flex justify-between"><span>Auth:</span><span class="text-on-surface font-semibold">AES-256-GCM Pin</span></div>
+<div class="flex justify-between truncate"><span>UUID:</span><span class="truncate ml-2 text-on-surface font-semibold">5b21-4a9f-99ef</span></div>
+</div>
+</div>
+</div>
+<!-- KPI 2: Compute Utilization -->
+<div class="bg-surface-container-lowest p-space-lg rounded-xl shadow-sm flex flex-col justify-between">
+<div class="flex items-center justify-between mb-2">
+<span class="font-section-header text-section-header uppercase tracking-wider text-on-surface-variant flex items-center gap-1.5">
+<span class="material-symbols-outlined text-primary text-[18px]">memory</span>
+          Live Compute Load
+        </span>
+<span class="font-code-sm text-code-sm text-on-surface-variant">Xeon Silver 4314</span>
+</div>
+<div>
+<div class="flex items-center justify-between mb-1.5">
+<div class="flex items-baseline gap-1">
+<span class="text-[26px] leading-[32px] font-bold text-on-surface">24.2%</span>
+<span class="font-caption-muted text-caption-muted text-on-surface-variant">CPU (4c/8t)</span>
+</div>
+<div class="w-16 h-4">
+<svg class="w-full h-full text-primary" fill="none" viewbox="0 0 70 18">
+<path d="M0 12 L10 14 L20 8 L30 11 L40 6 L50 9 L60 4 L70 7" stroke="currentColor" stroke-linecap="round" stroke-width="2"></path>
+</svg>
+</div>
+</div>
+<div class="space-y-1 mt-2">
+<div class="flex justify-between font-caption-medium text-caption-medium text-on-surface-variant">
+<span>RAM 12.2 / 32 GB</span>
+<span class="text-on-surface font-semibold">38.1% Active</span>
+</div>
+<div class="w-full h-2 rounded-full bg-surface-container overflow-hidden">
+<div class="h-full bg-primary rounded-full transition-all duration-500" style="width: 38.1%"></div>
+</div>
+</div>
+</div>
+</div>
+<!-- KPI 3: Storage Headroom -->
+<div class="bg-surface-container-lowest p-space-lg rounded-xl shadow-sm flex flex-col justify-between">
+<div class="flex items-center justify-between mb-2">
+<span class="font-section-header text-section-header uppercase tracking-wider text-on-surface-variant flex items-center gap-1.5">
+<span class="material-symbols-outlined text-primary text-[18px]">hard_drive</span>
+          Storage Headroom
+        </span>
+<span class="px-2 py-0.5 rounded-full bg-surface-container text-on-surface font-code-sm text-code-sm">3 Disks</span>
+</div>
+<div>
+<div class="flex items-baseline justify-between mb-1">
+<span class="text-[26px] leading-[32px] font-bold text-on-surface">565 GB</span>
+<span class="font-caption-medium text-caption-medium text-primary">Aggregate Free</span>
+</div>
+<div class="grid grid-cols-3 gap-1.5 mt-2">
+<div class="bg-surface-container-low p-1.5 rounded flex flex-col items-center text-center">
+<span class="font-code-sm text-code-sm font-bold text-on-surface">C: 48%</span>
+<span class="font-caption-muted text-caption-muted">120GB free</span>
+</div>
+<div class="bg-surface-container-low p-1.5 rounded flex flex-col items-center text-center">
+<span class="font-code-sm text-code-sm font-bold text-on-surface">E: 36%</span>
+<span class="font-caption-muted text-caption-muted">360GB free</span>
+</div>
+<div class="bg-surface-container-low p-1.5 rounded flex flex-col items-center text-center">
+<span class="font-code-sm text-code-sm font-bold text-on-surface">L: 42%</span>
+<span class="font-caption-muted text-caption-muted">85GB free</span>
+</div>
+</div>
+</div>
+</div>
+<!-- KPI 4: VSS & Driver Status -->
+<div class="bg-surface-container-lowest p-space-lg rounded-xl shadow-sm flex flex-col justify-between">
+<div class="flex items-center justify-between mb-2">
+<span class="font-section-header text-section-header uppercase tracking-wider text-on-surface-variant flex items-center gap-1.5">
+<span class="material-symbols-outlined text-primary text-[18px]">verified_user</span>
+          VSS &amp; Driver Parity
+        </span>
+<span class="px-2 py-0.5 rounded-full bg-surface-container-high text-primary font-caption-medium text-caption-medium font-semibold">WHQL Signed</span>
+</div>
+<div>
+<div class="flex items-baseline gap-2 mb-1">
+<span class="text-[26px] leading-[32px] font-bold text-on-surface">9 / 9</span>
+<span class="font-caption-medium text-caption-medium text-on-surface font-semibold">Writers Healthy</span>
+</div>
+<div class="flex items-center gap-2 mt-2 bg-surface-container-low p-2 rounded">
+<span class="material-symbols-outlined text-primary text-[18px]">check_circle</span>
+<div class="font-caption-muted text-caption-muted flex flex-col">
+<span class="text-on-surface font-medium truncate">MS Software Shadow Copy 1.0</span>
+<span>0 Timeout • 0 Retry Locks</span>
+</div>
+</div>
+</div>
+</div>
+</div>
+<!-- Main Content Grid (12 cols: 8 Primary, 4 Secondary) -->
+<div class="grid grid-cols-1 lg:grid-cols-12 gap-space-lg">
+<!-- LEFT COLUMN (8 Columns) -->
+<div class="lg:col-span-8 flex flex-col gap-space-lg">
+<!-- SECTION 1: Performance Timeline & Metrics -->
+<div class="bg-surface-container-lowest rounded-xl p-space-lg shadow-sm">
+<div class="flex flex-wrap items-center justify-between gap-space-sm pb-space-md border-b-0">
+<div class="flex items-center gap-2">
+<span class="material-symbols-outlined text-primary">monitoring</span>
+<span class="font-section-header text-section-header uppercase tracking-wider text-on-surface">Telemetry &amp; Engine Telemetry</span>
+</div>
+<div class="flex items-center gap-1 bg-surface-container-low p-1 rounded-lg">
+<button class="px-2.5 py-1 rounded text-caption-medium font-caption-medium bg-primary text-on-primary shadow-xs">CPU &amp; Memory</button>
+<button class="px-2.5 py-1 rounded text-caption-medium font-caption-medium text-on-surface-variant hover:text-on-surface transition-colors">Network I/O</button>
+<button class="px-2.5 py-1 rounded text-caption-medium font-caption-medium text-on-surface-variant hover:text-on-surface transition-colors">VSS Freeze Latency</button>
+</div>
+</div>
+<!-- SVG Timeline Chart (Past 60 mins) -->
+<div class="mt-4">
+<div class="flex items-center justify-between text-caption-muted font-caption-muted text-on-surface-variant mb-2">
+<span>Last 60 Minutes (Sampling interval: 10s)</span>
+<div class="flex items-center gap-4">
+<span class="flex items-center gap-1.5"><span class="w-2.5 h-2.5 rounded bg-primary"></span> Total CPU %</span>
+<span class="flex items-center gap-1.5"><span class="w-2.5 h-2.5 rounded bg-secondary"></span> MSSQL Engine</span>
+<span class="flex items-center gap-1.5"><span class="w-2.5 h-2.5 rounded bg-tertiary"></span> VSS Freeze Peak</span>
+</div>
+</div>
+<div class="w-full h-44 bg-surface-container-low rounded-lg p-3 relative overflow-hidden flex flex-col justify-end">
+<!-- Micro grid guidelines -->
+<div class="absolute inset-x-0 top-1/4 h-[1px] bg-outline-variant/30"></div>
+<div class="absolute inset-x-0 top-2/4 h-[1px] bg-outline-variant/30"></div>
+<div class="absolute inset-x-0 top-3/4 h-[1px] bg-outline-variant/30"></div>
+<svg class="w-full h-32 overflow-visible" preserveaspectratio="none" viewbox="0 0 600 120">
+<defs>
+<lineargradient id="primaryArea" x1="0%" x2="0%" y1="0%" y2="100%">
+<stop offset="0%" stop-color="#2563eb" stop-opacity="0.3"></stop>
+<stop offset="100%" stop-color="#2563eb" stop-opacity="0.0"></stop>
+</lineargradient>
+</defs>
+<!-- Filled Area -->
+<path d="M0,85 Q40,82 80,88 T160,80 T240,65 T280,20 T310,25 T350,75 T420,80 T500,72 T600,76 L600,120 L0,120 Z" fill="url(#primaryArea)"></path>
+<!-- Primary Line (Total CPU) -->
+<path d="M0,85 Q40,82 80,88 T160,80 T240,65 T280,20 T310,25 T350,75 T420,80 T500,72 T600,76" fill="none" stroke="#2563eb" stroke-width="2.5"></path>
+<!-- Secondary Line (MSSQL) -->
+<path d="M0,95 Q40,94 80,96 T160,92 T240,85 T280,55 T310,58 T350,90 T420,92 T500,88 T600,90" fill="none" stroke="#006591" stroke-dasharray="3 3" stroke-width="1.5"></path>
+<!-- Spikes annotation dot -->
+<circle cx="280" cy="20" fill="#3e3fcc" r="4"></circle>
+</svg>
+<!-- Bottom time marks -->
+<div class="flex justify-between font-code-sm text-code-sm text-on-surface-variant mt-2 pt-1 border-t-0">
+<span>-60m</span>
+<span>-45m</span>
+<span>-30m (VSS Snapshot 02:40)</span>
+<span>-15m</span>
+<span>Just now</span>
+</div>
+</div>
+</div>
+<!-- Hot Process Footprint Table -->
+<div class="mt-4 pt-3">
+<div class="flex items-center justify-between mb-2">
+<span class="font-section-header text-section-header text-on-surface-variant">Top Associated Processes</span>
+<span class="font-caption-muted text-caption-muted text-on-surface-variant">4 Active Subsystems</span>
+</div>
+<div class="overflow-x-auto">
+<table class="w-full text-left font-body-default text-body-default">
+<thead>
+<tr class="bg-surface-container-low text-on-surface-variant font-caption-medium text-caption-medium uppercase tracking-wider">
+<th class="py-2 px-3 rounded-l">Process Identifier</th>
+<th class="py-2 px-3">PID</th>
+<th class="py-2 px-3">CPU Usage</th>
+<th class="py-2 px-3">Committed RAM</th>
+<th class="py-2 px-3">Disk I/O Rate</th>
+<th class="py-2 px-3 rounded-r text-right">State</th>
+</tr>
+</thead>
+<tbody class="divide-y-0 text-on-surface font-label-primary text-label-primary">
+<tr class="hover:bg-surface-container-low transition-colors">
+<td class="py-2.5 px-3 font-code-default text-code-default font-semibold text-primary flex items-center gap-1.5">
+<span class="material-symbols-outlined text-[16px] text-on-surface-variant">database</span>
+                    sqlservr.exe
+                  </td>
+<td class="py-2.5 px-3 font-code-sm text-code-sm text-on-surface-variant">2418</td>
+<td class="py-2.5 px-3">18.4%</td>
+<td class="py-2.5 px-3">8,412 MB</td>
+<td class="py-2.5 px-3 font-code-sm text-code-sm">18.4 MB/s</td>
+<td class="py-2.5 px-3 text-right">
+<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-surface-container-high text-primary font-caption-medium text-caption-medium">Running</span>
+</td>
+</tr>
+<tr class="hover:bg-surface-container-low transition-colors">
+<td class="py-2.5 px-3 font-code-default text-code-default font-semibold text-on-surface flex items-center gap-1.5">
+<span class="material-symbols-outlined text-[16px] text-primary">shield</span>
+                    vg-daemon.exe
+                  </td>
+<td class="py-2.5 px-3 font-code-sm text-code-sm text-on-surface-variant">1104</td>
+<td class="py-2.5 px-3">2.1%</td>
+<td class="py-2.5 px-3">184 MB</td>
+<td class="py-2.5 px-3 font-code-sm text-code-sm">94.2 MB/s (Stream)</td>
+<td class="py-2.5 px-3 text-right">
+<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-surface-container-high text-primary font-caption-medium text-caption-medium">Active Socket</span>
+</td>
+</tr>
+<tr class="hover:bg-surface-container-low transition-colors">
+<td class="py-2.5 px-3 font-code-default text-code-default font-semibold text-on-surface flex items-center gap-1.5">
+<span class="material-symbols-outlined text-[16px] text-on-surface-variant">settings_system_daydream</span>
+                    vssvc.exe
+                  </td>
+<td class="py-2.5 px-3 font-code-sm text-code-sm text-on-surface-variant">3890</td>
+<td class="py-2.5 px-3">0.4%</td>
+<td class="py-2.5 px-3">42 MB</td>
+<td class="py-2.5 px-3 font-code-sm text-code-sm">0.1 MB/s</td>
+<td class="py-2.5 px-3 text-right">
+<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-surface-container text-on-surface-variant font-caption-medium text-caption-medium">Idle Standby</span>
+</td>
+</tr>
+<tr class="hover:bg-surface-container-low transition-colors">
+<td class="py-2.5 px-3 font-code-default text-code-default font-semibold text-on-surface flex items-center gap-1.5">
+<span class="material-symbols-outlined text-[16px] text-on-surface-variant">layers</span>
+                    svchost.exe (RPCSS)
+                  </td>
+<td class="py-2.5 px-3 font-code-sm text-code-sm text-on-surface-variant">872</td>
+<td class="py-2.5 px-3">0.8%</td>
+<td class="py-2.5 px-3">96 MB</td>
+<td class="py-2.5 px-3 font-code-sm text-code-sm">0.4 MB/s</td>
+<td class="py-2.5 px-3 text-right">
+<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-surface-container text-on-surface-variant font-caption-medium text-caption-medium">System Core</span>
+</td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+</div>
+<!-- SECTION 2: Windows VSS Writer Tree & Status Matrix -->
+<div class="bg-surface-container-lowest rounded-xl p-space-lg shadow-sm">
+<div class="flex flex-wrap items-center justify-between gap-space-sm mb-3">
+<div class="flex items-center gap-2">
+<span class="material-symbols-outlined text-primary">account_tree</span>
+<span class="font-section-header text-section-header uppercase tracking-wider text-on-surface">VSS Writers Registry &amp; Health Matrix</span>
+</div>
+<div class="flex items-center gap-2">
+<button class="flex items-center gap-1 px-2.5 py-1 rounded bg-surface-container hover:bg-surface-container-high text-on-surface font-caption-medium text-caption-medium transition-colors" onclick="triggerToast('Re-scanning all Volume Shadow Copy Writers on WIN-SRV-01...')">
+<span class="material-symbols-outlined text-[16px]">sync</span>
+              Re-scan Writers
+            </button>
+<span class="font-caption-muted text-caption-muted text-on-surface-variant">Polled 12s ago</span>
+</div>
+</div>
+<!-- Filter and Search Bar -->
+<div class="flex flex-wrap items-center justify-between gap-2 mb-4 bg-surface-container-low p-2 rounded-lg">
+<div class="flex items-center gap-2 flex-1 min-w-[200px]">
+<span class="material-symbols-outlined text-outline text-[18px]">search</span>
+<input class="bg-transparent font-body-default text-body-default text-on-surface placeholder:text-outline focus:outline-none w-full" id="vssSearchInput" oninput="filterVssWriters()" placeholder="Search writers by name, GUID or component..." type="text"/>
+</div>
+<div class="flex items-center gap-1.5 font-caption-medium text-caption-medium">
+<span class="px-2 py-0.5 rounded bg-surface-container-lowest text-primary font-semibold shadow-xs">All (9)</span>
+<span class="px-2 py-0.5 rounded text-on-surface-variant">Stable (9)</span>
+<span class="px-2 py-0.5 rounded text-on-surface-variant">Failed (0)</span>
+</div>
+</div>
+<!-- VSS Writer Accordion / Hierarchical Rows -->
+<div class="flex flex-col gap-2" id="vssWriterList">
+<!-- Writer 1: SqlServerWriter (Expanded by default) -->
+<div class="vss-item bg-surface-container-low rounded-lg p-3 transition-colors hover:bg-surface-container">
+<div class="flex items-center justify-between cursor-pointer" onclick="toggleVssDetails('vss1')">
+<div class="flex items-center gap-2">
+<span class="material-symbols-outlined text-primary text-[20px]">check_circle</span>
+<div>
+<div class="flex items-center gap-2">
+<span class="font-body-medium text-body-medium text-on-surface font-semibold">SqlServerWriter</span>
+<span class="font-code-sm text-code-sm px-1.5 py-0.2 rounded bg-surface-container-high text-primary">State: [1] Stable</span>
+</div>
+<span class="font-code-sm text-code-sm text-on-surface-variant">ID: {a65faa63-5ea8-4ebc-9dbd-a0c4db26912a}</span>
+</div>
+</div>
+<div class="flex items-center gap-3">
+<span class="font-caption-medium text-caption-medium text-on-surface-variant hidden sm:inline">12 DBs • Freeze Hook Active</span>
+<span class="material-symbols-outlined text-outline text-[20px] transition-transform rotate-180" id="vss1-icon">expand_more</span>
+</div>
+</div>
+<!-- Expanded Details -->
+<div class="mt-3 pt-3 border-t-0 bg-surface-container-lowest p-3 rounded" id="vss1">
+<div class="grid grid-cols-1 md:grid-cols-3 gap-2 font-code-sm text-code-sm text-on-surface-variant mb-2">
+<div><span class="text-outline">Instance ID:</span> <span class="text-on-surface">{3f81-55e1-88c9}</span></div>
+<div><span class="text-outline">Last Error:</span> <span class="text-primary font-semibold">No error (0x00000000)</span></div>
+<div><span class="text-outline">Failure Type:</span> <span class="text-on-surface">None</span></div>
+</div>
+<div class="font-caption-medium text-caption-medium text-on-surface font-medium mb-1">Protected Database Components:</div>
+<div class="flex flex-wrap gap-1.5">
+<span class="font-code-sm text-code-sm px-2 py-0.5 rounded bg-surface-container text-on-surface">ERP_FinMaster_PROD (Full)</span>
+<span class="font-code-sm text-code-sm px-2 py-0.5 rounded bg-surface-container text-on-surface">SysCatalog</span>
+<span class="font-code-sm text-code-sm px-2 py-0.5 rounded bg-surface-container text-on-surface">msdb</span>
+<span class="font-code-sm text-code-sm px-2 py-0.5 rounded bg-surface-container text-on-surface">master</span>
+<span class="font-code-sm text-code-sm px-2 py-0.5 rounded bg-surface-container text-on-surface">+8 others</span>
+</div>
+</div>
+</div>
+<!-- Writer 2: Hyper-V Writer -->
+<div class="vss-item bg-surface-container-low rounded-lg p-3 transition-colors hover:bg-surface-container">
+<div class="flex items-center justify-between cursor-pointer" onclick="toggleVssDetails('vss2')">
+<div class="flex items-center gap-2">
+<span class="material-symbols-outlined text-primary text-[20px]">check_circle</span>
+<div>
+<div class="flex items-center gap-2">
+<span class="font-body-medium text-body-medium text-on-surface font-semibold">Microsoft Hyper-V VSS Writer</span>
+<span class="font-code-sm text-code-sm px-1.5 py-0.2 rounded bg-surface-container-high text-primary">State: [1] Stable</span>
+</div>
+<span class="font-code-sm text-code-sm text-on-surface-variant">ID: {66841cd4-6ded-4f4b-8f17-fd23f8ddc3b0}</span>
+</div>
+</div>
+<div class="flex items-center gap-3">
+<span class="font-caption-medium text-caption-medium text-on-surface-variant hidden sm:inline">No error • 0 VM guests mapped</span>
+<span class="material-symbols-outlined text-outline text-[20px] transition-transform" id="vss2-icon">expand_more</span>
+</div>
+</div>
+<div class="hidden mt-3 pt-3 bg-surface-container-lowest p-3 rounded font-code-sm text-code-sm" id="vss2">
+<div class="grid grid-cols-2 gap-2 text-on-surface-variant">
+<div><span class="text-outline">Instance ID:</span> {99aa-88bb-77cc}</div>
+<div><span class="text-outline">Last Error:</span> <span class="text-primary">No error</span></div>
+</div>
+</div>
+</div>
+<!-- Writer 3: System Writer -->
+<div class="vss-item bg-surface-container-low rounded-lg p-3 transition-colors hover:bg-surface-container">
+<div class="flex items-center justify-between cursor-pointer" onclick="toggleVssDetails('vss3')">
+<div class="flex items-center gap-2">
+<span class="material-symbols-outlined text-primary text-[20px]">check_circle</span>
+<div>
+<div class="flex items-center gap-2">
+<span class="font-body-medium text-body-medium text-on-surface font-semibold">System Writer (Cryptographic &amp; System Files)</span>
+<span class="font-code-sm text-code-sm px-1.5 py-0.2 rounded bg-surface-container-high text-primary">State: [1] Stable</span>
+</div>
+<span class="font-code-sm text-code-sm text-on-surface-variant">ID: {e81062d3-180c-4366-9a93-7ca00c8f7322}</span>
+</div>
+</div>
+<div class="flex items-center gap-3">
+<span class="font-caption-medium text-caption-medium text-on-surface-variant hidden sm:inline">Catalog Database &amp; WinSxS</span>
+<span class="material-symbols-outlined text-outline text-[20px] transition-transform" id="vss3-icon">expand_more</span>
+</div>
+</div>
+<div class="hidden mt-3 pt-3 bg-surface-container-lowest p-3 rounded font-code-sm text-code-sm text-on-surface-variant" id="vss3">
+<div><span class="text-outline">Components:</span> System Files, Crypto Keys, CatDB • Exclusions: Temp files, pagefile.sys</div>
+</div>
+</div>
+<!-- Writer 4: Registry Writer -->
+<div class="vss-item bg-surface-container-low rounded-lg p-3 transition-colors hover:bg-surface-container">
+<div class="flex items-center justify-between cursor-pointer" onclick="toggleVssDetails('vss4')">
+<div class="flex items-center gap-2">
+<span class="material-symbols-outlined text-primary text-[20px]">check_circle</span>
+<div>
+<div class="flex items-center gap-2">
+<span class="font-body-medium text-body-medium text-on-surface font-semibold">Registry Writer</span>
+<span class="font-code-sm text-code-sm px-1.5 py-0.2 rounded bg-surface-container-high text-primary">State: [1] Stable</span>
+</div>
+<span class="font-code-sm text-code-sm text-on-surface-variant">ID: {afbab4a2-ac72-4911-875c-91b705f299d1}</span>
+</div>
+</div>
+<div class="flex items-center gap-3">
+<span class="font-caption-medium text-caption-medium text-on-surface-variant hidden sm:inline">Hives: SYSTEM, SOFTWARE, DEFAULT</span>
+<span class="material-symbols-outlined text-outline text-[20px] transition-transform" id="vss4-icon">expand_more</span>
+</div>
+</div>
+<div class="hidden mt-3 pt-3 bg-surface-container-lowest p-3 rounded font-code-sm text-code-sm text-on-surface-variant" id="vss4">
+<div><span class="text-outline">Target:</span> System registry hives snapshot consistent. Zero locks reported.</div>
+</div>
+</div>
+<!-- Writer 5: WMI Writer -->
+<div class="vss-item bg-surface-container-low rounded-lg p-3 transition-colors hover:bg-surface-container">
+<div class="flex items-center justify-between cursor-pointer" onclick="toggleVssDetails('vss5')">
+<div class="flex items-center gap-2">
+<span class="material-symbols-outlined text-primary text-[20px]">check_circle</span>
+<div>
+<div class="flex items-center gap-2">
+<span class="font-body-medium text-body-medium text-on-surface font-semibold">WMI Writer</span>
+<span class="font-code-sm text-code-sm px-1.5 py-0.2 rounded bg-surface-container-high text-primary">State: [1] Stable</span>
+</div>
+<span class="font-code-sm text-code-sm text-on-surface-variant">ID: {a6ad56c2-b509-4e6c-bb19-49d8f43532f0}</span>
+</div>
+</div>
+<div class="flex items-center gap-3">
+<span class="font-caption-medium text-caption-medium text-on-surface-variant hidden sm:inline">No error (0x00)</span>
+<span class="material-symbols-outlined text-outline text-[20px] transition-transform" id="vss5-icon">expand_more</span>
+</div>
+</div>
+<div class="hidden mt-3 pt-3 bg-surface-container-lowest p-3 rounded font-code-sm text-code-sm text-on-surface-variant" id="vss5">
+<div><span class="text-outline">Scope:</span> Windows Management Instrumentation repository repository.db snapshot verification.</div>
+</div>
+</div>
+<!-- Writer 6: Shadow Copy Optimization Writer -->
+<div class="vss-item bg-surface-container-low rounded-lg p-3 transition-colors hover:bg-surface-container">
+<div class="flex items-center justify-between cursor-pointer" onclick="toggleVssDetails('vss6')">
+<div class="flex items-center gap-2">
+<span class="material-symbols-outlined text-primary text-[20px]">check_circle</span>
+<div>
+<div class="flex items-center gap-2">
+<span class="font-body-medium text-body-medium text-on-surface font-semibold">Shadow Copy Optimization Writer</span>
+<span class="font-code-sm text-code-sm px-1.5 py-0.2 rounded bg-surface-container-high text-primary">State: [1] Stable</span>
+</div>
+<span class="font-code-sm text-code-sm text-on-surface-variant">ID: {4dc3bdd4-ab48-4d07-ac52-b3950c14b6d3}</span>
+</div>
+</div>
+<div class="flex items-center gap-3">
+<span class="font-caption-medium text-caption-medium text-on-surface-variant hidden sm:inline">No error</span>
+<span class="material-symbols-outlined text-outline text-[20px] transition-transform" id="vss6-icon">expand_more</span>
+</div>
+</div>
+<div class="hidden mt-3 pt-3 bg-surface-container-lowest p-3 rounded font-code-sm text-code-sm text-on-surface-variant" id="vss6">
+<div><span class="text-outline">Status:</span> Excludes VSS diff store segments from redundant recursive copies.</div>
+</div>
+</div>
+<!-- Writer 7: BITS Writer -->
+<div class="vss-item bg-surface-container-low rounded-lg p-3 transition-colors hover:bg-surface-container">
+<div class="flex items-center justify-between cursor-pointer" onclick="toggleVssDetails('vss7')">
+<div class="flex items-center gap-2">
+<span class="material-symbols-outlined text-primary text-[20px]">check_circle</span>
+<div>
+<div class="flex items-center gap-2">
+<span class="font-body-medium text-body-medium text-on-surface font-semibold">BITS Writer</span>
+<span class="font-code-sm text-code-sm px-1.5 py-0.2 rounded bg-surface-container-high text-primary">State: [1] Stable</span>
+</div>
+<span class="font-code-sm text-code-sm text-on-surface-variant">ID: {4969d769-7da3-4330-ac76-ba2192751557}</span>
+</div>
+</div>
+<div class="flex items-center gap-3">
+<span class="font-caption-medium text-caption-medium text-on-surface-variant hidden sm:inline">Background Intelligent Transfer</span>
+<span class="material-symbols-outlined text-outline text-[20px] transition-transform" id="vss7-icon">expand_more</span>
+</div>
+</div>
+<div class="hidden mt-3 pt-3 bg-surface-container-lowest p-3 rounded font-code-sm text-code-sm text-on-surface-variant" id="vss7">
+<div><span class="text-outline">State:</span> Background queue saved state. No transfers interrupted.</div>
+</div>
+</div>
+<!-- Writer 8: Task Scheduler Writer -->
+<div class="vss-item bg-surface-container-low rounded-lg p-3 transition-colors hover:bg-surface-container">
+<div class="flex items-center justify-between cursor-pointer" onclick="toggleVssDetails('vss8')">
+<div class="flex items-center gap-2">
+<span class="material-symbols-outlined text-primary text-[20px]">check_circle</span>
+<div>
+<div class="flex items-center gap-2">
+<span class="font-body-medium text-body-medium text-on-surface font-semibold">Task Scheduler Writer</span>
+<span class="font-code-sm text-code-sm px-1.5 py-0.2 rounded bg-surface-container-high text-primary">State: [1] Stable</span>
+</div>
+<span class="font-code-sm text-code-sm text-on-surface-variant">ID: {d61d61c8-d73a-4eee-8cdd-f6f9786b7124}</span>
+</div>
+</div>
+<div class="flex items-center gap-3">
+<span class="font-caption-medium text-caption-medium text-on-surface-variant hidden sm:inline">No error</span>
+<span class="material-symbols-outlined text-outline text-[20px] transition-transform" id="vss8-icon">expand_more</span>
+</div>
+</div>
+<div class="hidden mt-3 pt-3 bg-surface-container-lowest p-3 rounded font-code-sm text-code-sm text-on-surface-variant" id="vss8">
+<div><span class="text-outline">State:</span> Windows task scheduler tasks XML repository preserved.</div>
+</div>
+</div>
+<!-- Writer 9: NTDS Writer (Disabled/Member server) -->
+<div class="vss-item bg-surface-container-low rounded-lg p-3 transition-colors opacity-75">
+<div class="flex items-center justify-between">
+<div class="flex items-center gap-2">
+<span class="material-symbols-outlined text-outline text-[20px]">radio_button_unchecked</span>
+<div>
+<div class="flex items-center gap-2">
+<span class="font-body-medium text-body-medium text-on-surface font-semibold">NTDS / Active Directory Domain Services</span>
+<span class="font-code-sm text-code-sm px-1.5 py-0.2 rounded bg-surface-container text-on-surface-variant">N/A (Member Server)</span>
+</div>
+<span class="font-code-sm text-code-sm text-on-surface-variant">ID: {bf6a56c2-b509-4e6c-bb19-49d8f4353200}</span>
+</div>
+</div>
+<span class="font-caption-muted text-caption-muted text-on-surface-variant">Standalone MSSQL Member Node</span>
+</div>
+</div>
+</div>
+</div>
+<!-- SECTION 3: Mounted Storage Volumes & Snapshot Headroom -->
+<div class="bg-surface-container-lowest rounded-xl p-space-lg shadow-sm">
+<div class="flex items-center justify-between mb-4">
+<div class="flex items-center gap-2">
+<span class="material-symbols-outlined text-primary">storage</span>
+<span class="font-section-header text-section-header uppercase tracking-wider text-on-surface">Mounted Storage Volumes &amp; Shadow Diff Areas</span>
+</div>
+<span class="font-code-sm text-code-sm text-primary font-semibold">Disk I/O 1,420 IOPS Healthy</span>
+</div>
+<div class="flex flex-col gap-3">
+<!-- Drive C: -->
+<div class="bg-surface-container-low p-3.5 rounded-lg flex flex-col gap-2">
+<div class="flex flex-wrap items-center justify-between gap-2">
+<div class="flex items-center gap-2">
+<span class="font-code-default text-code-default font-bold text-on-surface px-2 py-0.5 rounded bg-surface-container-lowest shadow-xs">C:\</span>
+<span class="font-body-medium text-body-medium text-on-surface font-semibold">System SSD</span>
+<span class="font-code-sm text-code-sm text-on-surface-variant">NTFS • NVMe Direct</span>
+</div>
+<div class="flex items-center gap-3 font-caption-medium text-caption-medium">
+<span class="text-on-surface font-semibold">130 GB Used</span>
+<span class="text-outline">/</span>
+<span class="text-primary font-semibold">120 GB Free (250 GB)</span>
+<span class="px-2 py-0.5 rounded bg-surface-container-high text-primary font-code-sm text-code-sm">Diff Area: 12 GB Alloc</span>
+</div>
+</div>
+<div class="w-full h-2 rounded-full bg-surface-container overflow-hidden flex">
+<div class="h-full bg-primary" style="width: 52%"></div>
+<div class="h-full bg-tertiary" style="width: 4.8%" title="VSS Diff Area 12GB"></div>
+</div>
+</div>
+<!-- Drive E: -->
+<div class="bg-surface-container-low p-3.5 rounded-lg flex flex-col gap-2">
+<div class="flex flex-wrap items-center justify-between gap-2">
+<div class="flex items-center gap-2">
+<span class="font-code-default text-code-default font-bold text-on-surface px-2 py-0.5 rounded bg-surface-container-lowest shadow-xs">E:\</span>
+<span class="font-body-medium text-body-medium text-on-surface font-semibold">MSSQL Data MDF</span>
+<span class="font-code-sm text-code-sm text-on-surface-variant">ReFS 64k • Dedicated SSD Tier</span>
+</div>
+<div class="flex items-center gap-3 font-caption-medium text-caption-medium">
+<span class="text-on-surface font-semibold">640 GB Used</span>
+<span class="text-outline">/</span>
+<span class="text-primary font-semibold">360 GB Free (1.0 TB)</span>
+<span class="px-2 py-0.5 rounded bg-surface-container-high text-primary font-code-sm text-code-sm">Diff Area: 45 GB Alloc</span>
+</div>
+</div>
+<div class="w-full h-2 rounded-full bg-surface-container overflow-hidden flex">
+<div class="h-full bg-primary" style="width: 64%"></div>
+<div class="h-full bg-tertiary" style="width: 4.5%" title="VSS Diff Area 45GB"></div>
+</div>
+</div>
+<!-- Drive L: -->
+<div class="bg-surface-container-low p-3.5 rounded-lg flex flex-col gap-2">
+<div class="flex flex-wrap items-center justify-between gap-2">
+<div class="flex items-center gap-2">
+<span class="font-code-default text-code-default font-bold text-on-surface px-2 py-0.5 rounded bg-surface-container-lowest shadow-xs">L:\</span>
+<span class="font-body-medium text-body-medium text-on-surface font-semibold">MSSQL Logs LDF</span>
+<span class="font-code-sm text-code-sm text-on-surface-variant">NTFS • Low Fragmentation Pool</span>
+</div>
+<div class="flex items-center gap-3 font-caption-medium text-caption-medium">
+<span class="text-on-surface font-semibold">115 GB Used</span>
+<span class="text-outline">/</span>
+<span class="text-primary font-semibold">85 GB Free (200 GB)</span>
+<span class="px-2 py-0.5 rounded bg-surface-container-high text-primary font-code-sm text-code-sm">Diff Area: 8 GB Alloc</span>
+</div>
+</div>
+<div class="w-full h-2 rounded-full bg-surface-container overflow-hidden flex">
+<div class="h-full bg-primary" style="width: 57.5%"></div>
+<div class="h-full bg-tertiary" style="width: 4%" title="VSS Diff Area 8GB"></div>
+</div>
+</div>
+</div>
+</div>
+</div>
+<!-- RIGHT COLUMN (4 Columns) -->
+<div class="lg:col-span-4 flex flex-col gap-space-lg">
+<!-- SUB-PANEL 1: Associated Workload Policies & Jobs -->
+<div class="bg-surface-container-lowest rounded-xl p-space-lg shadow-sm">
+<div class="flex items-center justify-between mb-3">
+<span class="font-section-header text-section-header uppercase tracking-wider text-on-surface flex items-center gap-1.5">
+<span class="material-symbols-outlined text-primary text-[18px]">play_circle</span>
+            Active Workloads &amp; Policies
+          </span>
+<span class="px-2 py-0.5 rounded bg-surface-container font-caption-medium text-caption-medium text-on-surface-variant">3 Assigned</span>
+</div>
+<div class="flex flex-col gap-3">
+<!-- Job 1 -->
+<div class="p-3 rounded-lg bg-surface-container-low hover:bg-surface-container transition-colors">
+<div class="flex items-center justify-between mb-1">
+<span class="font-label-primary text-label-primary font-bold text-on-surface">Daily ERP SQL Cluster</span>
+<span class="px-2 py-0.5 rounded-full bg-surface-container-high text-primary font-code-sm text-code-sm font-semibold">Running 82%</span>
+</div>
+<div class="w-full h-1.5 rounded-full bg-surface-container overflow-hidden mb-2">
+<div class="h-full bg-primary animate-pulse" style="width: 82%"></div>
+</div>
+<div class="flex items-center justify-between font-caption-muted text-caption-muted text-on-surface-variant">
+<span>Target: AWS S3 Primary (us-east-1)</span>
+<span class="font-code-sm text-code-sm text-primary cursor-pointer hover:underline">/jobs/pol-sql-0982-erp</span>
+</div>
+<div class="font-caption-muted text-caption-muted text-on-surface-variant mt-1">
+              Next schedule: Daily 23:00 UTC
+            </div>
+</div>
+<!-- Job 2 -->
+<div class="p-3 rounded-lg bg-surface-container-low hover:bg-surface-container transition-colors">
+<div class="flex items-center justify-between mb-1">
+<span class="font-label-primary text-label-primary font-bold text-on-surface">MSSQL Transaction Log Shipping</span>
+<span class="px-2 py-0.5 rounded-full bg-surface-container-high text-primary font-caption-medium text-caption-medium">Healthy</span>
+</div>
+<div class="flex items-center justify-between font-caption-muted text-caption-muted text-on-surface-variant">
+<span>Interval: Every 15 mins</span>
+<span class="text-on-surface font-semibold">Next: in 6 mins</span>
+</div>
+</div>
+<!-- Job 3 -->
+<div class="p-3 rounded-lg bg-surface-container-low hover:bg-surface-container transition-colors">
+<div class="flex items-center justify-between mb-1">
+<span class="font-label-primary text-label-primary font-bold text-on-surface">System State &amp; VSS Volume Snapshot</span>
+<span class="px-2 py-0.5 rounded-full bg-surface-container text-on-surface-variant font-caption-medium text-caption-medium">Scheduled</span>
+</div>
+<div class="flex items-center justify-between font-caption-muted text-caption-muted text-on-surface-variant">
+<span>Bare Metal Recovery Target</span>
+<span>Daily 01:00 UTC</span>
+</div>
+</div>
+</div>
+</div>
+<!-- SUB-PANEL 2: Daemon Agent Configuration & Health -->
+<div class="bg-surface-container-lowest rounded-xl p-space-lg shadow-sm">
+<div class="flex items-center justify-between mb-3">
+<span class="font-section-header text-section-header uppercase tracking-wider text-on-surface flex items-center gap-1.5">
+<span class="material-symbols-outlined text-primary text-[18px]">tune</span>
+            Agent Engine Configuration
+          </span>
+<span class="material-symbols-outlined text-outline text-[18px]">info</span>
+</div>
+<div class="space-y-2 font-code-sm text-code-sm text-on-surface-variant">
+<div class="flex justify-between items-center bg-surface-container-low p-2 rounded">
+<span>Daemon Core</span>
+<span class="font-semibold text-on-surface">v2.4.1-rc3 (x64)</span>
+</div>
+<div class="flex justify-between items-center bg-surface-container-low p-2 rounded">
+<span>OS Build</span>
+<span class="font-semibold text-on-surface text-right truncate ml-2">Win Server 2022 (20348.2227)</span>
+</div>
+<div class="flex flex-col bg-surface-container-low p-2 rounded gap-1">
+<span>Agent Binary Path</span>
+<span class="font-semibold text-primary truncate">C:\Program Files\VaultGuard\Agent\vg-daemon.exe</span>
+</div>
+<div class="flex justify-between items-center bg-surface-container-low p-2 rounded">
+<span>Config Profile</span>
+<span class="font-semibold text-on-surface">production-high-throughput.yaml</span>
+</div>
+<div class="flex justify-between items-center bg-surface-container-low p-2 rounded">
+<span>Socket Security</span>
+<span class="font-semibold text-on-surface">TLS 1.3 / Curve25519</span>
+</div>
+<div class="flex justify-between items-center bg-surface-container-low p-2 rounded">
+<span>Buffer Cache Cap</span>
+<span class="font-semibold text-on-surface">512 MB Ring Buffer</span>
+</div>
+<div class="flex justify-between items-center bg-surface-container-low p-2 rounded">
+<span>Max Concurrent Writers</span>
+<span class="font-semibold text-on-surface">16 Parallel Queues</span>
+</div>
+</div>
+</div>
+<!-- SUB-PANEL 3: Recent Agent Event & Audit Stream (Live feed) -->
+<div class="bg-surface-container-lowest rounded-xl p-space-lg shadow-sm flex flex-col">
+<div class="flex items-center justify-between mb-3">
+<span class="font-section-header text-section-header uppercase tracking-wider text-on-surface flex items-center gap-1.5">
+<span class="material-symbols-outlined text-primary text-[18px]">receipt_long</span>
+            Live Audit &amp; Event Stream
+          </span>
+<span class="w-2 h-2 rounded-full bg-primary animate-ping" title="Listening to socket"></span>
+</div>
+<div class="flex flex-col gap-2 font-code-sm text-code-sm">
+<div class="bg-surface-container-low p-2.5 rounded flex flex-col gap-1">
+<div class="flex items-center justify-between text-caption-muted font-caption-muted">
+<span class="text-primary font-semibold">03:30:00 UTC</span>
+<span class="text-outline">VSS Provider</span>
+</div>
+<p class="text-on-surface">Shadow storage diff area verified, 82% headroom available on disk E:\</p>
+</div>
+<div class="bg-surface-container-low p-2.5 rounded flex flex-col gap-1">
+<div class="flex items-center justify-between text-caption-muted font-caption-muted">
+<span class="text-primary font-semibold">03:15:20 UTC</span>
+<span class="text-outline">Agent Transport</span>
+</div>
+<p class="text-on-surface">Periodic heartbeat acknowledged, latency 14ms (0.01% jitter/loss)</p>
+</div>
+<div class="bg-surface-container-low p-2.5 rounded flex flex-col gap-1">
+<div class="flex items-center justify-between text-caption-muted font-caption-muted">
+<span class="text-primary font-semibold">02:41:05 UTC</span>
+<span class="text-outline">Chunk Streamer</span>
+</div>
+<p class="text-on-surface">Chunk stream dispatched 3.4 GB payload via TCP 10.0.4.12:443</p>
+</div>
+<div class="bg-surface-container-low p-2.5 rounded flex flex-col gap-1">
+<div class="flex items-center justify-between text-caption-muted font-caption-muted">
+<span class="text-primary font-semibold">02:40:14 UTC</span>
+<span class="text-outline">SqlServerWriter</span>
+</div>
+<p class="text-on-surface">Thaw signal sent, DB transactions resumed smoothly in 184ms</p>
+</div>
+<div class="bg-surface-container-low p-2.5 rounded flex flex-col gap-1">
+<div class="flex items-center justify-between text-caption-muted font-caption-muted">
+<span class="text-primary font-semibold">02:40:12 UTC</span>
+<span class="text-outline">SqlServerWriter</span>
+</div>
+<p class="text-on-surface">VSS Freeze snapshot successful for SqlServerWriter [ERP_FinMaster_PROD]</p>
+</div>
+</div>
+<button class="w-full mt-3 py-2 text-center rounded bg-surface-container hover:bg-surface-container-high font-label-primary text-label-primary text-primary transition-colors flex items-center justify-center gap-1 ring-2" onclick="toggleTerminalModal()">
+<span class="material-symbols-outlined text-[16px]">open_in_new</span>
+          View Full Tail Logs (/var/log/agent)
+        </button>
+</div>
+</div>
+</div>
+<!-- Terminal / Live Logs Modal Drawer -->
+<div class="fixed inset-0 z-50 overflow-hidden" id="terminalDrawerOverlay"><div class="absolute inset-0 bg-inverse-surface/40 backdrop-blur-xs transition-opacity duration-300" onclick="document.getElementById('terminalDrawerOverlay').classList.add('hidden')"></div><div class="fixed inset-y-0 right-0 max-w-full flex pl-10"><div class="w-screen max-w-2xl bg-inverse-surface text-inverse-on-surface shadow-2xl flex flex-col border-l border-outline-variant/40 h-full"><div class="bg-on-surface px-5 py-3.5 border-b border-outline-variant/30 flex flex-col gap-3"><div class="flex items-center justify-between"><div class="flex items-center gap-2.5"><div class="flex items-center gap-1.5"><span class="w-3 h-3 rounded-full bg-error inline-block"></span><span class="w-3 h-3 rounded-full bg-secondary-container inline-block"></span><span class="w-3 h-3 rounded-full bg-primary inline-block"></span></div><div class="h-4 w-[1px] bg-outline-variant/40 mx-1"></div><div class="flex flex-col"><div class="flex items-center gap-2"><span class="font-code-default text-code-default text-inverse-on-surface font-bold">Terminal &amp; Daemon Stream</span><span class="font-code-sm text-code-sm px-1.5 py-0.2 rounded bg-surface-container-high text-primary font-semibold">WIN-SRV-01</span></div><div class="flex items-center gap-1.5 font-code-sm text-code-sm text-primary-fixed-dim"><span class="w-2 h-2 rounded-full bg-primary animate-ping inline-block"></span><span class="text-[11px]">CONNECTED • WebSocket wss://10.0.4.12:8443/stream</span></div></div></div><div class="flex items-center gap-2"><button class="flex items-center gap-1 px-2.5 py-1 rounded bg-surface-container/20 hover:bg-surface-container/40 text-inverse-on-surface font-caption-medium text-caption-medium transition-colors border border-outline-variant/30" onclick="triggerToast('Downloading log snapshot...')" title="Download .log file"><span class="material-symbols-outlined text-[16px]">download</span><span class="hidden sm:inline">Export .log</span></button><button class="text-outline-variant hover:text-inverse-on-surface p-1 rounded-lg hover:bg-surface-container/20 transition-colors" onclick="document.getElementById('terminalDrawerOverlay').classList.add('hidden')"><span class="material-symbols-outlined text-[20px]">close</span></button></div></div><div class="flex flex-wrap items-center justify-between gap-2 pt-1"><div class="flex items-center gap-1 bg-surface-container/20 p-1 rounded-lg font-caption-medium text-caption-medium"><button class="px-2.5 py-0.5 rounded bg-primary text-on-primary font-medium shadow-xs">All Logs</button><button class="px-2.5 py-0.5 rounded text-outline-variant hover:text-inverse-on-surface transition-colors">VSS Events</button><button class="px-2.5 py-0.5 rounded text-outline-variant hover:text-inverse-on-surface transition-colors">Chunk Streaming</button><button class="px-2.5 py-0.5 rounded text-outline-variant hover:text-inverse-on-surface transition-colors">Daemon Debug</button><button class="px-2.5 py-0.5 rounded text-outline-variant hover:text-inverse-on-surface transition-colors">Errors (0)</button></div><div class="flex items-center gap-2.5"><label class="flex items-center gap-1.5 text-caption-muted font-caption-muted text-outline-variant cursor-pointer select-none"><input checked="" class="rounded border-outline-variant bg-transparent text-primary" type="checkbox"/><span>Auto-scroll</span></label><button class="flex items-center gap-1 text-caption-muted font-caption-muted text-outline-variant hover:text-inverse-on-surface transition-colors"><span class="material-symbols-outlined text-[14px]">pause</span><span>Pause</span></button><button class="flex items-center gap-1 text-caption-muted font-caption-muted text-outline-variant hover:text-inverse-on-surface transition-colors" onclick="triggerToast('Buffer cleared')"><span class="material-symbols-outlined text-[14px]">delete_sweep</span><span>Clear</span></button></div></div><div class="flex items-center gap-2 bg-inverse-surface px-2.5 py-1 rounded border border-outline-variant/30"><span class="material-symbols-outlined text-outline-variant text-[16px]">search</span><input class="bg-transparent font-code-sm text-code-sm text-inverse-on-surface placeholder:text-outline w-full focus:outline-none" placeholder="grep -i (filter stream by pattern, e.g. 'VSS', 'TCP', '0x')..." type="text"/></div></div><div class="flex-1 p-4 font-code-sm text-code-sm overflow-y-auto flex flex-col gap-1.5 bg-inverse-surface text-inverse-on-surface selection:bg-primary"><div class="flex items-start gap-2"><span class="text-outline text-caption-muted">[03:31:02.140]</span><span class="px-1 rounded bg-surface-container-high text-primary font-bold text-[11px]">INFO</span><span class="text-secondary-fixed">[vg-daemon]</span><span class="text-inverse-on-surface">Heartbeat ACK received from orchestrator (RTT: 13.8ms). TLS session renewed.</span></div><div class="flex items-start gap-2"><span class="text-outline text-caption-muted">[03:31:14.502]</span><span class="px-1 rounded bg-surface-container text-on-surface-variant font-bold text-[11px]">DEBUG</span><span class="text-primary-fixed-dim">[vss-engine]</span><span class="text-outline-variant">Preparing VSS freeze hook for SqlServerWriter {a65faa63-5ea8-4ebc-9dbd-a0c4db26912a}...</span></div><div class="flex items-start gap-2"><span class="text-outline text-caption-muted">[03:31:14.618]</span><span class="px-1 rounded bg-surface-container-high text-primary font-bold text-[11px]">INFO</span><span class="text-primary-fixed-dim">[vss-engine]</span><span class="text-inverse-on-surface">SQL Server instance MSSQLSERVER IO frozen (ERP_FinMaster_PROD). Flush completed in 42ms.</span></div><div class="flex items-start gap-2"><span class="text-outline text-caption-muted">[03:31:14.890]</span><span class="px-1 rounded bg-surface-container-high text-primary font-bold text-[11px]">INFO</span><span class="text-primary-fixed-dim">[vss-engine]</span><span class="text-primary-fixed-dim font-medium">Volume snapshot created: \\?\Volume{5b21-4a9f-99ef}\ -&gt; ShadowCopy34.</span></div><div class="flex items-start gap-2"><span class="text-outline text-caption-muted">[03:31:15.020]</span><span class="px-1 rounded bg-surface-container-high text-primary font-bold text-[11px]">INFO</span><span class="text-primary-fixed-dim">[vss-engine]</span><span class="text-inverse-on-surface">Thaw signal dispatched. Normal database I/O resumed (Freeze elapsed: 402ms).</span></div><div class="flex items-start gap-2"><span class="text-outline text-caption-muted">[03:31:16.210]</span><span class="px-1 rounded bg-surface-container-high text-primary font-bold text-[11px]">INFO</span><span class="text-secondary-fixed-dim">[streamer]</span><span class="text-inverse-on-surface">Chunk #055 (64.0 MB) staged for upload. Calculating SHA-256 Merkle root...</span></div><div class="flex items-start gap-2"><span class="text-outline text-caption-muted">[03:31:17.042]</span><span class="px-1 rounded bg-surface-container text-on-surface-variant font-bold text-[11px]">DEBUG</span><span class="text-secondary-fixed-dim">[streamer]</span><span class="text-outline-variant">SHA-256 computed: 7e2f91bc38a9... Compression ratio: 82.4% (Zstd-L19).</span></div><div class="flex items-start gap-2"><span class="text-outline text-caption-muted">[03:31:18.115]</span><span class="px-1 rounded bg-surface-container-high text-primary font-bold text-[11px]">INFO</span><span class="text-secondary-container">[transport]</span><span class="text-inverse-on-surface">Chunk #055 dispatched via Direct TCP to s3-accelerated-stream (Transfer rate: 94.8 MB/s).</span></div><div class="flex items-start gap-2"><span class="text-outline text-caption-muted">[03:31:19.420]</span><span class="px-1 rounded bg-surface-container-high text-primary font-bold text-[11px]">INFO</span><span class="text-primary-fixed-dim">[diff-mgr]</span><span class="text-inverse-on-surface">Monitoring Shadow Diff Area on Drive E:\. Headroom: 45 GB alloc / 360 GB free (Healthy).</span></div><div class="flex items-start gap-2"><span class="text-outline text-caption-muted">[03:31:21.005]</span><span class="px-1 rounded bg-surface-container-high text-primary font-bold text-[11px]">INFO</span><span class="text-outline-variant">[metrics]</span><span class="text-inverse-on-surface">CPU load: 24.1% | Committed RAM: 12.2 GB / 32 GB | Active sockets: 8.</span></div><div class="flex items-center gap-2 mt-2 pt-2 border-t border-outline-variant/30 text-primary-fixed-dim font-bold"><span class="w-2 h-2 rounded-full bg-primary animate-ping inline-block"></span><span>[LIVE] Listening for incoming telemetry events on win-srv-01..._</span></div></div><div class="bg-on-surface border-t border-outline-variant/30 p-3.5 flex flex-col gap-2.5"><div class="flex items-center gap-1.5 overflow-x-auto"><span class="font-caption-muted text-caption-muted text-outline-variant whitespace-nowrap mr-1">Quick Run:</span><button class="px-2 py-0.5 rounded bg-surface-container/20 hover:bg-surface-container/40 text-inverse-on-surface font-code-sm text-code-sm border border-outline-variant/30 transition-colors whitespace-nowrap" onclick="triggerToast('Executing: vssadmin list writers')">vss status</button><button class="px-2 py-0.5 rounded bg-surface-container/20 hover:bg-surface-container/40 text-inverse-on-surface font-code-sm text-code-sm border border-outline-variant/30 transition-colors whitespace-nowrap" onclick="triggerToast('Probing IPC socket connectivity...')">test-socket</button><button class="px-2 py-0.5 rounded bg-surface-container/20 hover:bg-surface-container/40 text-inverse-on-surface font-code-sm text-code-sm border border-outline-variant/30 transition-colors whitespace-nowrap" onclick="triggerToast('Rotating AES-256 session transport keys...')">rotate-keys</button><button class="px-2 py-0.5 rounded bg-surface-container/20 hover:bg-surface-container/40 text-inverse-on-surface font-code-sm text-code-sm border border-outline-variant/30 transition-colors whitespace-nowrap" onclick="triggerToast('Reading last 100 daemon trace entries...')">tail -n 100</button></div><div class="flex items-center gap-2 bg-inverse-surface px-3 py-1.5 rounded-lg border border-outline-variant/40"><span class="text-primary-fixed-dim font-code-default text-code-default font-bold whitespace-nowrap">vg-cli@WIN-SRV-01:~$</span><input class="bg-transparent font-code-default text-code-default text-inverse-on-surface focus:outline-none w-full placeholder:text-outline" placeholder="Type agent command (e.g. 'vssadmin list writers', 'vg-daemon status', 'flush-cache')..." type="text"/><button class="px-3 py-1 bg-primary text-on-primary rounded text-caption-medium font-caption-medium hover:bg-primary-container transition-colors shadow-xs" onclick="triggerToast('Command dispatched to agent daemon')">Exec</button></div><div class="flex items-center justify-between font-code-sm text-code-sm text-outline-variant text-[11px] px-1"><span>Buffer: 4.2 MB / 512 MB Ring Buffer</span><div class="flex items-center gap-3"><span>Latency: 14ms Direct TCP</span><span>Rate: 120 lines/min</span></div></div></div></div></div></div>
+<!-- Inline Script for interactive details & toasts -->
+<script>
+    function toggleVssDetails(id) {
+      const panel = document.getElementById(id);
+      const icon = document.getElementById(id + '-icon');
+      if (panel) {
+        panel.classList.toggle('hidden');
+        if (icon) {
+          icon.classList.toggle('rotate-180');
+        }
+      }
+    }
+
+    function toggleTerminalModal() {
+      const modal = document.getElementById('terminalModal');
+      if (modal) {
+        modal.classList.toggle('hidden');
+        modal.classList.toggle('flex');
+      }
+    }
+
+    function triggerToast(message) {
+      const container = document.getElementById('toastContainer');
+      if (!container) return;
+
+      const toast = document.createElement('div');
+      toast.className = 'pointer-events-auto flex items-center gap-2 px-4 py-2.5 rounded-lg bg-inverse-surface text-inverse-on-surface font-body-default text-body-default shadow-xl transition-all duration-300 transform translate-y-2 opacity-0';
+      toast.innerHTML = '<span class="material-symbols-outlined text-primary-fixed-dim text-[18px]">info</span><span>' + message + '</span>';
+
+      container.appendChild(toast);
+
+      requestAnimationFrame(() => {
+        toast.classList.remove('translate-y-2', 'opacity-0');
+      });
+
+      setTimeout(() => {
+        toast.classList.add('opacity-0', 'translate-y-2');
+        setTimeout(() => toast.remove(), 300);
+      }, 3500);
+    }
+
+    function filterVssWriters() {
+      const query = document.getElementById('vssSearchInput').value.toLowerCase();
+      const items = document.querySelectorAll('.vss-item');
+      items.forEach(item => {
+        const text = item.innerText.toLowerCase();
+        if (text.includes(query)) {
+          item.style.display = '';
+        } else {
+          item.style.display = 'none';
+        }
+      });
+    }
+
+    document.getElementById('maintToggle').addEventListener('change', function(e) {
+      if (e.target.checked) {
+        triggerToast('WARNING: WIN-SRV-01 placed in Maintenance Mode. Scheduled jobs paused.');
+      } else {
+        triggerToast('WIN-SRV-01 returned to Active Production mode.');
+      }
+    });
+  </script>
+</div></main></body></html>

@@ -1,0 +1,27 @@
+# Env / secrets — never commit real credentials
+.env
+*.env
+!.env.example
+agent-state.json
+
+# Go
+*.exe
+/bin/
+/dist/
+/tmp/
+server/tmp/
+*.test
+*.out
+
+# Frontend
+client/node_modules/
+client/dist/
+client/dist-ssr/
+client/*.local
+
+# OS / editor
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+*.log

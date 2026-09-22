@@ -1,0 +1,725 @@
+<!DOCTYPE html>
+
+<html lang="en"><head><meta charset="utf-8"/><meta content="width=device-width, initial-scale=1.0" name="viewport"/><meta content="web_dashboard" name="shell-type"/><link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200" rel="stylesheet"/><link href="https://fonts.googleapis.com" rel="preconnect"/><link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/><link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;family=JetBrains+Mono:wght@400;500&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/><style>@layer base{html,body{margin:0;padding:0;}body{overscroll-behavior:none;}main>:first-child{margin-top:0!important;}main>:last-child{margin-bottom:0!important;}}::-webkit-scrollbar{display:none;}</style><script src="https://cdn.tailwindcss.com"></script><script id="tailwind-config">tailwind.config={darkMode:"class",theme:{extend:{"colors":{"surface-dim":"#d3daef","tertiary":"#3e3fcc","error":"#ba1a1a","secondary":"#006591","secondary-fixed-dim":"#89ceff","on-primary-fixed":"#00174b","surface-bright":"#f9f9ff","on-tertiary-fixed-variant":"#2f2ebe","surface-tint":"#0053db","tertiary-fixed-dim":"#c0c1ff","on-secondary-fixed":"#001e2f","on-primary-container":"#eeefff","on-primary":"#ffffff","on-tertiary":"#ffffff","on-tertiary-container":"#f1eeff","primary-container":"#2563eb","primary-fixed-dim":"#b4c5ff","tertiary-fixed":"#e1e0ff","surface-variant":"#dce2f7","background":"#f9f9ff","inverse-surface":"#293040","surface-container-high":"#e1e8fd","on-surface":"#141b2b","secondary-container":"#39b8fd","on-secondary-fixed-variant":"#004c6e","surface":"#f9f9ff","on-error":"#ffffff","surface-container-lowest":"#ffffff","on-tertiary-fixed":"#07006c","on-error-container":"#93000a","surface-container-low":"#f1f3ff","primary-fixed":"#dbe1ff","surface-container-highest":"#dce2f7","on-secondary":"#ffffff","on-secondary-container":"#004666","inverse-on-surface":"#edf0ff","outline-variant":"#c3c6d7","on-primary-fixed-variant":"#003ea8","inverse-primary":"#b4c5ff","secondary-fixed":"#c9e6ff","surface-container":"#e9edff","error-container":"#ffdad6","outline":"#737686","tertiary-container":"#585be6","primary":"#004ac6","on-surface-variant":"#434655","on-background":"#141b2b"},"borderRadius":{"DEFAULT":"0.125rem","lg":"0.25rem","xl":"0.5rem","full":"0.75rem"},"spacing":{"margin":"1.5rem","space-sm":"0.5rem","space-md":"0.75rem","space-lg":"1rem","gutter":"1rem","space-xs":"0.25rem","space-xl":"1.5rem"},"fontFamily":{"label-primary":["Inter"],"code-sm":["JetBrains Mono"],"code-default":["JetBrains Mono"],"caption-muted":["Inter"],"title-lg":["Inter"],"section-header":["Inter"],"body-medium":["Inter"],"body-default":["Inter"],"caption-medium":["Inter"]},"fontSize":{"label-primary":["13px",{"lineHeight":"18px","letterSpacing":"-0.005em","fontWeight":"500"}],"code-sm":["12px",{"lineHeight":"16px","letterSpacing":"0em","fontWeight":"500"}],"code-default":["13px",{"lineHeight":"18px","letterSpacing":"-0.01em","fontWeight":"400"}],"caption-muted":["12px",{"lineHeight":"16px","letterSpacing":"0em","fontWeight":"400"}],"title-lg":["20px",{"lineHeight":"28px","letterSpacing":"-0.015em","fontWeight":"600"}],"section-header":["14px",{"lineHeight":"20px","letterSpacing":"0.04em","fontWeight":"600"}],"body-medium":["14px",{"lineHeight":"20px","letterSpacing":"0em","fontWeight":"500"}],"body-default":["14px",{"lineHeight":"20px","letterSpacing":"0em","fontWeight":"400"}],"caption-medium":["12px",{"lineHeight":"16px","letterSpacing":"0.01em","fontWeight":"500"}]}}}}</script></head><body class="bg-surface font-body-default text-body-default text-on-surface antialiased"><aside class="fixed left-4 top-1/2 -translate-y-1/2 w-14 bg-surface-container-lowest border border-outline-variant/40 rounded-xl shadow-[0_4px_16px_rgba(20,27,43,0.06)] z-50 flex flex-col items-center py-3 gap-2"><div class="flex items-center justify-center p-1 mb-1"><img alt="VaultGuard Shield Logo" class="w-8 h-8 object-contain" src="https://lh3.googleusercontent.com/aida/AEtjO1VSwzriI8Li162QkZ8VYiuIGtZGtAXLBcXBLYRK-nv1c9NYR2jIXfNigzT4UmcZcCBi8_liragDuXSGbBf1aJOXjjm5YmztZavPvb_KH7fu-SsLr08QTqIOJ46G3nNJikO0RmEmk9TMcaUs8UT28iK7PWHsmV0DnIOWH39e3nLBAWASAKM42HkA_dRewWrqUXt2sGOLSTQGNGGLNOVP_LzGBwetRh5jPgpCpJ-ykMuVewJxOjg0EEIZFZ58"/></div><nav class="flex flex-col items-center gap-1.5 w-full px-2" data-active-classes="bg-primary-container text-on-primary rounded-lg"><a class="relative group flex items-center justify-center w-10 h-10 rounded-lg text-on-surface-variant hover:bg-surface-container hover:text-on-surface transition-colors" data-path="system-overview" href="#" title="System Overview"><span class="material-symbols-outlined text-[20px]">shield</span><span class="absolute left-14 px-2 py-1 bg-inverse-surface text-inverse-on-surface font-caption-medium text-caption-medium rounded shadow-md opacity-0 pointer-events-none group-hover:opacity-100 transition-opacity z-50 whitespace-nowrap">System Overview</span></a><a class="relative group flex items-center justify-center w-10 h-10 rounded-lg text-on-surface-variant hover:bg-surface-container hover:text-on-surface transition-colors" data-path="backup-jobs" href="#" title="Backup Jobs"><span class="material-symbols-outlined text-[20px]">archive</span><span class="absolute left-14 px-2 py-1 bg-inverse-surface text-inverse-on-surface font-caption-medium text-caption-medium rounded shadow-md opacity-0 pointer-events-none group-hover:opacity-100 transition-opacity z-50 whitespace-nowrap">Backup Jobs</span></a><a class="relative group flex items-center justify-center w-10 h-10 rounded-lg text-on-surface-variant hover:bg-surface-container hover:text-on-surface transition-colors" data-path="history-and-runs" href="#" title="History &amp; All Runs"><span class="material-symbols-outlined text-[20px]">history</span><span class="absolute left-14 px-2 py-1 bg-inverse-surface text-inverse-on-surface font-caption-medium text-caption-medium rounded shadow-md opacity-0 pointer-events-none group-hover:opacity-100 transition-opacity z-50 whitespace-nowrap">History &amp; Runs</span></a><a aria-current="page" class="relative group flex items-center justify-center w-10 h-10 transition-colors bg-primary-container text-on-primary rounded-lg" data-path="restores-workspace" href="#" title="Restores &amp; Disaster Recovery"><span class="material-symbols-outlined text-[20px]">restore</span><span class="absolute left-14 px-2 py-1 bg-inverse-surface text-inverse-on-surface font-caption-medium text-caption-medium rounded shadow-md opacity-0 pointer-events-none group-hover:opacity-100 transition-opacity z-50 whitespace-nowrap">Restores</span></a><a class="relative group flex items-center justify-center w-10 h-10 rounded-lg text-on-surface-variant hover:bg-surface-container hover:text-on-surface transition-colors" data-path="infrastructure-nodes" href="#" title="Agents &amp; Infrastructure Nodes"><span class="material-symbols-outlined text-[20px]">dns</span><span class="absolute left-14 px-2 py-1 bg-inverse-surface text-inverse-on-surface font-caption-medium text-caption-medium rounded shadow-md opacity-0 pointer-events-none group-hover:opacity-100 transition-opacity z-50 whitespace-nowrap">Agents &amp; Nodes</span></a><a class="relative group flex items-center justify-center w-10 h-10 rounded-lg text-on-surface-variant hover:bg-surface-container hover:text-on-surface transition-colors" data-path="storage-vaults" href="#" title="Storage Clusters &amp; Vaults"><span class="material-symbols-outlined text-[20px]">database</span><span class="absolute left-14 px-2 py-1 bg-inverse-surface text-inverse-on-surface font-caption-medium text-caption-medium rounded shadow-md opacity-0 pointer-events-none group-hover:opacity-100 transition-opacity z-50 whitespace-nowrap">Storage Targets</span></a><a class="relative group flex items-center justify-center w-10 h-10 rounded-lg text-on-surface-variant hover:bg-surface-container hover:text-on-surface transition-colors" data-path="security-alerts" href="#" title="Incidents &amp; Alerts"><span class="material-symbols-outlined text-[20px]">notifications</span><span class="absolute top-1.5 right-1.5 w-2 h-2 rounded-full bg-error ring-2 ring-surface-container-lowest"></span><span class="absolute left-14 px-2 py-1 bg-inverse-surface text-inverse-on-surface font-caption-medium text-caption-medium rounded shadow-md opacity-0 pointer-events-none group-hover:opacity-100 transition-opacity z-50 whitespace-nowrap">Alerts (Active)</span></a></nav><div class="mt-auto pt-2 border-t border-outline-variant/40 w-full px-2"><a class="relative group flex items-center justify-center w-10 h-10 rounded-lg text-on-surface-variant hover:bg-surface-container hover:text-on-surface transition-colors" data-path="platform-settings" href="#" title="Configuration &amp; Settings"><span class="material-symbols-outlined text-[20px]">settings</span><span class="absolute left-14 px-2 py-1 bg-inverse-surface text-inverse-on-surface font-caption-medium text-caption-medium rounded shadow-md opacity-0 pointer-events-none group-hover:opacity-100 transition-opacity z-50 whitespace-nowrap">Settings</span></a></div></aside><div class="fixed top-4 right-6 z-40"><div class="flex items-center gap-3 px-3 py-1.5 bg-surface-container-lowest border border-outline-variant/40 rounded-full shadow-[0_2px_8px_rgba(20,27,43,0.05)] hover:border-outline transition-colors cursor-pointer"><div class="flex items-center gap-2"><span class="font-label-primary text-label-primary text-on-surface font-medium">Acme Logistics Corp</span><span class="px-1.5 py-0.5 rounded bg-primary/10 text-primary font-caption-medium text-caption-medium uppercase tracking-wider font-semibold">Admin</span></div><div class="h-4 w-[1px] bg-outline-variant/50"></div><img alt="Profile" class="w-7 h-7 rounded-full object-cover" src="https://lh3.googleusercontent.com/aida-public/AB6AXuAGdKylIV3b4ScRH7e3bU-qMRa45g8FK1K2_0Y4wPmPjrWDdghpW0LAp58DA_4MBM1URFqkMd2Zd8faudI2MHbXnFZLYB5kSjMBwpcZtKmxl_TpNa0PzgAkXkAsOpl8owInxBXdt0LJQ1S_9cTyBjioQg2dmR51F2Ki3SWAAmL1vfUqOdMChzEHRNHxKgflg7UfFyCRD5gDELmN997pHkwEaZZqfW7okHU-Vd63gCDAMJpKWq2fX3uKgQ"/><span class="material-symbols-outlined text-on-surface-variant text-[18px]">expand_more</span></div></div><main class="w-full min-h-screen bg-surface pl-24 pr-8 py-6"><div class="flex flex-col w-full">
+<!-- Sub-header / Top Navigation Strip -->
+<div class="flex flex-col gap-4 mb-6">
+<div class="flex items-center justify-between">
+<div class="flex flex-col gap-1">
+<div class="flex items-center gap-2">
+<span class="font-section-header text-section-header text-on-surface-variant uppercase tracking-wider">VaultGuard Operations</span>
+<span class="text-outline-variant font-body-default text-body-default">/</span>
+<span class="font-section-header text-section-header text-primary font-semibold tracking-wider">Restores &amp; Disaster Recovery</span>
+</div>
+<div class="flex items-center gap-3">
+<h1 class="font-title-lg text-title-lg text-on-surface font-bold tracking-tight">Restores Workspace</h1>
+<span class="px-2.5 py-0.5 rounded-full bg-primary-fixed text-on-primary-fixed font-caption-medium text-caption-medium font-semibold">
+            24 Total Restores
+          </span>
+<span class="flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-surface-container-high text-on-surface-variant font-code-sm text-code-sm">
+<span class="w-1.5 h-1.5 rounded-full bg-secondary-container"></span>
+            DR Drill Mode: Active
+          </span>
+</div>
+<p class="font-body-default text-body-default text-on-surface-variant max-w-3xl">
+          Orchestrate, monitor, and audit live point-in-time database recoveries, filesystem restores, and automated disaster recovery drills with cryptographic chain-of-custody verification.
+        </p>
+</div>
+<!-- Action Group -->
+<div class="flex items-center gap-2.5">
+<button class="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-surface-container-lowest text-on-surface shadow-sm hover:bg-surface-container transition-colors font-label-primary text-label-primary" type="button">
+<span class="material-symbols-outlined text-[18px] text-on-surface-variant">file_download</span>
+<span>Export Audit Log</span>
+</button>
+<button class="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-surface-container-lowest text-on-surface shadow-sm hover:bg-surface-container transition-colors font-label-primary text-label-primary" type="button">
+<span class="material-symbols-outlined text-[18px] text-tertiary">calendar_clock</span>
+<span>Automated DR Drill Schedule</span>
+</button>
+<a class="flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg bg-primary-container text-on-primary shadow-sm hover:bg-primary transition-all font-label-primary text-label-primary font-medium" href="#new-restore">
+<span class="material-symbols-outlined text-[18px]">add</span>
+<span>New Restore</span>
+</a>
+</div>
+</div>
+</div>
+<!-- Metric Summary Strip (4 KPI Cards) -->
+<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+<!-- Card 1: Active Restores -->
+<div class="bg-surface-container-lowest rounded-xl p-4 shadow-sm relative overflow-hidden flex flex-col justify-between">
+<div class="flex items-center justify-between mb-2">
+<span class="font-section-header text-section-header text-on-surface-variant uppercase tracking-wider">Active Restores</span>
+<span class="relative flex h-2.5 w-2.5">
+<span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-primary opacity-75"></span>
+<span class="relative inline-flex rounded-full h-2.5 w-2.5 bg-primary"></span>
+</span>
+</div>
+<div class="flex items-baseline gap-2 mb-1">
+<span class="font-title-lg text-[28px] leading-tight font-bold text-on-surface">2 Streaming</span>
+<span class="px-1.5 py-0.5 rounded bg-primary-fixed/60 text-primary font-code-sm text-code-sm font-medium">94 MB/s avg</span>
+</div>
+<div class="flex items-center justify-between text-on-surface-variant font-caption-muted text-caption-muted">
+<span>1 SQL Server • 1 Filesystem</span>
+<span class="text-primary font-medium flex items-center gap-0.5">Live I/O <span class="material-symbols-outlined text-[14px]">speed</span></span>
+</div>
+</div>
+<!-- Card 2: Completed 30d -->
+<div class="bg-surface-container-lowest rounded-xl p-4 shadow-sm flex flex-col justify-between">
+<div class="flex items-center justify-between mb-2">
+<span class="font-section-header text-section-header text-on-surface-variant uppercase tracking-wider">Completed (30d)</span>
+<span class="material-symbols-outlined text-secondary text-[20px]">check_circle</span>
+</div>
+<div class="flex items-baseline gap-2 mb-1">
+<span class="font-title-lg text-[28px] leading-tight font-bold text-on-surface">21 Succeeded</span>
+<span class="flex items-center text-secondary font-label-primary text-label-primary">
+<span class="material-symbols-outlined text-[16px]">trending_up</span> 95.4%
+        </span>
+</div>
+<div class="flex items-center justify-between text-on-surface-variant font-caption-muted text-caption-muted">
+<span>Drill compliance rate</span>
+<span class="font-code-sm text-code-sm text-on-surface font-medium">100% SHA-256 match</span>
+</div>
+</div>
+<!-- Card 3: Failed / Aborted -->
+<div class="bg-surface-container-lowest rounded-xl p-4 shadow-sm flex flex-col justify-between">
+<div class="flex items-center justify-between mb-2">
+<span class="font-section-header text-section-header text-on-surface-variant uppercase tracking-wider">Failed / Aborted</span>
+<span class="material-symbols-outlined text-error text-[20px]">error</span>
+</div>
+<div class="flex items-baseline gap-2 mb-1">
+<span class="font-title-lg text-[28px] leading-tight font-bold text-error">1 Failed</span>
+<span class="px-1.5 py-0.5 rounded bg-error-container text-on-error-container font-caption-medium text-caption-medium">Resolved</span>
+</div>
+<div class="text-on-surface-variant font-caption-muted text-caption-muted truncate">
+        Disk quota exceeded on <span class="font-code-sm text-code-sm text-on-surface">WIN-APP-04</span>
+</div>
+</div>
+<!-- Card 4: Target Readiness -->
+<div class="bg-surface-container-lowest rounded-xl p-4 shadow-sm flex flex-col justify-between">
+<div class="flex items-center justify-between mb-2">
+<span class="font-section-header text-section-header text-on-surface-variant uppercase tracking-wider">Target Readiness</span>
+<span class="material-symbols-outlined text-tertiary text-[20px]">dns</span>
+</div>
+<div class="flex items-baseline gap-2 mb-1">
+<span class="font-title-lg text-[28px] leading-tight font-bold text-on-surface">9 / 9 Hosts Ready</span>
+<span class="text-secondary font-caption-medium text-caption-medium font-semibold">100% VSS</span>
+</div>
+<div class="flex items-center justify-between text-on-surface-variant font-caption-muted text-caption-muted">
+<span>Staged headroom capacity</span>
+<span class="font-code-sm text-code-sm text-on-surface font-bold">1.4 TB free</span>
+</div>
+</div>
+</div>
+<!-- Live In-Flight Restoration Banner / Focused Card -->
+<div class="bg-surface-container-lowest rounded-xl p-5 shadow-sm mb-6 relative overflow-hidden">
+<div class="absolute top-0 left-0 bottom-0 w-1.5 bg-primary-container"></div>
+<div class="flex flex-col lg:flex-row lg:items-center justify-between gap-4 pb-4">
+<div class="flex items-start gap-3">
+<div class="w-10 h-10 rounded-lg bg-primary-fixed flex items-center justify-center text-primary shrink-0 mt-0.5">
+<span class="material-symbols-outlined text-[22px]">cycle</span>
+</div>
+<div class="flex flex-col">
+<div class="flex items-center gap-2.5 flex-wrap">
+<span class="font-code-default text-code-default font-bold text-on-surface">ERP_FinMaster_RESTORE_DRILL_202502</span>
+<span class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-primary/10 text-primary font-caption-medium text-caption-medium font-semibold">
+<span class="w-1.5 h-1.5 rounded-full bg-primary animate-ping"></span>
+              STREAMING CHUNKS (64%)
+            </span>
+<span class="px-2 py-0.5 rounded bg-surface-container text-on-surface-variant font-caption-medium text-caption-medium">Automated Monthly DR Test</span>
+</div>
+<div class="flex items-center gap-4 text-on-surface-variant font-caption-muted text-caption-muted mt-1 flex-wrap">
+<span class="flex items-center gap-1">
+<span class="material-symbols-outlined text-[15px] text-outline">history</span>
+              Source: <strong class="text-on-surface font-body-medium">Daily ERP SQL Cluster</strong>
+<code class="font-code-sm text-code-sm text-primary ml-1 bg-surface-container-high px-1 rounded">#RUN-884219 (Today 02:40 UTC)</code>
+</span>
+<span>→</span>
+<span class="flex items-center gap-1">
+<span class="material-symbols-outlined text-[15px] text-outline">dvr</span>
+              Target: <code class="font-code-sm text-code-sm text-on-surface bg-surface-container-high px-1 rounded">WIN-SRV-DR02 (MSSQLSERVER/LiveProduction)</code>
+</span>
+</div>
+</div>
+</div>
+<!-- Actions -->
+<div class="flex items-center gap-2 self-start lg:self-center shrink-0">
+<button class="px-3 py-1.5 rounded-lg bg-surface-container text-on-surface font-label-primary text-label-primary hover:bg-surface-variant transition-colors flex items-center gap-1.5" type="button">
+<span class="material-symbols-outlined text-[16px] text-primary">analytics</span>
+<span>View Telemetry</span>
+</button>
+<button class="px-3 py-1.5 rounded-lg bg-error-container/40 text-error font-label-primary text-label-primary hover:bg-error-container transition-colors flex items-center gap-1.5" type="button">
+<span class="material-symbols-outlined text-[16px]">cancel</span>
+<span>Abort Restore</span>
+</button>
+</div>
+</div>
+<!-- Live Progress Bar & Telemetry Metrics -->
+<div class="grid grid-cols-1 lg:grid-cols-12 gap-4 pt-4 bg-surface-container-low p-3.5 rounded-lg">
+<div class="lg:col-span-8 flex flex-col justify-center">
+<div class="flex justify-between items-center mb-1.5 font-label-primary text-label-primary">
+<div class="flex items-center gap-2">
+<span class="font-semibold text-on-surface">Data Ingestion: 2.2 GB / 3.4 GB</span>
+<span class="text-on-surface-variant font-caption-muted text-caption-muted">(Synthetic Full + 18 Log Slices)</span>
+</div>
+<div class="flex items-center gap-3 font-code-sm text-code-sm">
+<span class="text-secondary font-medium">92.4 MB/s</span>
+<span class="text-on-surface-variant font-body-default text-body-default">|</span>
+<span class="text-on-surface font-semibold">1m 18s remaining</span>
+</div>
+</div>
+<div class="w-full h-2.5 rounded-full bg-surface-container-highest overflow-hidden">
+<div class="h-full bg-primary-container rounded-full transition-all duration-300 relative" style="width: 64%">
+<div class="absolute inset-0 bg-white/20 animate-[shimmer_2s_infinite]"></div>
+</div>
+</div>
+</div>
+<!-- Miniature Restoration Stage Stepper -->
+<div class="lg:col-span-4 flex items-center justify-between text-caption-muted font-caption-muted pl-0 lg:pl-3">
+<div class="flex flex-col items-center text-center">
+<span class="w-5 h-5 rounded-full bg-secondary text-on-secondary flex items-center justify-center font-code-sm text-[11px] mb-1">
+<span class="material-symbols-outlined text-[13px]">check</span>
+</span>
+<span class="text-on-surface font-medium">VSS Init</span>
+</div>
+<div class="h-0.5 w-6 bg-secondary mb-3"></div>
+<div class="flex flex-col items-center text-center">
+<span class="w-5 h-5 rounded-full bg-primary text-on-primary flex items-center justify-center font-code-sm text-[11px] font-bold mb-1 shadow-sm">
+            2
+          </span>
+<span class="text-primary font-bold">Stream</span>
+</div>
+<div class="h-0.5 w-6 bg-surface-container-highest mb-3"></div>
+<div class="flex flex-col items-center text-center">
+<span class="w-5 h-5 rounded-full bg-surface-container-highest text-on-surface-variant flex items-center justify-center font-code-sm text-[11px] mb-1">
+            3
+          </span>
+<span>SHA-256</span>
+</div>
+<div class="h-0.5 w-6 bg-surface-container-highest mb-3"></div>
+<div class="flex flex-col items-center text-center">
+<span class="w-5 h-5 rounded-full bg-surface-container-highest text-on-surface-variant flex items-center justify-center font-code-sm text-[11px] mb-1">
+            4
+          </span>
+<span>DB Attach</span>
+</div>
+</div>
+</div>
+</div>
+<!-- Search and Multi-Dimensional Filter Bar -->
+<div class="bg-surface-container-lowest rounded-xl p-4 shadow-sm mb-4 flex flex-col gap-3">
+<!-- Top Row: Quick Tabs & Search -->
+<div class="flex flex-col lg:flex-row items-stretch lg:items-center justify-between gap-3">
+<!-- Filter Segmented Tabs -->
+<div class="flex items-center gap-1 p-1 bg-surface-container-low rounded-lg overflow-x-auto">
+<button class="px-3 py-1 rounded-md bg-surface-container-lowest font-label-primary text-label-primary font-semibold text-primary shadow-sm whitespace-nowrap" type="button">
+          All Restores (24)
+        </button>
+<button class="px-3 py-1 rounded-md text-on-surface-variant hover:text-on-surface font-label-primary text-label-primary whitespace-nowrap transition-colors flex items-center gap-1.5" type="button">
+<span class="w-2 h-2 rounded-full bg-primary animate-pulse"></span>
+          Active (2)
+        </button>
+<button class="px-3 py-1 rounded-md text-on-surface-variant hover:text-on-surface font-label-primary text-label-primary whitespace-nowrap transition-colors" type="button">
+          Completed (21)
+        </button>
+<button class="px-3 py-1 rounded-md text-on-surface-variant hover:text-on-surface font-label-primary text-label-primary whitespace-nowrap transition-colors" type="button">
+          Failed (1)
+        </button>
+<button class="px-3 py-1 rounded-md text-on-surface-variant hover:text-on-surface font-label-primary text-label-primary whitespace-nowrap transition-colors" type="button">
+          Automated Drills (14)
+        </button>
+</div>
+<!-- Omnisearch Input -->
+<div class="relative w-full lg:w-80">
+<span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-on-surface-variant text-[18px]">search</span>
+<input class="w-full h-9 pl-9 pr-12 rounded-lg bg-surface-container-low text-on-surface placeholder:text-outline font-body-default text-body-default focus:bg-surface-container-lowest focus:outline-none transition-all" placeholder="Filter by ID, target host, agent, run..." type="text"/>
+<span class="absolute right-2.5 top-1/2 -translate-y-1/2 px-1.5 py-0.5 rounded bg-surface-container text-on-surface-variant font-code-sm text-[10px]">⌘K</span>
+</div>
+</div>
+<!-- Bottom Row: Dimensional Selectors & Range -->
+<div class="flex items-center justify-between gap-3 pt-2 flex-wrap">
+<div class="flex items-center gap-2 flex-wrap">
+<!-- Agent Dropdown -->
+<div class="relative inline-flex items-center">
+<select class="appearance-none h-8 pl-3 pr-8 rounded-lg bg-surface-container-low text-on-surface font-label-primary text-label-primary hover:bg-surface-container cursor-pointer focus:outline-none">
+<option>Target Agent: All Hosts (9)</option>
+<option>WIN-SRV-DR02 (Standby DR)</option>
+<option>WIN-SRV-SQL01 (Live Cluster)</option>
+<option>WIN-STAGE-01 (Sandbox)</option>
+<option>WIN-APP-04 (Legacy App)</option>
+<option>WIN-DC-01 (Domain Controller)</option>
+</select>
+<span class="material-symbols-outlined absolute right-2 text-on-surface-variant pointer-events-none text-[18px]">expand_more</span>
+</div>
+<!-- Workload Type Dropdown -->
+<div class="relative inline-flex items-center">
+<select class="appearance-none h-8 pl-3 pr-8 rounded-lg bg-surface-container-low text-on-surface font-label-primary text-label-primary hover:bg-surface-container cursor-pointer focus:outline-none">
+<option>Workload: All Types</option>
+<option>Microsoft SQL Server</option>
+<option>Windows Filesystem / VSS</option>
+<option>Legacy DBF / Visual FoxPro</option>
+<option>Active Directory Sysvol</option>
+</select>
+<span class="material-symbols-outlined absolute right-2 text-on-surface-variant pointer-events-none text-[18px]">expand_more</span>
+</div>
+<!-- Mode Dropdown -->
+<div class="relative inline-flex items-center">
+<select class="appearance-none h-8 pl-3 pr-8 rounded-lg bg-surface-container-low text-on-surface font-label-primary text-label-primary hover:bg-surface-container cursor-pointer focus:outline-none">
+<option>Mode: All Strategies</option>
+<option>Side-by-Side Alternate Target</option>
+<option>In-Place Overwrite (Caution)</option>
+<option>Air-Gapped Sandbox Drill</option>
+</select>
+<span class="material-symbols-outlined absolute right-2 text-on-surface-variant pointer-events-none text-[18px]">expand_more</span>
+</div>
+<button class="h-8 px-2.5 rounded-lg text-on-surface-variant hover:text-on-surface hover:bg-surface-container font-label-primary text-label-primary flex items-center gap-1 transition-colors" type="button">
+<span class="material-symbols-outlined text-[16px]">filter_alt_off</span>
+<span>Clear Filters</span>
+</button>
+</div>
+<!-- Date Range Selector -->
+<div class="flex items-center gap-2">
+<span class="font-caption-muted text-caption-muted text-on-surface-variant">Timeframe:</span>
+<button class="h-8 px-3 rounded-lg bg-surface-container-low text-on-surface font-label-primary text-label-primary hover:bg-surface-container transition-colors flex items-center gap-1.5" type="button">
+<span class="material-symbols-outlined text-[16px] text-primary">calendar_today</span>
+<span>Last 30 Days</span>
+<span class="material-symbols-outlined text-[16px] text-on-surface-variant">expand_more</span>
+</button>
+</div>
+</div>
+</div>
+<!-- Master Restores Overview Table -->
+<div class="bg-surface-container-lowest rounded-xl shadow-sm overflow-hidden mb-4">
+<div class="overflow-x-auto">
+<table class="w-full text-left border-collapse">
+<thead>
+<tr class="bg-surface-container-low text-on-surface-variant font-caption-medium text-caption-medium uppercase tracking-wider">
+<th class="py-2.5 px-4 font-semibold">Status</th>
+<th class="py-2.5 px-4 font-semibold">Restore Execution</th>
+<th class="py-2.5 px-4 font-semibold">Recovery Point</th>
+<th class="py-2.5 px-4 font-semibold">Destination Target &amp; Agent</th>
+<th class="py-2.5 px-4 font-semibold">Transferred / Size</th>
+<th class="py-2.5 px-4 font-semibold">Duration / Speed</th>
+<th class="py-2.5 px-4 font-semibold">Verification &amp; Audit</th>
+<th class="py-2.5 px-4 font-semibold">Operator &amp; Trigger</th>
+<th class="py-2.5 px-4 font-semibold text-right">Actions</th>
+</tr>
+</thead>
+<tbody class="divide-y divide-surface-container font-body-default text-body-default text-on-surface">
+<!-- Row 1: Running (SQL Drill) -->
+<tr class="hover:bg-surface-container-low transition-colors group">
+<td class="py-3 px-4 whitespace-nowrap">
+<span class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-primary-fixed text-primary font-caption-medium text-caption-medium font-semibold">
+<span class="w-1.5 h-1.5 rounded-full bg-primary animate-ping"></span>
+                RUNNING
+              </span>
+</td>
+<td class="py-3 px-4">
+<div class="flex flex-col">
+<span class="font-body-medium text-body-medium font-semibold text-on-surface">Daily ERP SQL Cluster</span>
+<span class="font-code-sm text-code-sm text-on-surface-variant font-medium">#REST-9042</span>
+</div>
+</td>
+<td class="py-3 px-4 whitespace-nowrap">
+<div class="flex flex-col">
+<span class="font-body-default text-body-default text-on-surface">Today, 02:40 UTC</span>
+<span class="font-code-sm text-code-sm text-primary">#RUN-884219</span>
+</div>
+</td>
+<td class="py-3 px-4">
+<div class="flex flex-col">
+<div class="flex items-center gap-1">
+<span class="font-body-medium text-body-medium text-on-surface">WIN-SRV-DR02</span>
+<span class="px-1.5 py-0.2 rounded bg-surface-container-high text-on-surface-variant font-caption-muted text-[10px]">Alternate Target</span>
+</div>
+<span class="font-code-sm text-code-sm text-on-surface-variant truncate max-w-xs">MSSQLSERVER\ERP_FinMaster_RESTORE_DRILL</span>
+</div>
+</td>
+<td class="py-3 px-4 whitespace-nowrap">
+<div class="flex flex-col">
+<span class="font-code-sm text-code-sm text-on-surface font-semibold">2.2 GB / 3.4 GB</span>
+<div class="w-24 h-1.5 rounded-full bg-surface-container mt-1 overflow-hidden">
+<div class="h-full bg-primary-container rounded-full" style="width: 64%"></div>
+</div>
+</div>
+</td>
+<td class="py-3 px-4 whitespace-nowrap">
+<div class="flex flex-col">
+<span class="font-code-sm text-code-sm text-on-surface">1m 45s (In-flight)</span>
+<span class="font-caption-muted text-caption-muted text-secondary font-medium">~92.4 MB/s</span>
+</div>
+</td>
+<td class="py-3 px-4 whitespace-nowrap">
+<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-primary-fixed/60 text-primary font-caption-medium text-caption-medium">
+<span class="material-symbols-outlined text-[13px] animate-spin">refresh</span>
+                SHA-256 On-the-fly
+              </span>
+</td>
+<td class="py-3 px-4 whitespace-nowrap">
+<div class="flex flex-col">
+<span class="font-body-medium text-body-medium font-medium text-on-surface">J. Chen</span>
+<span class="font-caption-muted text-caption-muted text-on-surface-variant">Scheduled DR Drill</span>
+</div>
+</td>
+<td class="py-3 px-4 text-right whitespace-nowrap">
+<div class="flex items-center justify-end gap-1.5">
+<button class="px-2.5 py-1 rounded bg-surface-container text-primary hover:bg-surface-variant font-label-primary text-label-primary transition-colors" type="button">
+                  Live Logs
+                </button>
+<button class="p-1 rounded text-on-surface-variant hover:text-on-surface hover:bg-surface-container transition-colors" type="button">
+<span class="material-symbols-outlined text-[18px]">more_vert</span>
+</button>
+</div>
+</td>
+</tr>
+<!-- Row 2: Running (File Share) -->
+<tr class="hover:bg-surface-container-low transition-colors group">
+<td class="py-3 px-4 whitespace-nowrap">
+<span class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-primary-fixed text-primary font-caption-medium text-caption-medium font-semibold">
+<span class="w-1.5 h-1.5 rounded-full bg-primary animate-ping"></span>
+                RUNNING
+              </span>
+</td>
+<td class="py-3 px-4">
+<div class="flex flex-col">
+<span class="font-body-medium text-body-medium font-semibold text-on-surface">Main Office File Shares</span>
+<span class="font-code-sm text-code-sm text-on-surface-variant font-medium">#REST-9041</span>
+</div>
+</td>
+<td class="py-3 px-4 whitespace-nowrap">
+<div class="flex flex-col">
+<span class="font-body-default text-body-default text-on-surface">Today, 01:00 UTC</span>
+<span class="font-code-sm text-code-sm text-primary">#RUN-884180</span>
+</div>
+</td>
+<td class="py-3 px-4">
+<div class="flex flex-col">
+<div class="flex items-center gap-1">
+<span class="font-body-medium text-body-medium text-on-surface">WIN-STAGE-01</span>
+<span class="px-1.5 py-0.2 rounded bg-surface-container-high text-on-surface-variant font-caption-muted text-[10px]">Air-Gapped Sandbox</span>
+</div>
+<span class="font-code-sm text-code-sm text-on-surface-variant truncate max-w-xs">D:\RestoreStaging\CorpData</span>
+</div>
+</td>
+<td class="py-3 px-4 whitespace-nowrap">
+<div class="flex flex-col">
+<span class="font-code-sm text-code-sm text-on-surface font-semibold">14.8 GB / 18.5 GB</span>
+<div class="w-24 h-1.5 rounded-full bg-surface-container mt-1 overflow-hidden">
+<div class="h-full bg-primary-container rounded-full" style="width: 80%"></div>
+</div>
+</div>
+</td>
+<td class="py-3 px-4 whitespace-nowrap">
+<div class="flex flex-col">
+<span class="font-code-sm text-code-sm text-on-surface">4m 10s (In-flight)</span>
+<span class="font-caption-muted text-caption-muted text-secondary font-medium">~96.1 MB/s</span>
+</div>
+</td>
+<td class="py-3 px-4 whitespace-nowrap">
+<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-surface-container text-on-surface-variant font-caption-medium text-caption-medium">
+                Verified 42/50 chunks
+              </span>
+</td>
+<td class="py-3 px-4 whitespace-nowrap">
+<div class="flex flex-col">
+<span class="font-body-medium text-body-medium font-medium text-on-surface">DR Daemon</span>
+<span class="font-caption-muted text-caption-muted text-on-surface-variant">Automated Audit Run</span>
+</div>
+</td>
+<td class="py-3 px-4 text-right whitespace-nowrap">
+<div class="flex items-center justify-end gap-1.5">
+<button class="px-2.5 py-1 rounded bg-surface-container text-primary hover:bg-surface-variant font-label-primary text-label-primary transition-colors" type="button">
+                  Live Logs
+                </button>
+<button class="p-1 rounded text-on-surface-variant hover:text-on-surface hover:bg-surface-container transition-colors" type="button">
+<span class="material-symbols-outlined text-[18px]">more_vert</span>
+</button>
+</div>
+</td>
+</tr>
+<!-- Row 3: Completed (Customer Portal DB) -->
+<tr class="hover:bg-surface-container-low transition-colors group">
+<td class="py-3 px-4 whitespace-nowrap">
+<span class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-surface-container text-secondary font-caption-medium text-caption-medium font-semibold">
+<span class="material-symbols-outlined text-[14px]">check_circle</span>
+                COMPLETED
+              </span>
+</td>
+<td class="py-3 px-4">
+<div class="flex flex-col">
+<span class="font-body-medium text-body-medium font-semibold text-on-surface">Customer Portal DB</span>
+<span class="font-code-sm text-code-sm text-on-surface-variant font-medium">#REST-9038</span>
+</div>
+</td>
+<td class="py-3 px-4 whitespace-nowrap">
+<div class="flex flex-col">
+<span class="font-body-default text-body-default text-on-surface">Yesterday, 22:00 UTC</span>
+<span class="font-code-sm text-code-sm text-outline">#RUN-884102</span>
+</div>
+</td>
+<td class="py-3 px-4">
+<div class="flex flex-col">
+<div class="flex items-center gap-1">
+<span class="font-body-medium text-body-medium text-on-surface">WIN-SRV-SQL01</span>
+<span class="px-1.5 py-0.2 rounded bg-surface-container-high text-on-surface-variant font-caption-muted text-[10px]">Alternate DB</span>
+</div>
+<span class="font-code-sm text-code-sm text-on-surface-variant truncate max-w-xs">MSSQL\PortalDB_Encrypted_TDE</span>
+</div>
+</td>
+<td class="py-3 px-4 whitespace-nowrap">
+<div class="flex items-center gap-1.5">
+<span class="font-code-sm text-code-sm text-on-surface font-semibold">9.7 GB raw</span>
+<span class="px-1 rounded bg-secondary-fixed/50 text-secondary font-caption-muted text-[10px] font-bold">2.4x Dedup</span>
+</div>
+</td>
+<td class="py-3 px-4 whitespace-nowrap">
+<div class="flex flex-col">
+<span class="font-code-sm text-code-sm text-on-surface">2m 14s total</span>
+<span class="font-caption-muted text-caption-muted text-on-surface-variant">Avg 82 MB/s</span>
+</div>
+</td>
+<td class="py-3 px-4 whitespace-nowrap">
+<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-surface-container text-secondary font-caption-medium text-caption-medium font-medium">
+<span class="material-symbols-outlined text-[14px]">verified</span>
+                Verified (Passed)
+              </span>
+</td>
+<td class="py-3 px-4 whitespace-nowrap">
+<div class="flex flex-col">
+<span class="font-body-medium text-body-medium font-medium text-on-surface">S. Vance</span>
+<span class="font-caption-muted text-caption-muted text-on-surface-variant">Table Corruption Fix</span>
+</div>
+</td>
+<td class="py-3 px-4 text-right whitespace-nowrap">
+<div class="flex items-center justify-end gap-1.5">
+<button class="px-2.5 py-1 rounded bg-surface-container text-on-surface hover:bg-surface-variant font-label-primary text-label-primary transition-colors" type="button">
+                  Inspect Logs
+                </button>
+<button class="p-1 rounded text-on-surface-variant hover:text-on-surface hover:bg-surface-container transition-colors" type="button">
+<span class="material-symbols-outlined text-[18px]">more_vert</span>
+</button>
+</div>
+</td>
+</tr>
+<!-- Row 4: Completed (Legacy DBF) -->
+<tr class="hover:bg-surface-container-low transition-colors group">
+<td class="py-3 px-4 whitespace-nowrap">
+<span class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-surface-container text-secondary font-caption-medium text-caption-medium font-semibold">
+<span class="material-symbols-outlined text-[14px]">check_circle</span>
+                COMPLETED
+              </span>
+</td>
+<td class="py-3 px-4">
+<div class="flex flex-col">
+<span class="font-body-medium text-body-medium font-semibold text-on-surface">Legacy DBF Accounts Store</span>
+<span class="font-code-sm text-code-sm text-on-surface-variant font-medium">#REST-9035</span>
+</div>
+</td>
+<td class="py-3 px-4 whitespace-nowrap">
+<div class="flex flex-col">
+<span class="font-body-default text-body-default text-on-surface">Oct 22, 14:00 UTC</span>
+<span class="font-code-sm text-code-sm text-outline">#RUN-883950</span>
+</div>
+</td>
+<td class="py-3 px-4">
+<div class="flex flex-col">
+<div class="flex items-center gap-1">
+<span class="font-body-medium text-body-medium text-on-surface">WIN-APP-04</span>
+<span class="px-1.5 py-0.2 rounded bg-surface-container-high text-on-surface-variant font-caption-muted text-[10px]">Side-by-side</span>
+</div>
+<span class="font-code-sm text-code-sm text-on-surface-variant truncate max-w-xs">C:\LegacyApps\ACCOUNTS_RECOVERED</span>
+</div>
+</td>
+<td class="py-3 px-4 whitespace-nowrap">
+<div class="flex items-center gap-1.5">
+<span class="font-code-sm text-code-sm text-on-surface font-semibold">1.8 GB raw</span>
+</div>
+</td>
+<td class="py-3 px-4 whitespace-nowrap">
+<div class="flex flex-col">
+<span class="font-code-sm text-code-sm text-on-surface">1m 02s total</span>
+<span class="font-caption-muted text-caption-muted text-on-surface-variant">Avg 45 MB/s</span>
+</div>
+</td>
+<td class="py-3 px-4 whitespace-nowrap">
+<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-surface-container text-secondary font-caption-medium text-caption-medium font-medium">
+<span class="material-symbols-outlined text-[14px]">verified</span>
+                Verified (Passed)
+              </span>
+</td>
+<td class="py-3 px-4 whitespace-nowrap">
+<div class="flex flex-col">
+<span class="font-body-medium text-body-medium font-medium text-on-surface">DR Daemon</span>
+<span class="font-caption-muted text-caption-muted text-on-surface-variant">Quarterly Drill</span>
+</div>
+</td>
+<td class="py-3 px-4 text-right whitespace-nowrap">
+<div class="flex items-center justify-end gap-1.5">
+<button class="px-2.5 py-1 rounded bg-surface-container text-on-surface hover:bg-surface-variant font-label-primary text-label-primary transition-colors" type="button">
+                  Inspect Logs
+                </button>
+<button class="p-1 rounded text-on-surface-variant hover:text-on-surface hover:bg-surface-container transition-colors" type="button">
+<span class="material-symbols-outlined text-[18px]">more_vert</span>
+</button>
+</div>
+</td>
+</tr>
+<!-- Row 5: Failed (Disk Quota) -->
+<tr class="hover:bg-surface-container-low transition-colors group bg-error-container/10">
+<td class="py-3 px-4 whitespace-nowrap">
+<span class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-error-container text-error font-caption-medium text-caption-medium font-semibold">
+<span class="material-symbols-outlined text-[14px]">error</span>
+                FAILED
+              </span>
+</td>
+<td class="py-3 px-4">
+<div class="flex flex-col">
+<span class="font-body-medium text-body-medium font-semibold text-on-surface">Offsite Archival Dump</span>
+<span class="font-code-sm text-code-sm text-on-surface-variant font-medium">#REST-9031</span>
+</div>
+</td>
+<td class="py-3 px-4 whitespace-nowrap">
+<div class="flex flex-col">
+<span class="font-body-default text-body-default text-on-surface">Oct 21, 04:12 UTC</span>
+<span class="font-code-sm text-code-sm text-outline">#RUN-883800</span>
+</div>
+</td>
+<td class="py-3 px-4">
+<div class="flex flex-col">
+<div class="flex items-center gap-1">
+<span class="font-body-medium text-body-medium text-on-surface">WIN-BCK-03</span>
+<span class="px-1.5 py-0.2 rounded bg-surface-container-high text-on-surface-variant font-caption-muted text-[10px]">Staging Vol</span>
+</div>
+<span class="font-code-sm text-code-sm text-on-surface-variant truncate max-w-xs">E:\ColdVault\StagedUnpack</span>
+</div>
+</td>
+<td class="py-3 px-4 whitespace-nowrap">
+<span class="font-code-sm text-code-sm text-error font-semibold">0.8 GB / 12.4 GB</span>
+</td>
+<td class="py-3 px-4 whitespace-nowrap">
+<div class="flex flex-col">
+<span class="font-code-sm text-code-sm text-error font-semibold">58s (Aborted)</span>
+<span class="font-caption-muted text-caption-muted text-on-surface-variant">I/O Error</span>
+</div>
+</td>
+<td class="py-3 px-4 whitespace-nowrap">
+<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-error-container text-on-error-container font-caption-medium text-caption-medium font-medium">
+<span class="material-symbols-outlined text-[14px]">disc_full</span>
+                Target Disk Full (100%)
+              </span>
+</td>
+<td class="py-3 px-4 whitespace-nowrap">
+<div class="flex flex-col">
+<span class="font-body-medium text-body-medium font-medium text-on-surface">J. Chen</span>
+<span class="font-caption-muted text-caption-muted text-on-surface-variant">Manual Recovery</span>
+</div>
+</td>
+<td class="py-3 px-4 text-right whitespace-nowrap">
+<div class="flex items-center justify-end gap-1.5">
+<button class="px-2.5 py-1 rounded bg-error-container/60 text-error hover:bg-error-container font-label-primary text-label-primary transition-colors" type="button">
+                  View Error
+                </button>
+<button class="p-1 rounded text-on-surface-variant hover:text-on-surface hover:bg-surface-container transition-colors" type="button">
+<span class="material-symbols-outlined text-[18px]">more_vert</span>
+</button>
+</div>
+</td>
+</tr>
+<!-- Row 6: Completed (AD Sysvol) -->
+<tr class="hover:bg-surface-container-low transition-colors group">
+<td class="py-3 px-4 whitespace-nowrap">
+<span class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-surface-container text-secondary font-caption-medium text-caption-medium font-semibold">
+<span class="material-symbols-outlined text-[14px]">check_circle</span>
+                COMPLETED
+              </span>
+</td>
+<td class="py-3 px-4">
+<div class="flex flex-col">
+<span class="font-body-medium text-body-medium font-semibold text-on-surface">Domain Controller Sysvol &amp; AD</span>
+<span class="font-code-sm text-code-sm text-on-surface-variant font-medium">#REST-9029</span>
+</div>
+</td>
+<td class="py-3 px-4 whitespace-nowrap">
+<div class="flex flex-col">
+<span class="font-body-default text-body-default text-on-surface">Oct 20, 00:30 UTC</span>
+<span class="font-code-sm text-code-sm text-outline">#RUN-883710</span>
+</div>
+</td>
+<td class="py-3 px-4">
+<div class="flex flex-col">
+<div class="flex items-center gap-1">
+<span class="font-body-medium text-body-medium text-on-surface">WIN-DC-01</span>
+<span class="px-1.5 py-0.2 rounded bg-surface-container-high text-on-surface-variant font-caption-muted text-[10px]">Bare-Metal Stage</span>
+</div>
+<span class="font-code-sm text-code-sm text-on-surface-variant truncate max-w-xs">SystemState\ActiveDirectory\NTDS</span>
+</div>
+</td>
+<td class="py-3 px-4 whitespace-nowrap">
+<span class="font-code-sm text-code-sm text-on-surface font-semibold">840 MB raw</span>
+</td>
+<td class="py-3 px-4 whitespace-nowrap">
+<div class="flex flex-col">
+<span class="font-code-sm text-code-sm text-on-surface">48s total</span>
+<span class="font-caption-muted text-caption-muted text-on-surface-variant">Avg 92 MB/s</span>
+</div>
+</td>
+<td class="py-3 px-4 whitespace-nowrap">
+<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-surface-container text-secondary font-caption-medium text-caption-medium font-medium">
+<span class="material-symbols-outlined text-[14px]">verified</span>
+                Verified (Passed)
+              </span>
+</td>
+<td class="py-3 px-4 whitespace-nowrap">
+<div class="flex flex-col">
+<span class="font-body-medium text-body-medium font-medium text-on-surface">DR Daemon</span>
+<span class="font-caption-muted text-caption-muted text-on-surface-variant">Scheduled DR Drill</span>
+</div>
+</td>
+<td class="py-3 px-4 text-right whitespace-nowrap">
+<div class="flex items-center justify-end gap-1.5">
+<button class="px-2.5 py-1 rounded bg-surface-container text-on-surface hover:bg-surface-variant font-label-primary text-label-primary transition-colors" type="button">
+                  Inspect Logs
+                </button>
+<button class="p-1 rounded text-on-surface-variant hover:text-on-surface hover:bg-surface-container transition-colors" type="button">
+<span class="material-symbols-outlined text-[18px]">more_vert</span>
+</button>
+</div>
+</td>
+</tr>
+</tbody>
+</table>
+</div>
+<!-- Pagination Strip -->
+<div class="flex flex-col sm:flex-row items-center justify-between px-4 py-3 bg-surface-container-low gap-3">
+<div class="flex items-center gap-3">
+<span class="font-caption-muted text-caption-muted text-on-surface-variant">
+          Showing <strong class="text-on-surface font-body-medium">1 - 6</strong> of <strong class="text-on-surface font-body-medium">24</strong> total restore runs
+        </span>
+<div class="flex items-center gap-1.5 text-caption-muted font-caption-muted text-on-surface-variant">
+<span>Rows:</span>
+<select class="h-6 px-1.5 rounded bg-surface-container-lowest text-on-surface font-code-sm text-code-sm focus:outline-none">
+<option>10</option>
+<option>25</option>
+<option>50</option>
+</select>
+</div>
+</div>
+<div class="flex items-center gap-1 font-label-primary text-label-primary">
+<button class="px-2 py-1 rounded bg-surface-container-lowest text-outline hover:text-on-surface transition-colors flex items-center" disabled="" type="button">
+<span class="material-symbols-outlined text-[16px]">chevron_left</span>
+</button>
+<button class="w-7 h-7 rounded bg-primary-container text-on-primary font-bold text-center" type="button">1</button>
+<button class="w-7 h-7 rounded bg-surface-container-lowest text-on-surface hover:bg-surface-container text-center transition-colors" type="button">2</button>
+<button class="w-7 h-7 rounded bg-surface-container-lowest text-on-surface hover:bg-surface-container text-center transition-colors" type="button">3</button>
+<button class="px-2 py-1 rounded bg-surface-container-lowest text-on-surface hover:bg-surface-container transition-colors flex items-center" type="button">
+<span class="material-symbols-outlined text-[16px]">chevron_right</span>
+</button>
+</div>
+</div>
+</div>
+<!-- Regulatory Compliance & Integrity Notice -->
+<div class="flex items-center gap-3 px-4 py-3 rounded-lg bg-surface-container-low text-on-surface-variant text-caption-muted font-caption-muted">
+<span class="material-symbols-outlined text-[18px] text-secondary">verified_user</span>
+<p class="leading-relaxed">
+      All restore events, agent socket telemetry, and byte transmissions are cryptographically signed with ephemeral SHA-256 Merkle proofs and archived immutably in compliance with SOC2 Type II disaster recovery mandates and ISO/IEC 27040 storage security guidelines.
+    </p>
+</div>
+</div></main></body></html>

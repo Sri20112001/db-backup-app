@@ -1,0 +1,558 @@
+<!DOCTYPE html>
+
+<html lang="en"><head><meta charset="utf-8"/><meta content="width=device-width, initial-scale=1.0" name="viewport"/><meta content="web_dashboard" name="shell-type"/><link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200" rel="stylesheet"/><link href="https://fonts.googleapis.com" rel="preconnect"/><link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/><link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;family=JetBrains+Mono:wght@400;500&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/><style>@layer base{html,body{margin:0;padding:0;}body{overscroll-behavior:none;}main>:first-child{margin-top:0!important;}main>:last-child{margin-bottom:0!important;}}::-webkit-scrollbar{display:none;}</style><script src="https://cdn.tailwindcss.com"></script><script id="tailwind-config">tailwind.config={darkMode:"class",theme:{extend:{"colors":{"primary-container":"#2563eb","tertiary-fixed":"#e1e0ff","on-error":"#ffffff","secondary-fixed":"#c9e6ff","surface-tint":"#0053db","inverse-primary":"#b4c5ff","on-background":"#141b2b","secondary-container":"#39b8fd","outline":"#737686","tertiary-fixed-dim":"#c0c1ff","on-surface":"#141b2b","on-surface-variant":"#434655","primary-fixed":"#dbe1ff","on-primary":"#ffffff","surface-dim":"#d3daef","surface":"#f9f9ff","surface-container-low":"#f1f3ff","on-secondary-fixed":"#001e2f","on-primary-fixed":"#00174b","surface-container-lowest":"#ffffff","outline-variant":"#c3c6d7","surface-container-highest":"#dce2f7","surface-bright":"#f9f9ff","error":"#ba1a1a","tertiary":"#3e3fcc","on-tertiary-fixed-variant":"#2f2ebe","on-primary-fixed-variant":"#003ea8","on-secondary-fixed-variant":"#004c6e","secondary":"#006591","primary-fixed-dim":"#b4c5ff","on-tertiary":"#ffffff","inverse-on-surface":"#edf0ff","on-secondary-container":"#004666","error-container":"#ffdad6","surface-container":"#e9edff","on-tertiary-container":"#f1eeff","on-primary-container":"#eeefff","tertiary-container":"#585be6","on-tertiary-fixed":"#07006c","primary":"#004ac6","inverse-surface":"#293040","on-error-container":"#93000a","background":"#f9f9ff","surface-variant":"#dce2f7","on-secondary":"#ffffff","secondary-fixed-dim":"#89ceff","surface-container-high":"#e1e8fd"},"borderRadius":{"DEFAULT":"0.125rem","lg":"0.25rem","xl":"0.5rem","full":"0.75rem"},"spacing":{"space-xs":"0.25rem","space-sm":"0.5rem","space-lg":"1rem","gutter":"1rem","space-xl":"1.5rem","space-md":"0.75rem","margin":"1.5rem"},"fontFamily":{"body-default":["Inter"],"caption-medium":["Inter"],"body-medium":["Inter"],"label-primary":["Inter"],"title-lg":["Inter"],"code-sm":["JetBrains Mono"],"section-header":["Inter"],"caption-muted":["Inter"],"code-default":["JetBrains Mono"]},"fontSize":{"body-default":["14px",{"lineHeight":"20px","letterSpacing":"0em","fontWeight":"400"}],"caption-medium":["12px",{"lineHeight":"16px","letterSpacing":"0.01em","fontWeight":"500"}],"body-medium":["14px",{"lineHeight":"20px","letterSpacing":"0em","fontWeight":"500"}],"label-primary":["13px",{"lineHeight":"18px","letterSpacing":"-0.005em","fontWeight":"500"}],"title-lg":["20px",{"lineHeight":"28px","letterSpacing":"-0.015em","fontWeight":"600"}],"code-sm":["12px",{"lineHeight":"16px","letterSpacing":"0em","fontWeight":"500"}],"section-header":["14px",{"lineHeight":"20px","letterSpacing":"0.04em","fontWeight":"600"}],"caption-muted":["12px",{"lineHeight":"16px","letterSpacing":"0em","fontWeight":"400"}],"code-default":["13px",{"lineHeight":"18px","letterSpacing":"-0.01em","fontWeight":"400"}]}}}}</script></head><body class="bg-surface font-body-default text-body-default text-on-surface antialiased"><aside class="fixed left-4 top-1/2 -translate-y-1/2 w-14 bg-surface-container-lowest border border-outline-variant/40 rounded-xl shadow-[0_4px_16px_rgba(20,27,43,0.06)] z-50 flex flex-col items-center py-3 gap-2"><div class="flex items-center justify-center p-1 mb-1"><img alt="VaultGuard Shield Logo" class="w-8 h-8 object-contain" src="https://lh3.googleusercontent.com/aida/AEtjO1VSwzriI8Li162QkZ8VYiuIGtZGtAXLBcXBLYRK-nv1c9NYR2jIXfNigzT4UmcZcCBi8_liragDuXSGbBf1aJOXjjm5YmztZavPvb_KH7fu-SsLr08QTqIOJ46G3nNJikO0RmEmk9TMcaUs8UT28iK7PWHsmV0DnIOWH39e3nLBAWASAKM42HkA_dRewWrqUXt2sGOLSTQGNGGLNOVP_LzGBwetRh5jPgpCpJ-ykMuVewJxOjg0EEIZFZ58"/></div><nav class="flex flex-col items-center gap-1.5 w-full px-2" data-active-classes="bg-primary-container text-on-primary rounded-lg"><a class="relative group flex items-center justify-center w-10 h-10 rounded-lg text-on-surface-variant hover:bg-surface-container hover:text-on-surface transition-colors" data-path="system-overview" href="#" title="System Overview"><span class="material-symbols-outlined text-[20px]">shield</span><span class="absolute left-14 px-2 py-1 bg-inverse-surface text-inverse-on-surface font-caption-medium text-caption-medium rounded shadow-md opacity-0 pointer-events-none group-hover:opacity-100 transition-opacity z-50 whitespace-nowrap">System Overview</span></a><a class="relative group flex items-center justify-center w-10 h-10 rounded-lg text-on-surface-variant hover:bg-surface-container hover:text-on-surface transition-colors" data-path="backup-jobs" href="#" title="Backup Jobs"><span class="material-symbols-outlined text-[20px]">archive</span><span class="absolute left-14 px-2 py-1 bg-inverse-surface text-inverse-on-surface font-caption-medium text-caption-medium rounded shadow-md opacity-0 pointer-events-none group-hover:opacity-100 transition-opacity z-50 whitespace-nowrap">Backup Jobs</span></a><a class="relative group flex items-center justify-center w-10 h-10 rounded-lg text-on-surface-variant hover:bg-surface-container hover:text-on-surface transition-colors" data-path="history-and-runs" href="#" title="History &amp; All Runs"><span class="material-symbols-outlined text-[20px]">history</span><span class="absolute left-14 px-2 py-1 bg-inverse-surface text-inverse-on-surface font-caption-medium text-caption-medium rounded shadow-md opacity-0 pointer-events-none group-hover:opacity-100 transition-opacity z-50 whitespace-nowrap">History &amp; Runs</span></a><a aria-current="page" class="relative group flex items-center justify-center w-10 h-10 transition-colors bg-primary-container text-on-primary rounded-lg" data-path="restore-wizard" href="#" title="Restores &amp; Disaster Recovery"><span class="material-symbols-outlined text-[20px]">restore</span><span class="absolute left-14 px-2 py-1 bg-inverse-surface text-inverse-on-surface font-caption-medium text-caption-medium rounded shadow-md opacity-0 pointer-events-none group-hover:opacity-100 transition-opacity z-50 whitespace-nowrap">Restores</span></a><a class="relative group flex items-center justify-center w-10 h-10 rounded-lg text-on-surface-variant hover:bg-surface-container hover:text-on-surface transition-colors" data-path="infrastructure-nodes" href="#" title="Agents &amp; Infrastructure Nodes"><span class="material-symbols-outlined text-[20px]">dns</span><span class="absolute left-14 px-2 py-1 bg-inverse-surface text-inverse-on-surface font-caption-medium text-caption-medium rounded shadow-md opacity-0 pointer-events-none group-hover:opacity-100 transition-opacity z-50 whitespace-nowrap">Agents &amp; Nodes</span></a><a class="relative group flex items-center justify-center w-10 h-10 rounded-lg text-on-surface-variant hover:bg-surface-container hover:text-on-surface transition-colors" data-path="storage-vaults" href="#" title="Storage Clusters &amp; Vaults"><span class="material-symbols-outlined text-[20px]">database</span><span class="absolute left-14 px-2 py-1 bg-inverse-surface text-inverse-on-surface font-caption-medium text-caption-medium rounded shadow-md opacity-0 pointer-events-none group-hover:opacity-100 transition-opacity z-50 whitespace-nowrap">Storage Targets</span></a><a class="relative group flex items-center justify-center w-10 h-10 rounded-lg text-on-surface-variant hover:bg-surface-container hover:text-on-surface transition-colors" data-path="security-alerts" href="#" title="Incidents &amp; Alerts"><span class="material-symbols-outlined text-[20px]">notifications</span><span class="absolute top-1.5 right-1.5 w-2 h-2 rounded-full bg-error ring-2 ring-surface-container-lowest"></span><span class="absolute left-14 px-2 py-1 bg-inverse-surface text-inverse-on-surface font-caption-medium text-caption-medium rounded shadow-md opacity-0 pointer-events-none group-hover:opacity-100 transition-opacity z-50 whitespace-nowrap">Alerts (Active)</span></a></nav><div class="mt-auto pt-2 border-t border-outline-variant/40 w-full px-2"><a class="relative group flex items-center justify-center w-10 h-10 rounded-lg text-on-surface-variant hover:bg-surface-container hover:text-on-surface transition-colors" data-path="platform-settings" href="#" title="Configuration &amp; Settings"><span class="material-symbols-outlined text-[20px]">settings</span><span class="absolute left-14 px-2 py-1 bg-inverse-surface text-inverse-on-surface font-caption-medium text-caption-medium rounded shadow-md opacity-0 pointer-events-none group-hover:opacity-100 transition-opacity z-50 whitespace-nowrap">Settings</span></a></div></aside><div class="fixed top-4 right-6 z-40"><div class="flex items-center gap-3 px-3 py-1.5 bg-surface-container-lowest border border-outline-variant/40 rounded-full shadow-[0_2px_8px_rgba(20,27,43,0.05)] hover:border-outline transition-colors cursor-pointer"><div class="flex items-center gap-2"><span class="font-label-primary text-label-primary text-on-surface font-medium">Acme Logistics Corp</span><span class="px-1.5 py-0.5 rounded bg-primary/10 text-primary font-caption-medium text-caption-medium uppercase tracking-wider font-semibold">Admin</span></div><div class="h-4 w-[1px] bg-outline-variant/50"></div><img alt="Profile" class="w-7 h-7 rounded-full object-cover" src="https://lh3.googleusercontent.com/aida-public/AB6AXuAGdKylIV3b4ScRH7e3bU-qMRa45g8FK1K2_0Y4wPmPjrWDdghpW0LAp58DA_4MBM1URFqkMd2Zd8faudI2MHbXnFZLYB5kSjMBwpcZtKmxl_TpNa0PzgAkXkAsOpl8owInxBXdt0LJQ1S_9cTyBjioQg2dmR51F2Ki3SWAAmL1vfUqOdMChzEHRNHxKgflg7UfFyCRD5gDELmN997pHkwEaZZqfW7okHU-Vd63gCDAMJpKWq2fX3uKgQ"/><span class="material-symbols-outlined text-on-surface-variant text-[18px]">expand_more</span></div></div><main class="w-full min-h-screen bg-surface pl-24 pr-8 py-6"><div class="flex flex-col w-full">
+<!-- Breadcrumbs & Meta Sub-bar -->
+<div class="flex flex-wrap items-center justify-between gap-4 mb-3">
+<div class="flex items-center gap-2 text-on-surface-variant font-caption-medium text-caption-medium">
+<a class="hover:text-primary transition-colors flex items-center gap-1" href="#">
+<span class="material-symbols-outlined text-[16px]">shield</span>
+<span>VaultGuard Operations</span>
+</a>
+<span class="text-outline-variant">/</span>
+<a class="hover:text-primary transition-colors" href="#">Restores &amp; Disaster Recovery</a>
+<span class="text-outline-variant">/</span>
+<span class="text-on-surface font-medium">New Restore Wizard</span>
+</div>
+<div class="flex items-center gap-2">
+<div class="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-surface-container text-on-surface-variant font-code-sm text-code-sm">
+<span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+<span>ENGINE: ONLINE (TLSv1.3)</span>
+</div>
+<span class="text-outline-variant">•</span>
+<span class="font-code-sm text-code-sm text-on-surface-variant">SESSION: #WZD-99214-REC</span>
+</div>
+</div>
+<!-- Wizard Title & Top Level Triggers -->
+<div class="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6 pb-4 border-b border-surface-container-high">
+<div class="space-y-1">
+<div class="flex items-center gap-3">
+<h1 class="font-title-lg text-title-lg text-on-surface font-bold tracking-tight">Restore from Recovery Point</h1>
+<span class="px-2 py-0.5 rounded-full bg-primary/10 text-primary font-caption-medium text-caption-medium font-semibold uppercase tracking-wider">Guided Recovery Mode</span>
+</div>
+<p class="font-body-default text-body-default text-on-surface-variant max-w-3xl">
+        Select an immutable backup snapshot, configure target host and directory mapping, and initiate verified recovery drill.
+      </p>
+</div>
+<div class="flex items-center gap-2.5 shrink-0">
+<button class="px-3.5 py-2 rounded-lg bg-surface-container-low hover:bg-surface-container text-on-surface-variant hover:text-on-surface font-label-primary text-label-primary transition-colors flex items-center gap-1.5 shadow-sm">
+<span class="material-symbols-outlined text-[18px]">close</span>
+<span>Cancel &amp; Exit</span>
+</button>
+<button class="px-3.5 py-2 rounded-lg bg-surface-container-lowest hover:bg-surface-container-low text-on-surface font-label-primary text-label-primary transition-colors flex items-center gap-1.5 shadow-sm">
+<span class="material-symbols-outlined text-[18px]">bookmark</span>
+<span>Save Draft</span>
+</button>
+</div>
+</div>
+<!-- 3-Step Guided Progress Stepper -->
+<div class="bg-surface-container-lowest rounded-xl p-4 shadow-sm mb-6">
+<div class="grid grid-cols-1 md:grid-cols-3 gap-3">
+<!-- Step 1 (Completed) -->
+<div class="flex items-center gap-3 p-2.5 rounded-lg bg-surface-container-low/60 transition-all">
+<div class="w-8 h-8 rounded-lg bg-primary-container text-on-primary flex items-center justify-center font-label-primary text-label-primary font-bold shadow-sm">
+<span class="material-symbols-outlined text-[18px]">check</span>
+</div>
+<div class="min-w-0 flex-1">
+<div class="flex items-center justify-between">
+<span class="font-caption-medium text-caption-medium text-primary font-semibold uppercase tracking-wider">Step 1</span>
+<span class="font-caption-muted text-caption-muted text-emerald-600 font-medium flex items-center gap-0.5">
+<span class="material-symbols-outlined text-[14px]">verified</span> Verified
+            </span>
+</div>
+<div class="font-body-medium text-body-medium text-on-surface font-semibold truncate">Select Recovery Point</div>
+<div class="font-code-sm text-code-sm text-on-surface-variant truncate">#RUN-884219 (Today 02:40 UTC)</div>
+</div>
+</div>
+<!-- Step 2 (Active / Current) -->
+<div class="flex items-center gap-3 p-2.5 rounded-lg bg-primary/5 shadow-sm transition-all">
+<div class="w-8 h-8 rounded-lg bg-primary text-on-primary flex items-center justify-center font-label-primary text-label-primary font-bold shadow-sm">
+<span>2</span>
+</div>
+<div class="min-w-0 flex-1">
+<div class="flex items-center justify-between">
+<span class="font-caption-medium text-caption-medium text-primary font-semibold uppercase tracking-wider">Step 2 • Current</span>
+<span class="w-2 h-2 rounded-full bg-primary animate-ping"></span>
+</div>
+<div class="font-body-medium text-body-medium text-on-surface font-bold truncate">Target &amp; Destination Mapping</div>
+<div class="font-caption-muted text-caption-muted text-on-surface-variant truncate">Host node, instance &amp; storage paths</div>
+</div>
+</div>
+<!-- Step 3 (Upcoming) -->
+<div class="flex items-center gap-3 p-2.5 rounded-lg bg-surface-container-low/40 opacity-75">
+<div class="w-8 h-8 rounded-lg bg-surface-container-high text-on-surface-variant flex items-center justify-center font-label-primary text-label-primary font-semibold">
+<span>3</span>
+</div>
+<div class="min-w-0 flex-1">
+<div class="flex items-center justify-between">
+<span class="font-caption-medium text-caption-medium text-on-surface-variant font-medium uppercase tracking-wider">Step 3</span>
+<span class="material-symbols-outlined text-[15px] text-outline">lock</span>
+</div>
+<div class="font-body-medium text-body-medium text-on-surface-variant font-medium truncate">Safety Checks &amp; Confirmation</div>
+<div class="font-caption-muted text-caption-muted text-on-surface-variant truncate">Pre-flight VSS drill &amp; SHA-256 seal</div>
+</div>
+</div>
+</div>
+</div>
+<!-- Main Grid: 70% Configuration / 30% Diagnostics & Review -->
+<div class="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+<!-- LEFT PANEL: Configuration Sections (8 Columns) -->
+<div class="lg:col-span-8 flex flex-col gap-6">
+<!-- SECTION 1: Source Workload Identity Strip -->
+<div class="bg-surface-container-lowest rounded-xl p-5 shadow-sm">
+<div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3.5 mb-3.5 border-b border-surface-container">
+<div class="flex items-center gap-2.5">
+<div class="w-9 h-9 rounded-lg bg-tertiary-fixed text-on-tertiary-fixed flex items-center justify-center">
+<span class="material-symbols-outlined text-[20px]">database</span>
+</div>
+<div>
+<div class="font-caption-medium text-caption-medium text-on-surface-variant uppercase tracking-wider">Source Workload</div>
+<h2 class="font-body-medium text-body-medium font-bold text-on-surface">Daily ERP SQL Cluster</h2>
+</div>
+</div>
+<div class="flex items-center gap-2">
+<span class="px-2 py-0.5 rounded bg-surface-container text-on-surface-variant font-code-sm text-code-sm">MSSQL 2022 ENT</span>
+<button class="text-primary hover:text-primary-container font-label-primary text-label-primary font-medium transition-colors flex items-center gap-1">
+<span>Change Workload</span>
+<span class="material-symbols-outlined text-[16px]">swap_horiz</span>
+</button>
+</div>
+</div>
+<div class="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-1">
+<div class="p-2.5 rounded-lg bg-surface-container-low">
+<div class="font-caption-muted text-caption-muted text-on-surface-variant">Source Node Agent</div>
+<div class="font-code-sm text-code-sm text-on-surface font-semibold flex items-center gap-1.5 mt-0.5">
+<span class="material-symbols-outlined text-[15px] text-primary">dns</span>
+<span>WIN-SRV-01</span>
+<span class="text-on-surface-variant font-normal">(10.0.4.12)</span>
+</div>
+</div>
+<div class="p-2.5 rounded-lg bg-surface-container-low">
+<div class="font-caption-muted text-caption-muted text-on-surface-variant">Backup Repository / Vault</div>
+<div class="font-code-sm text-code-sm text-on-surface font-semibold flex items-center gap-1.5 mt-0.5">
+<span class="material-symbols-outlined text-[15px] text-tertiary">cloud_done</span>
+<span>AWS S3 Primary [us-east-1]</span>
+</div>
+</div>
+<div class="p-2.5 rounded-lg bg-surface-container-low">
+<div class="font-caption-muted text-caption-muted text-on-surface-variant">Immutability Lock</div>
+<div class="font-code-sm text-code-sm text-emerald-700 font-semibold flex items-center gap-1.5 mt-0.5">
+<span class="material-symbols-outlined text-[15px] text-emerald-600">lock</span>
+<span>WORM Retention (7y Policy)</span>
+</div>
+</div>
+</div>
+</div>
+<!-- SECTION 2: Point-in-Time Snapshot Selector -->
+<div class="bg-surface-container-lowest rounded-xl p-5 shadow-sm">
+<div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4">
+<div>
+<div class="flex items-center gap-2">
+<h2 class="font-section-header text-section-header text-on-surface font-semibold">1. Point-in-Time Immutable Snapshot</h2>
+<span class="px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 font-caption-medium text-caption-medium font-semibold flex items-center gap-1">
+<span class="w-1.5 h-1.5 rounded-full bg-emerald-600"></span> Verified Blocks
+              </span>
+</div>
+<p class="font-caption-muted text-caption-muted text-on-surface-variant">Select a validated GFS recovery snapshot. Block-level deduplication index is verified intact.</p>
+</div>
+<div class="relative w-full sm:w-64">
+<span class="material-symbols-outlined absolute left-2.5 top-1/2 -translate-y-1/2 text-on-surface-variant text-[18px]">search</span>
+<input class="w-full h-8 pl-8 pr-3 bg-surface-container-low text-on-surface font-caption-medium text-caption-medium rounded-lg outline-none focus:bg-surface-container-lowest focus:ring-1 focus:ring-primary shadow-inner" placeholder="Filter by RUN-ID or timestamp..." type="text" value="#RUN-8842"/>
+</div>
+</div>
+<div class="flex flex-col gap-2.5">
+<!-- CARD 1: Selected Snapshot -->
+<div class="relative p-4 rounded-xl bg-primary/5 transition-all cursor-pointer shadow-sm">
+<div class="flex items-start justify-between gap-3">
+<div class="flex items-start gap-3">
+<div class="mt-0.5 w-5 h-5 rounded-full bg-primary text-on-primary flex items-center justify-center shrink-0 shadow-sm">
+<span class="material-symbols-outlined text-[13px] font-bold">check</span>
+</div>
+<div>
+<div class="flex flex-wrap items-center gap-2">
+<span class="font-code-default text-code-default font-bold text-on-surface">Snapshot #RUN-884219</span>
+<span class="px-2 py-0.5 rounded bg-primary-fixed text-on-primary-fixed font-caption-medium text-caption-medium font-semibold">Today at 02:40:12 UTC (24m ago)</span>
+<span class="px-2 py-0.5 rounded bg-surface-container-highest text-on-surface font-code-sm text-code-sm">GFS Daily Tier</span>
+</div>
+<div class="flex flex-wrap items-center gap-x-4 gap-y-1 mt-1 text-on-surface-variant font-caption-medium text-caption-medium">
+<span class="flex items-center gap-1">
+<span class="material-symbols-outlined text-[15px]">inventory_2</span>
+<strong class="text-on-surface">18.2 GB</strong> raw data payload
+                    </span>
+<span class="text-outline-variant">•</span>
+<span class="flex items-center gap-1">
+<span class="material-symbols-outlined text-[15px]">compress</span>
+<strong class="text-on-surface">3.4 GB</strong> deduplicated download
+                    </span>
+<span class="text-outline-variant">•</span>
+<span class="flex items-center gap-1 font-code-sm text-code-sm">
+<span class="material-symbols-outlined text-[14px] text-primary">fingerprint</span>
+                      SHA-256: 4a8c6b90...9f01
+                    </span>
+</div>
+</div>
+</div>
+<div class="shrink-0 flex items-center gap-1 px-2.5 py-1 rounded bg-emerald-50 text-emerald-700 font-caption-medium text-caption-medium font-medium">
+<span class="material-symbols-outlined text-[16px]">check_circle</span>
+<span>Cryptographically Sealed</span>
+</div>
+</div>
+</div>
+<!-- CARD 2: Prior Snapshot -->
+<div class="p-3.5 rounded-xl bg-surface-container-lowest hover:bg-surface-container-low transition-all cursor-pointer flex items-center justify-between gap-3 opacity-90 shadow-sm">
+<div class="flex items-center gap-3">
+<div class="w-5 h-5 rounded-full bg-surface-container-high flex items-center justify-center shrink-0">
+<span class="w-2 h-2 rounded-full bg-outline"></span>
+</div>
+<div>
+<div class="flex items-center gap-2">
+<span class="font-code-default text-code-default font-semibold text-on-surface">Snapshot #RUN-884102</span>
+<span class="font-caption-muted text-caption-muted text-on-surface-variant">Yesterday at 23:00 UTC</span>
+<span class="px-1.5 py-0.5 rounded bg-surface-container text-on-surface-variant font-caption-medium text-caption-medium">Verified</span>
+</div>
+<div class="font-caption-muted text-caption-muted text-on-surface-variant mt-0.5">
+                  18.1 GB raw • 3.38 GB deduped • Retention expires in 29 days
+                </div>
+</div>
+</div>
+<button class="px-3 py-1 rounded bg-surface-container-low hover:bg-surface-container text-on-surface font-caption-medium text-caption-medium transition-colors">Select Run</button>
+</div>
+<!-- CARD 3: 3 Days ago -->
+<div class="p-3.5 rounded-xl bg-surface-container-lowest hover:bg-surface-container-low transition-all cursor-pointer flex items-center justify-between gap-3 opacity-80 shadow-sm">
+<div class="flex items-center gap-3">
+<div class="w-5 h-5 rounded-full bg-surface-container-high flex items-center justify-center shrink-0">
+<span class="w-2 h-2 rounded-full bg-outline"></span>
+</div>
+<div>
+<div class="flex items-center gap-2">
+<span class="font-code-default text-code-default font-semibold text-on-surface">Snapshot #RUN-883850</span>
+<span class="font-caption-muted text-caption-muted text-on-surface-variant">3 days ago at 23:00 UTC</span>
+<span class="px-1.5 py-0.5 rounded bg-surface-container text-on-surface-variant font-caption-medium text-caption-medium">Verified</span>
+</div>
+<div class="font-caption-muted text-caption-muted text-on-surface-variant mt-0.5">
+                  17.9 GB raw • 3.42 GB deduped • GFS Weekly Rollup Tier
+                </div>
+</div>
+</div>
+<button class="px-3 py-1 rounded bg-surface-container-low hover:bg-surface-container text-on-surface font-caption-medium text-caption-medium transition-colors">Select Run</button>
+</div>
+</div>
+</div>
+<!-- SECTION 3: Destination Host Agent & Node Selection -->
+<div class="bg-surface-container-lowest rounded-xl p-5 shadow-sm">
+<div class="mb-4">
+<h2 class="font-section-header text-section-header text-on-surface font-semibold">2. Target Recovery Host Agent</h2>
+<p class="font-caption-muted text-caption-muted text-on-surface-variant">Specify the physical or virtual node running VaultGuard Agent Daemon to stream and unpack files.</p>
+</div>
+<div class="grid grid-cols-1 md:grid-cols-3 gap-3">
+<!-- Host Option 1: Selected Original -->
+<label class="relative flex flex-col p-4 rounded-xl bg-primary/5 cursor-pointer shadow-sm">
+<div class="flex items-center justify-between mb-2">
+<input checked="" class="accent-primary w-4 h-4 cursor-pointer" name="target_host" type="radio"/>
+<span class="flex items-center gap-1 font-caption-medium text-caption-medium text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded font-semibold">
+<span class="w-1.5 h-1.5 rounded-full bg-emerald-600 animate-pulse"></span> 14ms Ping
+              </span>
+</div>
+<div class="font-body-medium text-body-medium font-bold text-on-surface flex items-center gap-1.5">
+<span class="material-symbols-outlined text-[18px] text-primary">lan</span>
+<span>Original: WIN-SRV-01</span>
+</div>
+<div class="font-code-sm text-code-sm text-on-surface-variant mt-1">Windows Server 2022 Datacenter</div>
+<div class="mt-3 pt-2 border-t border-surface-container text-on-surface-variant font-caption-muted text-caption-muted flex items-center justify-between">
+<span>Agent v2.4.1-rc3</span>
+<span class="text-primary font-medium">Optimal Bandwidth</span>
+</div>
+</label>
+<!-- Host Option 2: Alternate DR Host -->
+<label class="relative flex flex-col p-4 rounded-xl bg-surface-container-low hover:bg-surface-container transition-all cursor-pointer shadow-sm">
+<div class="flex items-center justify-between mb-2">
+<input class="accent-primary w-4 h-4 cursor-pointer" name="target_host" type="radio"/>
+<span class="flex items-center gap-1 font-caption-medium text-caption-medium text-on-surface-variant bg-surface-container px-2 py-0.5 rounded">
+<span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span> 28ms Ping
+              </span>
+</div>
+<div class="font-body-medium text-body-medium font-bold text-on-surface flex items-center gap-1.5">
+<span class="material-symbols-outlined text-[18px] text-secondary">domain</span>
+<span>Alternate: WIN-SRV-DR02</span>
+</div>
+<div class="font-code-sm text-code-sm text-on-surface-variant mt-1">Disaster Recovery Warm Standby</div>
+<div class="mt-3 pt-2 border-t border-surface-container-high text-on-surface-variant font-caption-muted text-caption-muted flex items-center justify-between">
+<span>Agent v2.4.0</span>
+<span class="text-on-surface-variant">Ready</span>
+</div>
+</label>
+<!-- Host Option 3: Sandboxed Host -->
+<label class="relative flex flex-col p-4 rounded-xl bg-surface-container-low hover:bg-surface-container transition-all cursor-pointer shadow-sm">
+<div class="flex items-center justify-between mb-2">
+<input class="accent-primary w-4 h-4 cursor-pointer" name="target_host" type="radio"/>
+<span class="flex items-center gap-1 font-caption-medium text-caption-medium text-tertiary bg-tertiary-fixed/60 px-2 py-0.5 rounded font-semibold">
+                Air-Gapped Sandbox
+              </span>
+</div>
+<div class="font-body-medium text-body-medium font-bold text-on-surface flex items-center gap-1.5">
+<span class="material-symbols-outlined text-[18px] text-tertiary">science</span>
+<span>Staging: WIN-STAGE-01</span>
+</div>
+<div class="font-code-sm text-code-sm text-on-surface-variant mt-1">Isolated Test Harness Host</div>
+<div class="mt-3 pt-2 border-t border-surface-container-high text-on-surface-variant font-caption-muted text-caption-muted flex items-center justify-between">
+<span>Agent v2.4.1-rc3</span>
+<span class="text-tertiary font-medium">Safe Drill</span>
+</div>
+</label>
+</div>
+</div>
+<!-- SECTION 4: Database & Directory Mapping -->
+<div class="bg-surface-container-lowest rounded-xl p-5 shadow-sm">
+<div class="flex items-center justify-between mb-4">
+<div>
+<h2 class="font-section-header text-section-header text-on-surface font-semibold">3. Database Path &amp; Identity Mapping</h2>
+<p class="font-caption-muted text-caption-muted text-on-surface-variant">Prevent production collisions by mapping to clean file system mount points and database namespace.</p>
+</div>
+<span class="material-symbols-outlined text-[20px] text-primary">folder_managed</span>
+</div>
+<!-- Collision Mode Toggle -->
+<div class="p-3 rounded-lg bg-surface-container-low flex flex-col sm:flex-row gap-4 mb-4">
+<label class="flex items-start gap-2.5 cursor-pointer">
+<input checked="" class="accent-primary w-4 h-4 mt-0.5 cursor-pointer" name="restore_mode" type="radio"/>
+<div>
+<div class="font-body-medium text-body-medium font-semibold text-on-surface flex items-center gap-1.5">
+<span>Restore to Alternate Database / Path</span>
+<span class="px-1.5 py-0.2 rounded bg-emerald-100 text-emerald-800 font-caption-medium text-caption-medium">Recommended for Zero Downtime</span>
+</div>
+<p class="font-caption-muted text-caption-muted text-on-surface-variant">Creates a side-by-side database instance for forensics or extraction.</p>
+</div>
+</label>
+<label class="flex items-start gap-2.5 cursor-pointer">
+<input class="accent-primary w-4 h-4 mt-0.5 cursor-pointer" name="restore_mode" type="radio"/>
+<div>
+<div class="font-body-medium text-body-medium font-semibold text-error flex items-center gap-1.5">
+<span>Overwrite Original In-Place</span>
+<span class="px-1.5 py-0.2 rounded bg-error-container text-on-error-container font-caption-medium text-caption-medium">Destructive</span>
+</div>
+<p class="font-caption-muted text-caption-muted text-on-surface-variant">Requires taking production offline. Overwrites active LDF/MDF logs.</p>
+</div>
+</label>
+</div>
+<!-- Path Form Fields -->
+<div class="space-y-4">
+<div>
+<label class="block font-label-primary text-label-primary font-semibold text-on-surface mb-1.5">
+              Target Relocated Database Name
+            </label>
+<div class="relative">
+<span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-on-surface-variant text-[18px]">badge</span>
+<input class="w-full h-10 pl-9 pr-3 font-code-default text-code-default bg-surface-container-low text-on-surface rounded-lg outline-none focus:ring-2 focus:ring-primary shadow-inner" type="text" value="ERP_FinMaster_RESTORE_DRILL_202502"/>
+</div>
+<p class="mt-1 font-caption-muted text-caption-muted text-on-surface-variant">Will attach to MSSQLSERVER instance without colliding with active <code class="font-code-sm text-code-sm bg-surface-container px-1 py-0.5 rounded">ERP_FinMaster_PROD</code>.</p>
+</div>
+<div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+<div>
+<div class="flex items-center justify-between mb-1.5">
+<label class="font-label-primary text-label-primary font-semibold text-on-surface">Data Files (.mdf) Directory</label>
+<span class="font-caption-muted text-caption-muted text-emerald-700 font-medium">Drive E: (480 GB free)</span>
+</div>
+<div class="relative">
+<span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-on-surface-variant text-[18px]">folder_open</span>
+<input class="w-full h-10 pl-9 pr-3 font-code-default text-code-default bg-surface-container-low text-on-surface rounded-lg outline-none focus:ring-2 focus:ring-primary shadow-inner" type="text" value="E:\MSSQL\Data\Restores\"/>
+</div>
+</div>
+<div>
+<div class="flex items-center justify-between mb-1.5">
+<label class="font-label-primary text-label-primary font-semibold text-on-surface">Log Files (.ldf) Directory</label>
+<span class="font-caption-muted text-caption-muted text-emerald-700 font-medium">Drive L: (195 GB free)</span>
+</div>
+<div class="relative">
+<span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-on-surface-variant text-[18px]">receipt_long</span>
+<input class="w-full h-10 pl-9 pr-3 font-code-default text-code-default bg-surface-container-low text-on-surface rounded-lg outline-none focus:ring-2 focus:ring-primary shadow-inner" type="text" value="L:\MSSQL\Logs\Restores\"/>
+</div>
+</div>
+</div>
+<!-- Post-Recovery Database State -->
+<div class="pt-2">
+<label class="block font-label-primary text-label-primary font-semibold text-on-surface mb-1.5">Post-Restore Engine State</label>
+<div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+<label class="flex items-center gap-3 p-3 rounded-lg bg-surface-container-low cursor-pointer hover:bg-surface-container transition-all">
+<input checked="" class="accent-primary w-4 h-4 cursor-pointer" name="db_state" type="radio"/>
+<div>
+<div class="font-body-medium text-body-medium font-bold text-on-surface">WITH RECOVERY</div>
+<div class="font-caption-muted text-caption-muted text-on-surface-variant">Online immediately. Ready for read/write queries and table exports.</div>
+</div>
+</label>
+<label class="flex items-center gap-3 p-3 rounded-lg bg-surface-container-low cursor-pointer hover:bg-surface-container transition-all">
+<input class="accent-primary w-4 h-4 cursor-pointer" name="db_state" type="radio"/>
+<div>
+<div class="font-body-medium text-body-medium font-bold text-on-surface">WITH NORECOVERY / STANDBY</div>
+<div class="font-caption-muted text-caption-muted text-on-surface-variant">Read-only mode. Prepared to accept additional transaction log roll-forwards.</div>
+</div>
+</label>
+</div>
+</div>
+</div>
+</div>
+<!-- SECTION 5: Advanced Integrity & Safety Triggers -->
+<div class="bg-surface-container-lowest rounded-xl p-5 shadow-sm">
+<h2 class="font-section-header text-section-header text-on-surface font-semibold mb-3">4. Advanced Recovery &amp; Stream Policies</h2>
+<div class="space-y-3">
+<label class="flex items-start gap-3 p-2.5 rounded-lg hover:bg-surface-container-low transition-colors cursor-pointer">
+<input checked="" class="accent-primary w-4 h-4 mt-0.5 rounded cursor-pointer" type="checkbox"/>
+<div>
+<div class="font-body-medium text-body-medium font-semibold text-on-surface">Perform VSS Pre-flight storage allocation test before data streaming</div>
+<p class="font-caption-muted text-caption-muted text-on-surface-variant">Validates Volume Shadow Copy writer readiness and pre-allocates contiguous disk blocks.</p>
+</div>
+</label>
+<label class="flex items-start gap-3 p-2.5 rounded-lg hover:bg-surface-container-low transition-colors cursor-pointer">
+<input checked="" class="accent-primary w-4 h-4 mt-0.5 rounded cursor-pointer" type="checkbox"/>
+<div>
+<div class="font-body-medium text-body-medium font-semibold text-on-surface">Verify SHA-256 Merkle tree block hashes on-the-fly during restore</div>
+<p class="font-caption-muted text-caption-muted text-on-surface-variant">Validates cryptographic signatures for every 4MB stream payload chunk to prevent silent bitrot.</p>
+</div>
+</label>
+<label class="flex items-start gap-3 p-2.5 rounded-lg hover:bg-surface-container-low transition-colors cursor-pointer">
+<input checked="" class="accent-primary w-4 h-4 mt-0.5 rounded cursor-pointer" type="checkbox"/>
+<div>
+<div class="font-body-medium text-body-medium font-semibold text-on-surface">Stop restore immediately if destination disk free space drops below 25 GB</div>
+<p class="font-caption-muted text-caption-muted text-on-surface-variant">Protects production volumes from running out of IOPS or disk space during large unpack operations.</p>
+</div>
+</label>
+</div>
+</div>
+</div>
+<!-- RIGHT PANEL: Summary, Readiness & Action (4 Columns) -->
+<div class="lg:col-span-4 flex flex-col gap-5 sticky top-6">
+<!-- Plan Summary Card -->
+<div class="bg-surface-container-lowest rounded-xl p-5 shadow-sm">
+<div class="flex items-center justify-between pb-3 mb-3 border-b border-surface-container">
+<div class="flex items-center gap-2">
+<span class="material-symbols-outlined text-[20px] text-primary">analytics</span>
+<h2 class="font-section-header text-section-header text-on-surface font-semibold">Restore Plan Summary</h2>
+</div>
+<span class="px-2 py-0.5 rounded bg-surface-container-high text-on-surface-variant font-code-sm text-code-sm font-semibold">ID #REC-2025-09</span>
+</div>
+<div class="space-y-3 font-caption-medium text-caption-medium">
+<div class="flex justify-between py-1 border-b border-surface-container-low">
+<span class="text-on-surface-variant">Source Job</span>
+<span class="font-body-medium text-body-medium font-semibold text-on-surface text-right">Daily ERP SQL Cluster</span>
+</div>
+<div class="flex justify-between py-1 border-b border-surface-container-low">
+<span class="text-on-surface-variant">Recovery Point</span>
+<span class="font-code-sm text-code-sm font-medium text-on-surface text-right">Oct 24, 2025 • 02:40 UTC</span>
+</div>
+<div class="flex justify-between py-1 border-b border-surface-container-low">
+<span class="text-on-surface-variant">Transfer / Decompressed</span>
+<div class="text-right">
+<span class="font-body-medium text-body-medium font-bold text-primary">3.4 GB</span>
+<span class="text-on-surface-variant font-normal"> / 18.2 GB</span>
+</div>
+</div>
+<div class="flex justify-between py-1 border-b border-surface-container-low">
+<span class="text-on-surface-variant">Est. Stream Time</span>
+<div class="text-right flex items-center gap-1 text-emerald-700 font-semibold">
+<span class="material-symbols-outlined text-[15px]">timer</span>
+<span>~4 mins @ 85 MB/s</span>
+</div>
+</div>
+<div class="flex justify-between py-1 border-b border-surface-container-low">
+<span class="text-on-surface-variant">Target Host</span>
+<span class="font-code-sm text-code-sm font-semibold text-on-surface">WIN-SRV-01 (Online)</span>
+</div>
+<div class="flex justify-between py-1">
+<span class="text-on-surface-variant">Target DB Mapping</span>
+<span class="font-code-sm text-code-sm text-on-surface text-right font-medium max-w-[180px] truncate" title="ERP_FinMaster_RESTORE_DRILL_202502">ERP_FinMaster_RESTORE...</span>
+</div>
+</div>
+<!-- Throughput Sparkline Visualization -->
+<div class="mt-4 pt-3 border-t border-surface-container">
+<div class="flex items-center justify-between text-on-surface-variant font-caption-muted text-caption-muted mb-1.5">
+<span>Historical Stream Speed on WIN-SRV-01</span>
+<span class="font-code-sm text-code-sm text-on-surface font-semibold">92.4 MB/s Peak</span>
+</div>
+<div class="w-full h-10 bg-surface-container-low rounded-lg p-1.5 flex items-end gap-1">
+<div class="w-1/12 bg-primary/30 h-4 rounded-t-sm"></div>
+<div class="w-1/12 bg-primary/40 h-6 rounded-t-sm"></div>
+<div class="w-1/12 bg-primary/50 h-5 rounded-t-sm"></div>
+<div class="w-1/12 bg-primary/60 h-7 rounded-t-sm"></div>
+<div class="w-1/12 bg-primary/70 h-8 rounded-t-sm"></div>
+<div class="w-1/12 bg-primary h-9 rounded-t-sm"></div>
+<div class="w-1/12 bg-primary h-8 rounded-t-sm"></div>
+<div class="w-1/12 bg-primary/80 h-7 rounded-t-sm"></div>
+<div class="w-1/12 bg-primary h-9 rounded-t-sm"></div>
+<div class="w-1/12 bg-primary h-10 rounded-t-sm"></div>
+<div class="w-1/12 bg-primary/70 h-8 rounded-t-sm"></div>
+<div class="w-1/12 bg-primary/90 h-9 rounded-t-sm"></div>
+</div>
+</div>
+</div>
+<!-- Storage Headroom & Diagnostics Card -->
+<div class="bg-surface-container-lowest rounded-xl p-5 shadow-sm">
+<div class="flex items-center justify-between mb-3">
+<h2 class="font-section-header text-section-header text-on-surface font-semibold flex items-center gap-1.5">
+<span class="material-symbols-outlined text-[18px] text-tertiary">speed</span>
+<span>Target Readiness Diagnostics</span>
+</h2>
+<span class="flex items-center gap-1 text-emerald-700 font-caption-medium text-caption-medium font-semibold bg-emerald-50 px-2 py-0.5 rounded">
+<span class="w-1.5 h-1.5 rounded-full bg-emerald-600"></span> Passed
+          </span>
+</div>
+<div class="space-y-3 font-caption-medium text-caption-medium">
+<!-- Target Disk Headroom Progress -->
+<div>
+<div class="flex justify-between text-on-surface mb-1">
+<span class="text-on-surface-variant">Target Disk Headroom (E:\)</span>
+<span class="font-code-sm text-code-sm font-semibold">480 GB Free / 1.2 TB</span>
+</div>
+<div class="w-full h-2 rounded-full bg-surface-container overflow-hidden">
+<div class="h-full bg-emerald-500 rounded-full" style="width: 40%"></div>
+</div>
+<div class="flex justify-between mt-1 text-on-surface-variant font-caption-muted text-caption-muted">
+<span>Required: 18.2 GB raw payload</span>
+<span class="text-emerald-700 font-semibold">Ample Headroom (26x)</span>
+</div>
+</div>
+<div class="flex items-center justify-between p-2 rounded bg-surface-container-low">
+<div class="flex items-center gap-2">
+<span class="material-symbols-outlined text-[16px] text-emerald-600">verified</span>
+<span class="text-on-surface font-medium">Agent Daemon Status</span>
+</div>
+<span class="font-code-sm text-code-sm text-on-surface-variant">v2.4.1-rc3 (Active)</span>
+</div>
+<div class="flex items-center justify-between p-2 rounded bg-surface-container-low">
+<div class="flex items-center gap-2">
+<span class="material-symbols-outlined text-[16px] text-emerald-600">key</span>
+<span class="text-on-surface font-medium">Vault S3 Auth Token</span>
+</div>
+<span class="font-code-sm text-code-sm text-on-surface-variant">Read-Granted (60m)</span>
+</div>
+</div>
+</div>
+<!-- Operational Safeguard Notice Banner -->
+<div class="bg-blue-50/80 rounded-xl p-4 shadow-sm flex items-start gap-3">
+<div class="w-8 h-8 rounded-lg bg-primary-container text-on-primary flex items-center justify-center shrink-0">
+<span class="material-symbols-outlined text-[18px]">verified_user</span>
+</div>
+<div>
+<div class="font-body-medium text-body-medium font-bold text-primary">Non-destructive Safeguard Active</div>
+<p class="font-caption-medium text-caption-medium text-on-surface-variant mt-0.5 leading-relaxed">
+            Because you selected an alternate database name, existing live production tables in <code class="font-code-sm text-code-sm bg-blue-100 text-on-surface px-1 py-0.2 rounded font-semibold">ERP_FinMaster_PROD</code> will remain completely untouched.
+          </p>
+</div>
+</div>
+<!-- Step Navigation Execution Trigger -->
+<div class="bg-surface-container-lowest rounded-xl p-4 shadow-sm space-y-2.5">
+<button class="w-full py-3 px-4 rounded-xl bg-primary hover:bg-primary-container text-on-primary font-label-primary text-label-primary font-semibold flex items-center justify-center gap-2 shadow-md hover:shadow-lg transition-all active:scale-[0.99]">
+<span>Continue to Step 3: Run Safety Verification</span>
+<span class="material-symbols-outlined text-[18px]">arrow_forward</span>
+</button>
+<button class="w-full py-2.5 px-4 rounded-xl bg-surface-container-low hover:bg-surface-container text-on-surface font-label-primary text-label-primary font-medium flex items-center justify-center gap-1.5 transition-colors">
+<span class="material-symbols-outlined text-[18px]">arrow_back</span>
+<span>Back to Job Selection</span>
+</button>
+<div class="text-center">
+<span class="font-caption-muted text-caption-muted text-on-surface-variant flex items-center justify-center gap-1">
+<span class="material-symbols-outlined text-[13px] text-emerald-600">lock</span>
+            Strict audit logging enabled for this operator drill
+          </span>
+</div>
+</div>
+</div>
+</div>
+</div></main></body></html>
