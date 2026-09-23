@@ -1,0 +1,62 @@
+version: '3.8'
+
+services:
+  postgres:
+    image: postgres:15-alpine
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: sri20112001
+      POSTGRES_DB: db_backup
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  server:
+    build:
+      context: ./server
+      dockerfile: Dockerfile
+    ports:
+      - "7541:7541"
+      - "9090:9090"
+    environment:
+      - PORT=7541
+      - GRPC_PORT=9090
+      - DATABASE_URL=host=postgres user=postgres password=sri20112001 dbname=db_backup port=5432 sslmode=disable
+      - JWT_SECRET=5475835c358ac73d7b2b2f78e8e1dca0ff1b10db3190b316d2b93316b7aec453
+      - JWT_REFRESH_SECRET=9b69edad3df56eab8eaaec502bdcabe808bbdd4789bc5b9168513e991012046e
+      - ENCRYPTION_KEY=8505500dcac701e2b4ace80fac292fd54e7b610ebc80392dce32f5ef99c41580
+      - CORS_ORIGIN=http://localhost:7540
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  agent:
+    build:
+      context: ./agent
+      dockerfile: Dockerfile
+    environment:
+      - AGENT_SERVER=http://server:7541/vaultguard/api
+      - AGENT_PG_HOST=postgres
+      - AGENT_PG_PORT=5432
+      - AGENT_PG_USER=postgres
+      - AGENT_PG_PASSWORD=sri20112001
+    depends_on:
+      - server
+
+  client:
+    build:
+      context: ./client
+      dockerfile: Dockerfile
+    ports:
+      - "7540:80"
+    depends_on:
+      - server
+
+volumes:
+  postgres_data:

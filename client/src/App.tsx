@@ -32,7 +32,7 @@ const RequireOrg = ({ children }: { children: React.ReactNode }) => {
 }
 
 const App = () => (
-  <BrowserRouter>
+  <BrowserRouter basename="/vaultguard">
     <Routes>
       <Route path="/login" element={<LoginPage />} />
       <Route path="/register" element={<RegisterPage />} />

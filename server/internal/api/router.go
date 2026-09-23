@@ -31,7 +31,7 @@ func NewRouter(db *gorm.DB, cfg *config.Config, grpcSrv *grpcserver.Server) *gin
 	dashH    := handlers.NewDashboardHandler(db)
 	userH    := handlers.NewUserHandler(db)
 
-	api := r.Group("/api")
+	api := r.Group("/vaultguard/api")
 	api.GET("/health", func(c *gin.Context) {
 		sqlDB, err := db.DB()
 		if err != nil || sqlDB.Ping() != nil {
