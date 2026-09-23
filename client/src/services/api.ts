@@ -5,7 +5,7 @@ import type {
   Organization, PaginatedResponse
 } from '../types'
 
-const BASE = import.meta.env.VITE_API_URL || 'http://localhost:7541/vaultguard/api'
+const BASE = import.meta.env.VITE_API_URL || '/vaultguard/api'
 
 function getToken() {
   return localStorage.getItem('access_token')
