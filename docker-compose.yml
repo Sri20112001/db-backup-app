@@ -5,10 +5,8 @@ services:
     image: postgres:15-alpine
     environment:
       POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: sri20112001
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-sri20112001}
       POSTGRES_DB: db_backup
-    ports:
-      - "5432:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
@@ -27,10 +25,10 @@ services:
     environment:
       - PORT=7541
       - GRPC_PORT=9090
-      - DATABASE_URL=host=postgres user=postgres password=sri20112001 dbname=db_backup port=5432 sslmode=disable
-      - JWT_SECRET=5475835c358ac73d7b2b2f78e8e1dca0ff1b10db3190b316d2b93316b7aec453
-      - JWT_REFRESH_SECRET=9b69edad3df56eab8eaaec502bdcabe808bbdd4789bc5b9168513e991012046e
-      - ENCRYPTION_KEY=8505500dcac701e2b4ace80fac292fd54e7b610ebc80392dce32f5ef99c41580
+      - DATABASE_URL=host=postgres user=postgres password=${POSTGRES_PASSWORD:-sri20112001} dbname=db_backup port=5432 sslmode=disable
+      - JWT_SECRET=${JWT_SECRET:-5475835c358ac73d7b2b2f78e8e1dca0ff1b10db3190b316d2b93316b7aec453}
+      - JWT_REFRESH_SECRET=${JWT_REFRESH_SECRET:-9b69edad3df56eab8eaaec502bdcabe808bbdd4789bc5b9168513e991012046e}
+      - ENCRYPTION_KEY=${ENCRYPTION_KEY:-8505500dcac701e2b4ace80fac292fd54e7b610ebc80392dce32f5ef99c41580}
       - CORS_ORIGIN=http://localhost:7540
     depends_on:
       postgres:
@@ -45,7 +43,7 @@ services:
       - AGENT_PG_HOST=postgres
       - AGENT_PG_PORT=5432
       - AGENT_PG_USER=postgres
-      - AGENT_PG_PASSWORD=sri20112001
+      - AGENT_PG_PASSWORD=${POSTGRES_PASSWORD:-sri20112001}
     depends_on:
       - server
 
