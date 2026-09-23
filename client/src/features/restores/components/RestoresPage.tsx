@@ -164,7 +164,7 @@ const RestoresPage = () => {
                     <label className="block text-[13px] font-medium text-[#434655] mb-1.5">Destination Path (leave empty for original)</label>
                     <input type="text" value={form.destination_path} onChange={(e) => setForm((f) => ({ ...f, destination_path: e.target.value }))} placeholder="D:\Restored\" className={`${inputCls} font-mono text-[13px]`} />
                   </div>
-                  {(selectedRun?.backup_job?.source_type === 'SQL_SERVER' ||
+                  {(selectedRun?.backup_job?.source_type === 'MSSQL_SERVER' ||
                     selectedRun?.backup_job?.source_type === 'POSTGRES') && (
                     <div>
                       <label className="block text-[13px] font-medium text-[#434655] mb-1.5">Target Database Name</label>

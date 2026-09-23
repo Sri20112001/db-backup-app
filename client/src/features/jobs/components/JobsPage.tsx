@@ -11,8 +11,8 @@ import SearchInput from '@/components/ui/SearchInput'
 import Action3DButton from '@/components/ui/Action3DButton'
 import {
   ChevronRight, Plus, Layers, CheckCircle, AlertCircle, PauseCircle,
-  Folder, Database, DatabaseBackup, Table2, Cloud, Clock, History,
-  Play, MoreVertical, Search, Archive,
+  Cloud, Clock, History,
+  Play, MoreVertical, Archive,
 } from 'lucide-react'
 
 const SOURCE_FILTERS: { label: string; value: BackupSourceType | '' }[] = [
