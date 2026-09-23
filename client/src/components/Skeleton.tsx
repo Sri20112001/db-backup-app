@@ -1,4 +1,4 @@
-const SkeletonRow = ({ cols = 5 }: { cols?: number }) => (
+export const SkeletonRow = ({ cols = 5 }: { cols?: number }) => (
   <tr className="animate-pulse">
     {Array.from({ length: cols }).map((_, i) => (
       <td key={i} className="py-3 px-4">

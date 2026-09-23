@@ -23,7 +23,7 @@ func (h *UserHandler) ListMembers(c *gin.Context) {
 	orgID := c.MustGet("org_id").(uuid.UUID)
 	var members []models.OrganizationMember
 	h.db.Preload("User").Where("organization_id = ?", orgID).Find(&members)
-	c.JSON(http.StatusOK, members)
+	c.JSON(http.StatusOK, asArray(members))
 }
 
 // InviteMember creates a user (if not exists) and adds them to the org.
@@ -38,6 +38,19 @@ func (h *UserHandler) InviteMember(c *gin.Context) {
 	var req inviteRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	// Enforce user limit
+	var org models.Organization
+	if err := h.db.First(&org, orgID).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "org not found"})
+		return
+	}
+	var currentCount int64
+	h.db.Model(&models.OrganizationMember{}).Where("organization_id = ?", orgID).Count(&currentCount)
+	if int(currentCount) >= org.UserLimit {
+		c.JSON(http.StatusUnprocessableEntity, gin.H{"error": "organization user limit reached"})
 		return
 	}
 

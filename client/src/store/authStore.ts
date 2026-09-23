@@ -14,7 +14,7 @@ interface AuthState {
 
 export const useAuthStore = create<AuthState>()(
   persist(
-    (set) => ({
+    (set, get) => ({
       user: null,
       accessToken: null,
       refreshToken: null,
@@ -26,11 +26,29 @@ export const useAuthStore = create<AuthState>()(
       },
       setCurrentOrg: (org) => set({ currentOrg: org }),
       logout: () => {
+        const rt = get().refreshToken || localStorage.getItem('refresh_token')
+        if (rt) {
+          // Fire-and-forget: revoke server-side refresh token
+          fetch(`${import.meta.env.VITE_API_URL}/auth/logout`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ refresh_token: rt }),
+          }).catch(() => {})
+        }
         localStorage.removeItem('access_token')
         localStorage.removeItem('refresh_token')
         set({ user: null, accessToken: null, refreshToken: null, currentOrg: null })
       },
     }),
-    { name: 'vaultguard-auth', partialize: (s) => ({ user: s.user, currentOrg: s.currentOrg }) }
+    {
+      name: 'vaultguard-auth',
+      partialize: (s) => ({ user: s.user, currentOrg: s.currentOrg, refreshToken: s.refreshToken }),
+      onRehydrateStorage: () => (state) => {
+        // Sync persisted refresh token back to localStorage on page load
+        if (state?.refreshToken) {
+          localStorage.setItem('refresh_token', state.refreshToken)
+        }
+      },
+    }
   )
 )

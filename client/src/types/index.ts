@@ -8,6 +8,7 @@ export interface Organization {
   id: string
   name: string
   slug: string
+  user_limit: number
 }
 
 export interface OrganizationMember {
@@ -56,7 +57,7 @@ export interface StorageTarget {
   created_at: string
 }
 
-export type BackupSourceType = 'FILESYSTEM' | 'SQL_SERVER' | 'DBF'
+export type BackupSourceType = 'FILESYSTEM' | 'MSSQL_SERVER' | 'DBF' | 'POSTGRES'
 export type BackupMode = 'NORMAL' | 'COMPRESSED'
 
 export interface BackupSchedule {

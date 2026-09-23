@@ -10,6 +10,7 @@ agent-state.json
 /dist/
 /tmp/
 server/tmp/
+agent/tmp/
 *.test
 *.out
 

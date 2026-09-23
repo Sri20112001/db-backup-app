@@ -54,7 +54,7 @@ func (h *DashboardHandler) Overview(c *gin.Context) {
 		"successful_runs":  successfulRuns,
 		"failed_runs":      failedRuns,
 		"total_bytes":      totalBytes,
-		"recent_runs":      recentRuns,
+		"recent_runs":      asArray(recentRuns),
 	})
 }
 

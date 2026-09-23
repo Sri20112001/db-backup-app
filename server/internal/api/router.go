@@ -10,7 +10,7 @@ import (
 	"gorm.io/gorm"
 )
 
-func NewRouter(db *gorm.DB, cfg *config.ENV, grpcSrv *grpcserver.Server) *gin.Engine {
+func NewRouter(db *gorm.DB, cfg *config.Config, grpcSrv *grpcserver.Server) *gin.Engine {
 	r := gin.New()
 	r.Use(gin.Recovery())
 	r.Use(gin.LoggerWithConfig(gin.LoggerConfig{SkipPaths: []string{"/api/health"}}))
@@ -19,20 +19,27 @@ func NewRouter(db *gorm.DB, cfg *config.ENV, grpcSrv *grpcserver.Server) *gin.En
 	encKey := make([]byte, 32)
 	copy(encKey, []byte(cfg.EncryptionKey))
 
-	authH    := handlers.NewAuthHandler(db, cfg.JWTSecretKey, cfg.JWTRefreshSecret)
+	authH    := handlers.NewAuthHandler(db, cfg.JWTSecret, cfg.JWTRefreshSecret)
 	orgH     := handlers.NewOrgHandler(db)
-	agentH   := handlers.NewAgentHandler(db)
+	agentH   := handlers.NewAgentHandler(db, grpcSrv)
 	machineH := handlers.NewMachineHandler(db)
 	storageH := handlers.NewStorageHandler(db, encKey)
 	jobH     := handlers.NewBackupJobHandler(db, grpcSrv)
-	runH     := handlers.NewBackupRunHandler(db, grpcSrv)
-	restoreH := handlers.NewRestoreHandler(db, grpcSrv)
+	runH     := handlers.NewBackupRunHandler(db, grpcSrv, encKey)
+	restoreH := handlers.NewRestoreHandler(db, grpcSrv, encKey)
 	alertH   := handlers.NewAlertHandler(db)
 	dashH    := handlers.NewDashboardHandler(db)
 	userH    := handlers.NewUserHandler(db)
 
 	api := r.Group("/api")
-	api.GET("/health", func(c *gin.Context) { c.JSON(200, gin.H{"status": "ok"}) })
+	api.GET("/health", func(c *gin.Context) {
+		sqlDB, err := db.DB()
+		if err != nil || sqlDB.Ping() != nil {
+			c.JSON(503, gin.H{"status": "degraded", "db": "unreachable"})
+			return
+		}
+		c.JSON(200, gin.H{"status": "ok"})
+	})
 
 	// Public
 	auth := api.Group("/auth")
@@ -51,20 +58,21 @@ func NewRouter(db *gorm.DB, cfg *config.ENV, grpcSrv *grpcserver.Server) *gin.En
 	api.POST("/artifacts/:artifact_id/chunks", runH.RegisterChunk)
 	api.PUT("/restores/:id/status", restoreH.UpdateStatus)
 
-	// Agent polling endpoints (agent token, not JWT) for agents that cannot
-	// hold a persistent gRPC stream. Poll runs/restores, claim, fetch config.
-	api.GET("/agent/runs", agentH.PendingRuns)
-	api.POST("/agent/runs/:id/claim", agentH.ClaimRun)
-	api.GET("/agent/jobs/:job_id/config", agentH.JobConfig)
-	api.GET("/agent/restores", agentH.PendingRestores)
-	api.POST("/agent/restores/:id/claim", agentH.ClaimRestore)
+	// Agent work polling (agent token, not JWT): discover + claim runs/restores
+	workH := handlers.NewAgentWorkHandler(db, encKey)
+	agentPoll := api.Group("/agent")
+	agentPoll.GET("/runs", workH.PendingRuns)
+	agentPoll.POST("/runs/:id/claim", workH.ClaimRun)
+	agentPoll.GET("/restores", workH.PendingRestores)
+	agentPoll.POST("/restores/:id/claim", workH.ClaimRestore)
 
 	// JWT-authenticated routes
 	authed := api.Group("")
-	authed.Use(middleware.Auth(cfg.JWTSecretKey))
+	authed.Use(middleware.Auth(cfg.JWTSecret))
 	authed.Use(middleware.Audit(db))
 
 	authed.GET("/me", userH.Me)
+	authed.POST("/auth/change-password", authH.ChangePassword)
 	authed.GET("/organizations", orgH.List)
 	authed.POST("/organizations", orgH.Create)
 
@@ -83,6 +91,7 @@ func NewRouter(db *gorm.DB, cfg *config.ENV, grpcSrv *grpcserver.Server) *gin.En
 	org.GET("/agents", agentH.List)
 	org.POST("/agents/token", middleware.RequireRole(models.RoleOwner, models.RoleAdmin), agentH.GenerateRegistrationToken)
 	org.GET("/agents/:id", agentH.Get)
+	org.POST("/agents/:id/rotate-token", middleware.RequireRole(models.RoleOwner, models.RoleAdmin), agentH.RotateToken)
 	org.DELETE("/agents/:id", middleware.RequireRole(models.RoleOwner, models.RoleAdmin), agentH.Delete)
 
 	// Machines

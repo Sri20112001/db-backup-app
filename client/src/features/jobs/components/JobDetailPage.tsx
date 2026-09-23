@@ -5,11 +5,13 @@ import { useAuthStore } from '@/store/authStore'
 import { useUIStore } from '@/store/uiStore'
 import type { BackupJob, BackupRun } from '@/types'
 import StatusBadge from '@/components/StatusBadge'
-import SkeletonRow from '@/components/Skeleton'
+import { SkeletonRow } from '@/components/Skeleton'
 import ConfirmDialog from '@/components/ConfirmDialog'
 import RunDetailDrawer from '@/features/history/components/RunDetailDrawer'
 import { formatBytes, formatDuration, formatRelative } from '@/utils/format'
 import { ChevronRight, Play, ChevronLeft, Loader2 } from 'lucide-react'
+import normalizeWindowsPath from '@/utils/normalizeWindowsPath'
+import Action3DButton from '@/components/ui/Action3DButton'
 
 const JobDetailPage = () => {
   const { id } = useParams<{ id: string }>()
@@ -107,14 +109,10 @@ const JobDetailPage = () => {
             <input type="checkbox" checked={job.enabled} onChange={handleToggle} className="sr-only peer" />
             <div className="w-9 h-5 bg-[#dce2f7] peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-[#2563eb]" />
           </label>
-          <button
-            type="button"
-            onClick={handleRunNow}
-            className="flex items-center gap-2 px-4 h-9 rounded-lg bg-[#2563eb] text-white text-[13px] font-medium hover:bg-[#1d4ed8] transition-colors"
-          >
+          <Action3DButton onClick={handleRunNow}>
             <Play size={16} />
             Run Now
-          </button>
+          </Action3DButton>
           <button
             type="button"
             onClick={() => navigate(`/jobs/${job.id}/edit`)}
@@ -206,7 +204,7 @@ const JobDetailPage = () => {
           <ConfigCard title="Storage" items={[
             { label: 'Target', value: job.storage_target?.name ?? '—' },
             { label: 'Type', value: job.storage_target?.type ?? '—' },
-            { label: 'Bucket', value: job.storage_target?.bucket || job.storage_target?.path || '—', mono: true },
+            { label: 'Bucket', value: normalizeWindowsPath(job.storage_target?.bucket || job.storage_target?.path || '—'), mono: true },
           ]} />
         </div>
       </div>

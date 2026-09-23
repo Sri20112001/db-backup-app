@@ -8,16 +8,18 @@ import (
 	pb "github.com/backup-saas/server/proto/agentpb"
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
+	"golang.org/x/crypto/bcrypt"
 	"gorm.io/gorm"
 )
 
 type RestoreHandler struct {
-	db   *gorm.DB
-	grpc CommandDispatcher
+	db     *gorm.DB
+	grpc   CommandDispatcher
+	encKey []byte
 }
 
-func NewRestoreHandler(db *gorm.DB, grpc CommandDispatcher) *RestoreHandler {
-	return &RestoreHandler{db: db, grpc: grpc}
+func NewRestoreHandler(db *gorm.DB, grpc CommandDispatcher, encKey []byte) *RestoreHandler {
+	return &RestoreHandler{db: db, grpc: grpc, encKey: encKey}
 }
 
 type createRestoreRequest struct {
@@ -31,7 +33,7 @@ func (h *RestoreHandler) List(c *gin.Context) {
 	orgID := c.MustGet("org_id").(uuid.UUID)
 	var jobs []models.RestoreJob
 	h.db.Preload("BackupRun").Where("organization_id = ?", orgID).Order("created_at DESC").Find(&jobs)
-	c.JSON(http.StatusOK, jobs)
+	c.JSON(http.StatusOK, asArray(jobs))
 }
 
 func (h *RestoreHandler) Create(c *gin.Context) {
@@ -103,13 +105,25 @@ func (h *RestoreHandler) Get(c *gin.Context) {
 
 // UpdateStatus is called by the agent to update restore job progress.
 func (h *RestoreHandler) UpdateStatus(c *gin.Context) {
-	agentToken := extractBearerToken(c)
+	raw := extractBearerToken(c)
+	if raw == "" {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "missing agent token"})
+		return
+	}
+	agentID, err := uuid.Parse(c.GetHeader("X-Agent-ID"))
+	if err != nil {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "missing or invalid X-Agent-ID header"})
+		return
+	}
 	var agent models.Agent
-	if err := h.db.Where("token = ?", agentToken).First(&agent).Error; err != nil {
+	if err := h.db.Where("id = ?", agentID).First(&agent).Error; err != nil {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "invalid agent token"})
 		return
 	}
-	touchAgent(h.db, &agent)
+	if bcrypt.CompareHashAndPassword([]byte(agent.TokenHash), []byte(raw)) != nil {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "invalid agent token"})
+		return
+	}
 
 	id, err := uuid.Parse(c.Param("id"))
 	if err != nil {

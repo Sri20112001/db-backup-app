@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { memberApi } from '@/services/api'
+import { memberApi, authApi } from '@/services/api'
 import { useAuthStore } from '@/store/authStore'
 import { useUIStore } from '@/store/uiStore'
 import type { OrganizationMember, MemberRole } from '@/types'
@@ -23,6 +23,8 @@ const SettingsPage = () => {
   const [showInvite, setShowInvite] = useState(false)
   const [inviteForm, setInviteForm] = useState({ email: '', name: '', role: 'VIEWER' as MemberRole })
   const [isInviting, setIsInviting] = useState(false)
+  const [pwForm, setPwForm] = useState({ current: '', next: '', confirm: '' })
+  const [isPwLoading, setIsPwLoading] = useState(false)
 
   const loadMembers = () => {
     if (!currentOrg) return
@@ -42,7 +44,7 @@ const SettingsPage = () => {
       setShowInvite(false)
       setInviteForm({ email: '', name: '', role: 'VIEWER' })
       loadMembers()
-    } catch { addToast('error', 'Failed to invite member') }
+    } catch (err: unknown) { addToast('error', err instanceof Error ? err.message : 'Failed to invite member') }
     finally { setIsInviting(false) }
   }
 
@@ -64,6 +66,28 @@ const SettingsPage = () => {
     } catch { addToast('error', 'Failed to remove member') }
   }
 
+  const handlePasswordChange = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (pwForm.next !== pwForm.confirm) {
+      addToast('error', 'New passwords do not match')
+      return
+    }
+    if (pwForm.next.length < 8) {
+      addToast('error', 'Password must be at least 8 characters')
+      return
+    }
+    setIsPwLoading(true)
+    try {
+      await authApi.changePassword(pwForm.current, pwForm.next)
+      addToast('success', 'Password updated')
+      setPwForm({ current: '', next: '', confirm: '' })
+    } catch (err: unknown) {
+      addToast('error', err instanceof Error ? err.message : 'Failed to update password')
+    } finally {
+      setIsPwLoading(false)
+    }
+  }
+
   const inputCls = "w-full h-9 px-3 rounded-lg border border-[#e9edff] bg-[#f9f9ff] text-[14px] text-[#141b2b] focus:outline-none focus:ring-2 focus:ring-[#2563eb]/20 focus:border-[#2563eb] transition-all"
 
   return (
@@ -81,7 +105,7 @@ const SettingsPage = () => {
             type="button"
             onClick={() => setTab(i)}
             className={`px-4 py-2.5 text-[13px] font-medium transition-colors border-b-2 -mb-px ${
-              tab === i ? 'border-primary-container text-primary-container' : 'border-transparent text-[#434655] hover:text-[#141b2b]'
+              tab === i ? 'border-[#2563eb] text-[#2563eb]' : 'border-transparent text-[#434655] hover:text-[#141b2b]'
             }`}
           >
             {t}
@@ -104,6 +128,10 @@ const SettingsPage = () => {
           <div>
             <label className="block text-[13px] font-medium text-[#434655] mb-1.5">Organization ID</label>
             <input type="text" defaultValue={currentOrg?.id} readOnly className={`${inputCls} font-mono text-[12px] bg-[#f9f9ff] text-[#737686]`} />
+          </div>
+          <div>
+            <label className="block text-[13px] font-medium text-[#434655] mb-1.5">User Limit</label>
+            <input type="text" defaultValue={currentOrg?.user_limit} readOnly className={`${inputCls} bg-[#f9f9ff] text-[#737686]`} />
           </div>
         </div>
       )}
@@ -135,6 +163,12 @@ const SettingsPage = () => {
                       {[...Array(4)].map((_, j) => <td key={j} className="py-3 px-4"><div className="h-4 bg-[#e9edff] rounded w-3/4" /></td>)}
                     </tr>
                   ))
+                ) : members.length === 0 ? (
+                  <tr>
+                    <td colSpan={4} className="py-10 text-center text-[13px] text-[#737686]">
+                      No team members yet.
+                    </td>
+                  </tr>
                 ) : members.map((m) => (
                   <tr key={m.id} className="hover:bg-[#f9f9ff] transition-colors">
                     <td className="py-3 px-4">
@@ -205,24 +239,25 @@ const SettingsPage = () => {
       {/* Security tab */}
       {tab === 2 && (
         <div className="flex flex-col gap-4 p-5 rounded-xl bg-[#ffffff] border border-[#e9edff] shadow-sm">
-          <h2 className="text-[14px] font-semibold text-[#141b2b]">Security</h2>
-          <div className="flex flex-col gap-4">
+          <h2 className="text-[14px] font-semibold text-[#141b2b]">Change Password</h2>
+          <form onSubmit={handlePasswordChange} className="flex flex-col gap-4">
             <div>
               <label className="block text-[13px] font-medium text-[#434655] mb-1.5">Current Password</label>
-              <input type="password" className={inputCls} />
+              <input type="password" value={pwForm.current} onChange={(e) => setPwForm((f) => ({ ...f, current: e.target.value }))} required className={inputCls} />
             </div>
             <div>
               <label className="block text-[13px] font-medium text-[#434655] mb-1.5">New Password</label>
-              <input type="password" className={inputCls} />
+              <input type="password" value={pwForm.next} onChange={(e) => setPwForm((f) => ({ ...f, next: e.target.value }))} required minLength={8} className={inputCls} />
             </div>
             <div>
               <label className="block text-[13px] font-medium text-[#434655] mb-1.5">Confirm New Password</label>
-              <input type="password" className={inputCls} />
+              <input type="password" value={pwForm.confirm} onChange={(e) => setPwForm((f) => ({ ...f, confirm: e.target.value }))} required className={inputCls} />
             </div>
-            <button type="button" className="w-fit px-4 h-9 rounded-lg bg-[#2563eb] text-white text-[13px] font-medium hover:bg-[#1d4ed8] transition-colors">
+            <button type="submit" disabled={isPwLoading} className="w-fit px-4 h-9 rounded-lg bg-[#2563eb] text-white text-[13px] font-medium hover:bg-[#1d4ed8] transition-colors disabled:opacity-60 flex items-center gap-2">
+              {isPwLoading && <Loader2 size={14} className="animate-spin" />}
               Update Password
             </button>
-          </div>
+          </form>
         </div>
       )}
     </div>

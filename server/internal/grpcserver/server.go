@@ -2,6 +2,7 @@ package grpcserver
 
 import (
 	"context"
+	"errors"
 	"net"
 	"sync"
 	"time"
@@ -11,6 +12,7 @@ import (
 	pb "github.com/backup-saas/server/proto/agentpb"
 	"github.com/google/uuid"
 	"github.com/rs/zerolog/log"
+	"golang.org/x/crypto/bcrypt"
 	"google.golang.org/grpc"
 	"gorm.io/gorm"
 )
@@ -34,6 +36,18 @@ func NewServer(db *gorm.DB, encryptionKey []byte) *Server {
 		db:            db,
 		streams:       make(map[string]*agentConn),
 		encryptionKey: encryptionKey,
+	}
+}
+
+// DisconnectAgent terminates the active gRPC stream for an agent, if any.
+// Called after token rotation so the old credential cannot be used to keep
+// an existing stream alive.
+func (s *Server) DisconnectAgent(agentID string) {
+	s.mu.RLock()
+	conn, ok := s.streams[agentID]
+	s.mu.RUnlock()
+	if ok {
+		conn.cancel() // cancels the stream context, causing Connect() to return
 	}
 }
 
@@ -288,8 +302,11 @@ func (s *Server) SendCommand(agentID string, cmd *pb.ServerCommand) bool {
 
 func (s *Server) authenticateAgent(agentID, token string) (*models.Agent, error) {
 	var agent models.Agent
-	if err := s.db.Where("id = ? AND token = ?", agentID, token).First(&agent).Error; err != nil {
-		return nil, err
+	if err := s.db.Where("id = ?", agentID).First(&agent).Error; err != nil {
+		return nil, errors.New("agent not found")
+	}
+	if err := bcrypt.CompareHashAndPassword([]byte(agent.TokenHash), []byte(token)); err != nil {
+		return nil, errors.New("invalid agent token")
 	}
 	return &agent, nil
 }

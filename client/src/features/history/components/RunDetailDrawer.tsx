@@ -6,6 +6,7 @@ import type { BackupRun, BackupArtifact } from '@/types'
 import StatusBadge from '@/components/StatusBadge'
 import { formatBytes, formatDuration, formatDate, truncate } from '@/utils/format'
 import { X, Check, Loader2 } from 'lucide-react'
+import normalizeWindowsPath from '../../../utils/normalizeWindowsPath';
 
 const STATUSES = ['PENDING', 'RUNNING', 'UPLOADING', 'VERIFYING', 'COMPLETED']
 
@@ -114,7 +115,7 @@ const RunDetailDrawer = ({ runId }: { runId: string }) => {
                   { label: 'Started', value: formatDate(run.started_at) },
                   { label: 'Completed', value: formatDate(run.completed_at) },
                   { label: 'Source Type', value: run.source_type || run.backup_job?.source_type },
-                  { label: 'Storage Path', value: run.storage_path, mono: true },
+                  { label: 'Storage Path', value: normalizeWindowsPath(run.storage_path), mono: true },
                   { label: 'Checksum', value: run.checksum, mono: true },
                 ].map((d) => d.value ? (
                   <div key={d.label} className="flex items-start gap-3">

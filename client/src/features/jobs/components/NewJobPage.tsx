@@ -4,12 +4,17 @@ import { jobApi, agentApi, storageApi } from '@/services/api'
 import { useAuthStore } from '@/store/authStore'
 import { useUIStore } from '@/store/uiStore'
 import type { Agent, StorageTarget, BackupSourceType, BackupMode } from '@/types'
-import { ChevronRight, Check, Folder, Database, Table2, Server, CloudUpload, FolderOpen, FolderSearch, HardDrive, Loader2 } from 'lucide-react'
-import FolderBrowser from '@/components/FolderBrowser'
+import { ChevronRight, Check, Folder, Database, DatabaseBackup, Table2, Server, CloudUpload, FolderOpen, HardDrive, Loader2 } from 'lucide-react'
+import SqlDatabasePicker from './SqlDatabasePicker'
+import PgDatabasePicker from './PgDatabasePicker'
+import Action3DButton from '@/components/ui/Action3DButton'
+import NeoToggle from '@/components/ui/NeoToggle'
+import { FileSystemIcon, MssqlServerIcon, PostgresIcon, DbfIcon } from '@/components/ui/SourceIcons'
 
-const STEPS = ['Agent', 'Source', 'Schedule', 'Processing', 'Review']
+const STEPS = ['Source', 'Agent', 'Schedule', 'Processing', 'Review']
 
 const PRESETS = [
+  { label: 'Every 1 min (test)', cron: '*/1 * * * *' },
   { label: 'Every hour', cron: '@hourly' },
   { label: 'Every 6 hours', cron: '0 */6 * * *' },
   { label: 'Daily at 11 PM', cron: '0 23 * * *' },
@@ -27,8 +32,6 @@ const NewJobPage = () => {
   const [agents, setAgents] = useState<Agent[]>([])
   const [storageTargets, setStorageTargets] = useState<StorageTarget[]>([])
   const [isSubmitting, setIsSubmitting] = useState(false)
-
-  const [showBrowser, setShowBrowser] = useState(false)
 
   const [form, setForm] = useState({
     name: '',
@@ -56,8 +59,8 @@ const NewJobPage = () => {
   const update = (key: string, value: unknown) => setForm((f) => ({ ...f, [key]: value }))
 
   const canAdvance = () => {
-    if (step === 0) return !!form.agent_id
-    if (step === 1) return !!form.name && !!(form.source_path || form.source_database)
+    if (step === 0) return !!form.name && !!(form.source_path || form.source_database)
+    if (step === 1) return !!form.agent_id
     if (step === 2) return !!form.cron_expr
     if (step === 3) return !!form.storage_target_id
     return true
@@ -112,8 +115,8 @@ const NewJobPage = () => {
 
       {/* Step content */}
       <div className="bg-[#ffffff] rounded-xl border border-[#e9edff] shadow-sm p-6">
-        {/* Step 1: Source (paths are relative to the selected agent's machine) */}
-        {step === 1 && (
+        {/* Step 0: Source */}
+        {step === 0 && (
           <div className="flex flex-col gap-5">
             <h2 className="text-[16px] font-semibold text-[#141b2b]">Source Configuration</h2>
             <div>
@@ -128,11 +131,12 @@ const NewJobPage = () => {
             </div>
             <div>
               <label className="block text-[13px] font-medium text-[#434655] mb-2">Source Type *</label>
-              <div className="grid grid-cols-3 gap-3">
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
                 {([
-                  { type: 'FILESYSTEM', Icon: Folder, label: 'Filesystem' },
-                  { type: 'SQL_SERVER', Icon: Database, label: 'SQL Server' },
-                  { type: 'DBF', Icon: Table2, label: 'DBF Dataset' },
+                  { type: 'FILESYSTEM', Icon: FileSystemIcon, label: 'Filesystem' },
+                  { type: 'MSSQL_SERVER', Icon: MssqlServerIcon, label: 'SQL Server' },
+                  { type: 'POSTGRES', Icon: PostgresIcon, label: 'PostgreSQL' },
+                  { type: 'DBF', Icon: DbfIcon, label: 'DBF Dataset' },
                 ] as const).map((s) => (
                   <button
                     key={s.type}
@@ -155,41 +159,24 @@ const NewJobPage = () => {
                 <label className="block text-[13px] font-medium text-[#434655] mb-1.5">
                   {form.source_type === 'DBF' ? 'Dataset Directory *' : 'Source Path *'}
                 </label>
-                <div className="flex items-center gap-2">
-                  <input
-                    type="text"
-                    value={form.source_path}
-                    onChange={(e) => update('source_path', e.target.value)}
-                    placeholder={form.source_type === 'DBF' ? 'C:\\LegacyApp\\Data\\' : 'D:\\CompanyData\\'}
-                    className="flex-1 h-9 px-3 rounded-lg border border-[#e9edff] bg-[#f9f9ff] font-mono text-[13px] text-[#141b2b] focus:outline-none focus:ring-2 focus:ring-[#2563eb]/20 focus:border-[#2563eb] transition-all"
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setShowBrowser(true)}
-                    title="Browse folders on the agent machine"
-                    className="shrink-0 flex items-center gap-2 px-3 h-9 rounded-lg bg-[#ffffff] border border-[#e9edff] text-[#141b2b] text-[13px] font-medium hover:bg-[#f1f3ff] hover:border-[#c3c6d7] transition-colors"
-                  >
-                    <FolderSearch size={16} />
-                    Browse
-                  </button>
-                </div>
-                <p className="mt-1.5 text-[12px] text-[#737686]">
-                  On <span className="font-medium text-[#434655]">{selectedAgent?.name ?? 'the selected agent'}</span>
-                  {selectedAgent?.status !== 'ONLINE' && ' (agent is offline — browsing needs it running on this machine)'}.
-                  Browse works when the agent runs on this machine, otherwise type the path.
-                </p>
-              </div>
-            ) : (
-              <div>
-                <label className="block text-[13px] font-medium text-[#434655] mb-1.5">Database Name *</label>
                 <input
                   type="text"
-                  value={form.source_database}
-                  onChange={(e) => update('source_database', e.target.value)}
-                  placeholder="ERP_Production"
+                  value={form.source_path}
+                  onChange={(e) => update('source_path', e.target.value)}
+                  placeholder={form.source_type === 'DBF' ? 'C:\\LegacyApp\\Data\\' : 'D:\\CompanyData\\'}
                   className="w-full h-9 px-3 rounded-lg border border-[#e9edff] bg-[#f9f9ff] font-mono text-[13px] text-[#141b2b] focus:outline-none focus:ring-2 focus:ring-[#2563eb]/20 focus:border-[#2563eb] transition-all"
                 />
               </div>
+            ) : form.source_type === 'POSTGRES' ? (
+              <PgDatabasePicker
+                value={form.source_database}
+                onChange={(v) => update('source_database', v)}
+              />
+            ) : (
+              <SqlDatabasePicker
+                value={form.source_database}
+                onChange={(v) => update('source_database', v)}
+              />
             )}
             {(form.source_type === 'FILESYSTEM') && (
               <div className="grid grid-cols-2 gap-4">
@@ -218,8 +205,8 @@ const NewJobPage = () => {
           </div>
         )}
 
-        {/* Step 0: Agent (first — source paths live on the agent's machine) */}
-        {step === 0 && (
+        {/* Step 1: Agent */}
+        {step === 1 && (
           <div className="flex flex-col gap-4">
             <h2 className="text-[16px] font-semibold text-[#141b2b]">Select Agent</h2>
             {agents.length === 0 ? (
@@ -309,10 +296,11 @@ const NewJobPage = () => {
                     <p className="text-[14px] font-medium text-[#141b2b]">{t.label}</p>
                     <p className="text-[12px] text-[#737686]">{t.desc}</p>
                   </div>
-                  <label className="relative inline-flex items-center cursor-pointer">
-                    <input type="checkbox" checked={t.value} onChange={(e) => t.toggle(e.target.checked)} className="sr-only peer" />
-                    <div className="w-11 h-6 bg-[#dce2f7] peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-[#2563eb]" />
-                  </label>
+                  <NeoToggle
+                    id={`toggle-${t.key}`}
+                    checked={t.value}
+                    onChange={(checked) => t.toggle(checked)}
+                  />
                 </div>
               ))}
             </div>
@@ -399,34 +387,24 @@ const NewJobPage = () => {
           {step === 0 ? 'Cancel' : '← Back'}
         </button>
         {step < STEPS.length - 1 ? (
-          <button
+          <Action3DButton
             type="button"
             onClick={() => setStep((s) => s + 1)}
             disabled={!canAdvance()}
-            className="px-4 h-9 rounded-lg bg-[#2563eb] text-white text-[13px] font-medium hover:bg-[#1d4ed8] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
           >
             Next →
-          </button>
+          </Action3DButton>
         ) : (
-          <button
+          <Action3DButton
             type="button"
             onClick={handleSubmit}
             disabled={isSubmitting}
-            className="px-4 h-9 rounded-lg bg-[#2563eb] text-white text-[13px] font-medium hover:bg-[#1d4ed8] transition-colors disabled:opacity-60 flex items-center gap-2"
           >
             {isSubmitting && <Loader2 size={14} className="animate-spin" />}
             {isSubmitting ? 'Creating...' : 'Create Backup Job'}
-          </button>
+          </Action3DButton>
         )}
       </div>
-
-      {showBrowser && (
-        <FolderBrowser
-          initialPath={form.source_path}
-          onSelect={(p) => { update('source_path', p); setShowBrowser(false) }}
-          onClose={() => setShowBrowser(false)}
-        />
-      )}
     </div>
   )
 }

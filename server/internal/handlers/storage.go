@@ -39,7 +39,7 @@ func (h *StorageHandler) List(c *gin.Context) {
 	orgID := c.MustGet("org_id").(uuid.UUID)
 	var targets []models.StorageTarget
 	h.db.Where("organization_id = ?", orgID).Find(&targets)
-	c.JSON(http.StatusOK, targets)
+	c.JSON(http.StatusOK, asArray(targets))
 }
 
 func (h *StorageHandler) Create(c *gin.Context) {

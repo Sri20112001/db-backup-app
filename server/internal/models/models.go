@@ -27,9 +27,10 @@ func (b *Base) BeforeCreate(tx *gorm.DB) error {
 
 type Organization struct {
 	Base
-	Name  string `gorm:"not null" json:"name"`
-	Slug  string `gorm:"uniqueIndex;not null" json:"slug"`
-	Users []OrganizationMember `gorm:"foreignKey:OrganizationID" json:"-"`
+	Name      string `gorm:"not null" json:"name"`
+	Slug      string `gorm:"uniqueIndex;not null" json:"slug"`
+	UserLimit int    `gorm:"not null;default:10" json:"user_limit"`
+	Users     []OrganizationMember `gorm:"foreignKey:OrganizationID" json:"-"`
 }
 
 // --- User ---
@@ -74,7 +75,8 @@ type Agent struct {
 	Base
 	OrganizationID  uuid.UUID   `gorm:"type:uuid;not null;index" json:"organization_id"`
 	Name            string      `gorm:"not null" json:"name"`
-	Token           *string     `gorm:"uniqueIndex" json:"-"`
+	TokenHash       string      `gorm:"uniqueIndex" json:"-"`
+	TokenRotatedAt  *time.Time  `json:"token_rotated_at"`
 	Status          AgentStatus `gorm:"not null;default:'OFFLINE'" json:"status"`
 	Version         string      `json:"version"`
 	LastSeenAt      *time.Time  `json:"last_seen_at"`
@@ -124,6 +126,7 @@ const (
 	SourceFilesystem BackupSourceType = "FILESYSTEM"
 	SourceSQLServer  BackupSourceType = "SQL_SERVER"
 	SourceDBF        BackupSourceType = "DBF"
+	SourcePostgres   BackupSourceType = "POSTGRES"
 )
 
 type BackupMode string
@@ -193,10 +196,29 @@ type BackupRun struct {
 	ErrorMessage    string          `json:"error_message,omitempty"`
 	StoragePath     string          `json:"storage_path"`
 	Checksum        string          `json:"checksum"`
+	// DataKeyEncrypted holds the per-backup AES-256 data key, envelope-
+	// encrypted with the server ENCRYPTION_KEY (same as storage credentials).
+	// The server never sees plaintext backup data, only the wrapped key.
+	DataKeyEncrypted string         `json:"-"`
 	BackupJob       BackupJob       `gorm:"foreignKey:BackupJobID" json:"backup_job,omitempty"`
 }
 
-// --- BackupArtifact ---
+// CanTransition returns true if moving from → to is a valid state transition.
+func CanTransition(from, to BackupRunStatus) bool {
+	switch from {
+	case RunPending:
+		return to == RunRunning || to == RunCancelled
+	case RunRunning:
+		return to == RunUploading || to == RunFailed || to == RunCancelled
+	case RunUploading:
+		return to == RunVerifying || to == RunFailed || to == RunCancelled
+	case RunVerifying:
+		return to == RunCompleted || to == RunFailed
+	}
+	return false
+}
+
+
 
 type BackupArtifact struct {
 	Base
@@ -212,7 +234,7 @@ type BackupArtifact struct {
 type BackupChunk struct {
 	Base
 	ArtifactID  uuid.UUID `gorm:"type:uuid;not null;index" json:"artifact_id"`
-	Index       int       `gorm:"not null" json:"index"`
+	Index       int       `gorm:"not null;uniqueIndex:idx_chunk_artifact_index" json:"index"`
 	Size        int64     `json:"size"`
 	Checksum    string    `json:"checksum"`
 	StoragePath string    `json:"storage_path"`
@@ -285,6 +307,7 @@ type AuditLog struct {
 type RefreshToken struct {
 	Base
 	UserID    uuid.UUID `gorm:"type:uuid;not null;index" json:"user_id"`
+	FamilyID  uuid.UUID `gorm:"type:uuid;not null;index" json:"-"` // all tokens in one login session share a family
 	Token     string    `gorm:"uniqueIndex;not null" json:"-"`
 	ExpiresAt time.Time `json:"expires_at"`
 	Revoked   bool      `gorm:"default:false" json:"-"`

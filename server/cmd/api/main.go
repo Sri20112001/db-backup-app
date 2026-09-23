@@ -17,18 +17,9 @@ import (
 func main() {
 	log.Logger = log.Output(zerolog.ConsoleWriter{Out: os.Stderr})
 
-	config.LoadEnv()
-	cfg := config.AppEnv
+	cfg := config.Load()
 
-	log.Info().
-		Str("host", cfg.DBHost).
-		Str("user", cfg.DBUser).
-		Str("dbname", cfg.DBName).
-		Int("port", cfg.DBPort).
-		Str("sslmode", cfg.DBSSLMode).
-		Msg("connecting to database")
-
-	database, err := db.Connect(cfg.DSN())
+	database, err := db.Connect(cfg.DatabaseURL)
 	if err != nil {
 		log.Fatal().Err(err).Msg("failed to connect to database")
 	}
@@ -40,6 +31,10 @@ func main() {
 	encKey := make([]byte, 32)
 	copy(encKey, []byte(cfg.EncryptionKey))
 
+	if cfg.EncryptionKey == "" {
+		log.Warn().Msg("ENCRYPTION_KEY is not set — storage credentials will be stored in plaintext")
+	}
+
 	monitor := services.NewHealthMonitor(database)
 	monitor.Start()
 	defer monitor.Stop()
@@ -50,10 +45,6 @@ func main() {
 			log.Fatal().Err(err).Msg("gRPC server failed")
 		}
 	}()
-
-	scheduler := services.NewScheduler(database, grpcSrv)
-	scheduler.Start()
-	defer scheduler.Stop()
 
 	router := api.NewRouter(database, cfg, grpcSrv)
 

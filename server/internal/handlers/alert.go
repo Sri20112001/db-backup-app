@@ -43,7 +43,7 @@ func (h *AlertHandler) List(c *gin.Context) {
 	query.Limit(limit).Offset(offset).Find(&alerts)
 
 	c.JSON(http.StatusOK, gin.H{
-		"data":  alerts,
+		"data":  asArray(alerts),
 		"total": total,
 		"page":  page,
 		"limit": limit,

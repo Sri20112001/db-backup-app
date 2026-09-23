@@ -25,7 +25,7 @@ const LoginPage = () => {
       const orgs = await orgApi.list()
       if (orgs.length > 0) setCurrentOrg(orgs[0])
       addToast('success', `Welcome back, ${data.user.name}`)
-      navigate('/')
+      navigate(orgs.length > 0 ? '/' : '/setup')
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : 'Login failed')
     } finally {

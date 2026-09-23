@@ -120,6 +120,13 @@ const DashboardPage = () => {
           <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-5 gap-3">
             {[...Array(5)].map((_, i) => <SkeletonCard key={i} />)}
           </div>
+        ) : health.length === 0 ? (
+          <div className="p-6 rounded-lg bg-[#ffffff] border border-[#e9edff] text-center text-[13px] text-[#737686]">
+            No backup jobs configured yet.{' '}
+            <button type="button" onClick={() => navigate('/jobs/new')} className="text-[#004ac6] hover:underline">
+              Create your first job
+            </button>
+          </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-5 gap-3">
             {health.map((job) => {
@@ -156,22 +163,23 @@ const DashboardPage = () => {
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             {isLoading ? (
               [...Array(4)].map((_, i) => <SkeletonCard key={i} />)
-            ) : overview ? (
+            ) : (
               <>
                 <MetricTile Icon={LayoutGrid} iconBg="bg-[#dbe1ff]" iconColor="text-[#004ac6]"
-                  label="Total Backup Jobs" value={`${overview.total_jobs}`}
-                  sub={`${overview.enabled_jobs} active`} />
+                  label="Total Backup Jobs" value={`${overview?.total_jobs ?? 0}`}
+                  sub={`${overview?.enabled_jobs ?? 0} active`} />
                 <MetricTile Icon={Radio} iconBg="bg-[#c9e6ff]" iconColor="text-[#006591]"
-                  label="Agent Fleet" value={`${overview.agents_online} / ${overview.agents_online + overview.agents_offline} Online`}
-                  sub={overview.agents_offline > 0 ? `${overview.agents_offline} offline` : 'All connected'} />
+                  label="Agent Fleet"
+                  value={overview ? `${overview.agents_online} / ${overview.agents_online + overview.agents_offline} Online` : '0 Online'}
+                  sub={overview && overview.agents_offline > 0 ? `${overview.agents_offline} offline` : 'No agents yet'} />
                 <MetricTile Icon={FolderArchive} iconBg="bg-[#c9e6ff]/50" iconColor="text-[#006591]"
-                  label="Storage Consumed" value={formatBytes(overview.total_bytes)}
+                  label="Storage Consumed" value={formatBytes(overview?.total_bytes ?? 0)}
                   sub="Total uploaded" />
                 <MetricTile Icon={BadgeCheck} iconBg="bg-[#dbe1ff]" iconColor="text-[#004ac6]"
-                  label="24h Execution" value={`${overview.successful_runs} ✓  ${overview.failed_runs} ✗`}
+                  label="24h Execution" value={`${overview?.successful_runs ?? 0} ✓  ${overview?.failed_runs ?? 0} ✗`}
                   sub="Successful / Failed" />
               </>
-            ) : null}
+            )}
           </div>
 
           {/* Recent runs table */}
@@ -203,7 +211,13 @@ const DashboardPage = () => {
                         ))}
                       </tr>
                     ))
-                  ) : overview?.recent_runs.map((run) => (
+                  ) : !overview?.recent_runs?.length ? (
+                    <tr>
+                      <td colSpan={7} className="py-12 text-center text-[13px] text-[#737686]">
+                        No backup runs yet. <button type="button" onClick={() => navigate('/jobs/new')} className="text-[#004ac6] hover:underline">Create a backup job</button> to get started.
+                      </td>
+                    </tr>
+                  ) : overview.recent_runs.map((run) => (
                     <tr
                       key={run.id}
                       onClick={() => openRunDetail(run.id)}
@@ -246,7 +260,14 @@ const DashboardPage = () => {
               </div>
             </div>
             <div className="flex flex-col divide-y divide-[#e9edff]">
-              {health.slice(0, 6).map((job) => (
+              {health.length === 0 ? (
+                <div className="p-5 text-center text-[13px] text-[#737686]">
+                  No jobs yet.{' '}
+                  <button type="button" onClick={() => navigate('/jobs/new')} className="text-[#004ac6] hover:underline">
+                    Create one
+                  </button>
+                </div>
+              ) : health.slice(0, 6).map((job) => (
                 <div key={job.job_id} className="p-3.5 flex items-center justify-between gap-3 hover:bg-[#f1f3ff]/40 transition-colors">
                   <div className="flex-1 min-w-0">
                     <p className="text-[13px] font-medium text-[#141b2b] truncate">{job.job_name}</p>

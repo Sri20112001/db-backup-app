@@ -21,7 +21,7 @@ func (h *MachineHandler) List(c *gin.Context) {
 	orgID := c.MustGet("org_id").(uuid.UUID)
 	var machines []models.Machine
 	h.db.Preload("Agent").Where("organization_id = ?", orgID).Find(&machines)
-	c.JSON(http.StatusOK, machines)
+	c.JSON(http.StatusOK, asArray(machines))
 }
 
 func (h *MachineHandler) Get(c *gin.Context) {

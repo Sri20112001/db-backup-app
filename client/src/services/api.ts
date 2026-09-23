@@ -4,15 +4,39 @@ import type {
   DashboardOverview, JobHealth, OrganizationMember,
   Organization, PaginatedResponse
 } from '../types'
-import { useAuthStore } from '../store/authStore'
 
-const BASE = import.meta.env.VITE_API_URL || 'http://localhost:7541/api'
+const BASE = import.meta.env.VITE_API_URL
 
 function getToken() {
   return localStorage.getItem('access_token')
 }
 
-async function doFetch<T>(path: string, options: RequestInit = {}): Promise<T> {
+function getRefreshToken() {
+  return localStorage.getItem('refresh_token')
+}
+
+let refreshPromise: Promise<void> | null = null
+
+async function refreshAccessToken(): Promise<void> {
+  const rt = getRefreshToken()
+  if (!rt) throw new Error('no refresh token')
+  const res = await fetch(`${BASE}/auth/refresh`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ refresh_token: rt }),
+  })
+  if (!res.ok) {
+    localStorage.removeItem('access_token')
+    localStorage.removeItem('refresh_token')
+    window.location.href = '/login'
+    throw new Error('session expired')
+  }
+  const data = await res.json()
+  localStorage.setItem('access_token', data.access_token)
+  localStorage.setItem('refresh_token', data.refresh_token)
+}
+
+async function request<T>(path: string, options: RequestInit = {}, retry = true): Promise<T> {
   const token = getToken()
   const res = await fetch(`${BASE}${path}`, {
     ...options,
@@ -22,67 +46,19 @@ async function doFetch<T>(path: string, options: RequestInit = {}): Promise<T> {
       ...options.headers,
     },
   })
+  if (res.status === 401 && retry) {
+    if (!refreshPromise) {
+      refreshPromise = refreshAccessToken().finally(() => { refreshPromise = null })
+    }
+    await refreshPromise
+    return request<T>(path, options, false)
+  }
   if (!res.ok) {
     const err = await res.json().catch(() => ({ error: res.statusText }))
-    throw Object.assign(new Error(err.error || 'Request failed'), { status: res.status })
+    throw new Error(err.error || 'Request failed')
   }
   if (res.status === 204) return undefined as T
   return res.json()
-}
-
-// Single in-flight refresh shared by concurrent 401s.
-let refreshPromise: Promise<boolean> | null = null
-
-async function refreshAccessToken(): Promise<boolean> {
-  if (!refreshPromise) {
-    refreshPromise = (async () => {
-      const rt = localStorage.getItem('refresh_token')
-      if (!rt) return false
-      try {
-        const data = await doFetch<{ access_token: string; refresh_token: string }>(
-          '/auth/refresh',
-          { method: 'POST', body: JSON.stringify({ refresh_token: rt }) },
-        )
-        localStorage.setItem('access_token', data.access_token)
-        localStorage.setItem('refresh_token', data.refresh_token)
-        useAuthStore.setState({
-          accessToken: data.access_token,
-          refreshToken: data.refresh_token,
-        })
-        return true
-      } catch {
-        return false
-      }
-    })().finally(() => {
-      refreshPromise = null
-    })
-  }
-  return refreshPromise
-}
-
-function forceLogout() {
-  useAuthStore.getState().logout()
-  if (window.location.pathname !== '/login') {
-    window.location.assign('/login')
-  }
-}
-
-async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
-  try {
-    return await doFetch<T>(path, options)
-  } catch (err: unknown) {
-    const status = (err as { status?: number })?.status
-    const hadToken = !!getToken()
-    // Only retry authenticated (non-/auth) calls once after a refresh.
-    // Login/register 401s (wrong credentials, no token yet) fall through.
-    if (status === 401 && hadToken && !path.startsWith('/auth/')) {
-      if (await refreshAccessToken()) {
-        return doFetch<T>(path, options)
-      }
-      forceLogout()
-    }
-    throw err
-  }
 }
 
 // Auth
@@ -99,6 +75,8 @@ export const authApi = {
     }),
   logout: (refresh_token: string) =>
     request('/auth/logout', { method: 'POST', body: JSON.stringify({ refresh_token }) }),
+  changePassword: (currentPassword: string, newPassword: string) =>
+    request('/auth/change-password', { method: 'POST', body: JSON.stringify({ current_password: currentPassword, new_password: newPassword }) }),
 }
 
 // Organizations

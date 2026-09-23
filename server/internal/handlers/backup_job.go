@@ -45,7 +45,7 @@ func (h *BackupJobHandler) List(c *gin.Context) {
 	var jobs []models.BackupJob
 	h.db.Preload("Schedule").Preload("Agent").Preload("StorageTarget").
 		Where("organization_id = ?", orgID).Find(&jobs)
-	c.JSON(http.StatusOK, jobs)
+	c.JSON(http.StatusOK, asArray(jobs))
 }
 
 func (h *BackupJobHandler) Create(c *gin.Context) {

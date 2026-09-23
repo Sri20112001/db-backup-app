@@ -7,23 +7,29 @@ import type { BackupJob, BackupSourceType } from '@/types'
 import StatusBadge from '@/components/StatusBadge'
 import EmptyState from '@/components/EmptyState'
 import { SkeletonCard } from '@/components/Skeleton'
+import SearchInput from '@/components/ui/SearchInput'
+import Action3DButton from '@/components/ui/Action3DButton'
 import {
   ChevronRight, Plus, Layers, CheckCircle, AlertCircle, PauseCircle,
-  Folder, Database, Table2, Cloud, Clock, History,
+  Folder, Database, DatabaseBackup, Table2, Cloud, Clock, History,
   Play, MoreVertical, Search, Archive,
 } from 'lucide-react'
 
 const SOURCE_FILTERS: { label: string; value: BackupSourceType | '' }[] = [
   { label: 'All', value: '' },
   { label: 'Filesystem', value: 'FILESYSTEM' },
-  { label: 'SQL Server', value: 'SQL_SERVER' },
+  { label: 'MSSQL Server', value: 'MSSQL_SERVER' },
+  { label: 'PostgreSQL', value: 'POSTGRES' },
   { label: 'DBF Dataset', value: 'DBF' },
 ]
 
+import { FileSystemIcon, MssqlServerIcon, PostgresIcon, DbfIcon } from '@/components/ui/SourceIcons'
+
 const sourceIcon = {
-  FILESYSTEM: Folder,
-  SQL_SERVER: Database,
-  DBF: Table2,
+  FILESYSTEM: FileSystemIcon,
+  MSSQL_SERVER: MssqlServerIcon,
+  POSTGRES: PostgresIcon,
+  DBF: DbfIcon,
 }
 
 const JobsPage = () => {
@@ -100,14 +106,10 @@ const JobsPage = () => {
           <p className="text-[13px] text-[#434655] mt-0.5">Configure, schedule, and monitor backup policies.</p>
         </div>
         <div className="flex items-center gap-2.5 shrink-0">
-          <button
-            type="button"
-            onClick={() => navigate('/jobs/new')}
-            className="inline-flex items-center gap-2 px-4 h-9 rounded-lg bg-[#2563eb] text-white text-[13px] font-medium shadow-sm hover:bg-[#1d4ed8] transition-colors"
-          >
+          <Action3DButton onClick={() => navigate('/jobs/new')}>
             <Plus size={16} />
             New Backup Job
-          </button>
+          </Action3DButton>
         </div>
       </div>
 
@@ -135,13 +137,11 @@ const JobsPage = () => {
       <div className="flex flex-col gap-3 p-3 rounded-xl bg-[#ffffff] shadow-sm border border-[#e9edff]">
         <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3">
           <div className="relative flex-1 min-w-[280px]">
-            <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-[#434655]" />
-            <input
-              type="text"
+            <SearchInput
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               placeholder="Search jobs by name, path, or agent..."
-              className="w-full h-9 pl-9 pr-4 rounded-lg bg-[#f9f9ff] border border-[#e9edff] text-[14px] text-[#141b2b] placeholder:text-[#737686] focus:outline-none focus:ring-2 focus:ring-[#2563eb]/20 focus:border-[#2563eb] transition-all"
+              className="w-full lg:w-[400px]"
             />
           </div>
           <div className="flex items-center gap-1.5 overflow-x-auto">
@@ -258,14 +258,13 @@ const JobsPage = () => {
 
               {/* Actions */}
               <div className="col-span-2 flex items-center justify-end gap-2 shrink-0" onClick={(e) => e.stopPropagation()}>
-                <button
-                  type="button"
+                <Action3DButton
                   onClick={(e) => handleRunNow(e, job)}
-                  className="inline-flex items-center gap-1 px-2.5 h-8 rounded-lg bg-[#f1f3ff] text-[#141b2b] text-[12px] font-medium hover:bg-[#e9edff] transition-colors"
+                  className="!px-2.5 !h-8 !text-[12px]"
                 >
-                  <Play size={14} className="text-[#004ac6]" />
+                  <Play size={14} className="text-white" />
                   Run Now
-                </button>
+                </Action3DButton>
                 <label className="relative inline-flex items-center cursor-pointer" title={job.enabled ? 'Disable' : 'Enable'}>
                   <input
                     type="checkbox"
