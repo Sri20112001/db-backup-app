@@ -1,3 +1,3 @@
 module github.com/backup-saas/agent
 
-go 1.25
+go 1.23
