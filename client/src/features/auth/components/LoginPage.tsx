@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import { authApi, orgApi } from '@/services/api'
 import { useAuthStore } from '@/store/authStore'
 import { useUIStore } from '@/store/uiStore'
@@ -108,9 +108,12 @@ const LoginPage = () => {
 
         <p className="mt-6 text-center text-[13px] text-[#737686]">
           Don't have an account?{' '}
-          <a href="/register" className="text-[#004ac6] hover:underline font-medium">
-            Register
-          </a>
+          <Link
+  to="/register"
+  className="text-[#004ac6] hover:underline font-medium"
+>
+  Register
+</Link>
         </p>
       </div>
     </div>
