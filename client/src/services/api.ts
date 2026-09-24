@@ -63,8 +63,17 @@ async function request<T>(path: string, options: RequestInit = {}, retry = true)
 
 // Auth
 export const authApi = {
-  login: (email: string, password: string) =>
-    request<AuthTokens>('/auth/login', { method: 'POST', body: JSON.stringify({ email, password }) }),
+  login: async (email: string, password: string) => {
+  const data = await request<AuthTokens>('/auth/login', {
+    method: 'POST',
+    body: JSON.stringify({ email, password }),
+  })
+
+  localStorage.setItem('access_token', data.access_token)
+  localStorage.setItem('refresh_token', data.refresh_token)
+
+  return data
+},
   register: (email: string, password: string, name: string) =>
     request<{ id: string; email: string; name: string }>('/auth/register', {
       method: 'POST', body: JSON.stringify({ email, password, name }),
