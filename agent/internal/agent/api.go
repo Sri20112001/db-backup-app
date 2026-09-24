@@ -127,7 +127,7 @@ type registerResponse struct {
 
 // Register performs the one-time self-registration with the registration key.
 func (c *Client) Register(regKey, hostname, version string) (*registerResponse, error) {
-	data, _, err := c.do("POST", "/api/agents/register", map[string]string{
+	data, _, err := c.do("POST", "/agents/register", map[string]string{
 		"registration_key": regKey,
 		"hostname":         hostname,
 		"os":               runtime.GOOS,
@@ -145,7 +145,7 @@ func (c *Client) Register(regKey, hostname, version string) (*registerResponse, 
 }
 
 func (c *Client) PendingRuns() ([]Run, error) {
-	data, _, err := c.do("GET", "/api/agent/runs", nil, true)
+	data, _, err := c.do("GET", "/agent/runs", nil, true)
 	if err != nil {
 		return nil, err
 	}
@@ -160,7 +160,7 @@ func (c *Client) PendingRuns() ([]Run, error) {
 }
 
 func (c *Client) ClaimRun(id string) (*ClaimRunResponse, error) {
-	data, code, err := c.do("POST", "/api/agent/runs/"+id+"/claim", nil, true)
+	data, code, err := c.do("POST", "/agent/runs/"+id+"/claim", nil, true)
 	if err != nil {
 		if code == 409 {
 			return nil, errClaimed
@@ -190,7 +190,7 @@ type RunStatusUpdate struct {
 }
 
 func (c *Client) UpdateRunStatus(runID string, u RunStatusUpdate) error {
-	_, _, err := c.do("PUT", "/api/backup-runs/"+runID+"/status", u, true)
+	_, _, err := c.do("PUT", "/backup-runs/"+runID+"/status", u, true)
 	return err
 }
 
@@ -199,7 +199,7 @@ type ArtifactResponse struct {
 }
 
 func (c *Client) RegisterArtifact(runID, name string, size int64, checksum, storagePath string) (*ArtifactResponse, error) {
-	data, _, err := c.do("POST", "/api/backup-runs/"+runID+"/artifacts", map[string]interface{}{
+	data, _, err := c.do("POST", "/backup-runs/"+runID+"/artifacts", map[string]interface{}{
 		"name":         name,
 		"size":         size,
 		"checksum":     checksum,
@@ -216,7 +216,7 @@ func (c *Client) RegisterArtifact(runID, name string, size int64, checksum, stor
 }
 
 func (c *Client) PendingRestores() ([]Restore, error) {
-	data, _, err := c.do("GET", "/api/agent/restores", nil, true)
+	data, _, err := c.do("GET", "/agent/restores", nil, true)
 	if err != nil {
 		return nil, err
 	}
@@ -231,7 +231,7 @@ func (c *Client) PendingRestores() ([]Restore, error) {
 }
 
 func (c *Client) ClaimRestore(id string) (*Restore, error) {
-	data, code, err := c.do("POST", "/api/agent/restores/"+id+"/claim", nil, true)
+	data, code, err := c.do("POST", "/agent/restores/"+id+"/claim", nil, true)
 	if err != nil {
 		if code == 409 {
 			return nil, errClaimed
@@ -246,7 +246,7 @@ func (c *Client) ClaimRestore(id string) (*Restore, error) {
 }
 
 func (c *Client) UpdateRestoreStatus(id, status, errMsg string) error {
-	_, _, err := c.do("PUT", "/api/restores/"+id+"/status", map[string]string{
+	_, _, err := c.do("PUT", "/restores/"+id+"/status", map[string]string{
 		"status":        status,
 		"error_message": errMsg,
 	}, true)

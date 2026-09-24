@@ -57,7 +57,7 @@ export interface StorageTarget {
   created_at: string
 }
 
-export type BackupSourceType = 'FILESYSTEM' | 'MSSQL_SERVER' | 'DBF' | 'POSTGRES'
+export type BackupSourceType = 'FILESYSTEM' | 'MSSQL_SERVER' | 'DBF' | 'POSTGRES' | 'MONGODB'
 export type BackupMode = 'NORMAL' | 'COMPRESSED'
 
 export interface BackupSchedule {

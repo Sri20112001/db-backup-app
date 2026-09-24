@@ -10,7 +10,7 @@ import (
 )
 
 // Version is reported to the server on registration.
-const Version = "0.2.0"
+const Version = "0.4.0"
 
 // PgConfig holds PostgreSQL connection parameters for pg_dump/pg_restore.
 // Credentials live only in the agent environment — they are never sent to
@@ -21,6 +21,31 @@ type PgConfig struct {
 	Port     int
 	User     string
 	Password string
+}
+
+// MssqlConfig holds SQL Server connection parameters for BACKUP/RESTORE
+// DATABASE. Same rule as PgConfig: credentials stay on the machine, the
+// job carries only the database name. Empty User selects Windows auth (-E),
+// so a service account with sysadmin (or db_backupoperator) normally needs
+// no extra configuration.
+type MssqlConfig struct {
+	// Server is "host" or "host\\INSTANCE" (default localhost).
+	Server   string
+	User     string
+	Password string
+	// BackupDir is where .bak files are written. It must be a path local to
+	// the SQL Server engine and writable by its service account. Empty
+	// defaults to the OS temp dir.
+	BackupDir string
+}
+
+// MongoConfig holds the MongoDB connection string for mongodump/mongorestore.
+// It lives only in the agent environment — never sent to the server or
+// stored. Per-job config carries just the database name.
+type MongoConfig struct {
+	// URI is a full MongoDB connection string, e.g.
+	// mongodb://user:pass@localhost:27017/?authSource=admin
+	URI string
 }
 
 type Config struct {
@@ -40,6 +65,10 @@ type Config struct {
 	BrowseAddr string
 	// PG configures local PostgreSQL access for POSTGRES backup jobs.
 	PG PgConfig
+	// MSSQL configures SQL Server access for MSSQL_SERVER backup jobs.
+	MSSQL MssqlConfig
+	// MONGO configures MongoDB access for MONGODB backup jobs.
+	MONGO MongoConfig
 }
 
 type state struct {
@@ -76,7 +105,7 @@ func LoadConfig() Config {
 	}
 	server := os.Getenv("AGENT_SERVER")
 	if server == "" {
-		server = "http://localhost:7541"
+		server = "http://localhost:7541/vaultguard/api"
 	}
 	browseAddr := os.Getenv("AGENT_BROWSE_ADDR")
 	if browseAddr == "" {
@@ -100,6 +129,10 @@ func LoadConfig() Config {
 	if pgUser == "" {
 		pgUser = "postgres"
 	}
+	mssqlServer := os.Getenv("AGENT_MSSQL_SERVER")
+	if mssqlServer == "" {
+		mssqlServer = "localhost"
+	}
 	return Config{
 		Server:          server,
 		RegistrationKey: os.Getenv("AGENT_REGISTRATION_KEY"),
@@ -112,6 +145,15 @@ func LoadConfig() Config {
 			Port:     pgPort,
 			User:     pgUser,
 			Password: os.Getenv("AGENT_PG_PASSWORD"),
+		},
+		MSSQL: MssqlConfig{
+			Server:    mssqlServer,
+			User:      os.Getenv("AGENT_MSSQL_USER"),
+			Password:  os.Getenv("AGENT_MSSQL_PASSWORD"),
+			BackupDir: os.Getenv("AGENT_MSSQL_BACKUP_DIR"),
+		},
+		MONGO: MongoConfig{
+			URI: firstNonEmpty(os.Getenv("AGENT_MONGO_URI"), "mongodb://localhost:27017"),
 		},
 	}
 }

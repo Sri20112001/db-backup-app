@@ -125,8 +125,12 @@ type BackupSourceType string
 const (
 	SourceFilesystem BackupSourceType = "FILESYSTEM"
 	SourceSQLServer  BackupSourceType = "SQL_SERVER"
+	// SourceMssqlServer is what the dashboard sends for SQL Server jobs;
+	// both spellings are accepted wherever source types are matched.
+	SourceMssqlServer BackupSourceType = "MSSQL_SERVER"
 	SourceDBF        BackupSourceType = "DBF"
 	SourcePostgres   BackupSourceType = "POSTGRES"
+	SourceMongo      BackupSourceType = "MONGODB"
 )
 
 type BackupMode string

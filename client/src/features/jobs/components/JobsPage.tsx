@@ -20,15 +20,17 @@ const SOURCE_FILTERS: { label: string; value: BackupSourceType | '' }[] = [
   { label: 'Filesystem', value: 'FILESYSTEM' },
   { label: 'MSSQL Server', value: 'MSSQL_SERVER' },
   { label: 'PostgreSQL', value: 'POSTGRES' },
+  { label: 'MongoDB', value: 'MONGODB' },
   { label: 'DBF Dataset', value: 'DBF' },
 ]
 
-import { FileSystemIcon, MssqlServerIcon, PostgresIcon, DbfIcon } from '@/components/ui/SourceIcons'
+import { FileSystemIcon, MssqlServerIcon, PostgresIcon, MongoDbIcon, DbfIcon } from '@/components/ui/SourceIcons'
 
 const sourceIcon = {
   FILESYSTEM: FileSystemIcon,
   MSSQL_SERVER: MssqlServerIcon,
   POSTGRES: PostgresIcon,
+  MONGODB: MongoDbIcon,
   DBF: DbfIcon,
 }
 

@@ -7,9 +7,10 @@ import type { Agent, StorageTarget, BackupSourceType, BackupMode } from '@/types
 import { ChevronRight, Check, Server, CloudUpload, FolderOpen, HardDrive, Loader2 } from 'lucide-react'
 import SqlDatabasePicker from './SqlDatabasePicker'
 import PgDatabasePicker from './PgDatabasePicker'
+import MongoDatabasePicker from './MongoDatabasePicker'
 import Action3DButton from '@/components/ui/Action3DButton'
 import NeoToggle from '@/components/ui/NeoToggle'
-import { FileSystemIcon, MssqlServerIcon, PostgresIcon, DbfIcon } from '@/components/ui/SourceIcons'
+import { FileSystemIcon, MssqlServerIcon, PostgresIcon, MongoDbIcon, DbfIcon } from '@/components/ui/SourceIcons'
 
 const STEPS = ['Source', 'Agent', 'Schedule', 'Processing', 'Review']
 
@@ -131,11 +132,12 @@ const NewJobPage = () => {
             </div>
             <div>
               <label className="block text-[13px] font-medium text-[#434655] mb-2">Source Type *</label>
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
                 {([
                   { type: 'FILESYSTEM', Icon: FileSystemIcon, label: 'Filesystem' },
                   { type: 'MSSQL_SERVER', Icon: MssqlServerIcon, label: 'SQL Server' },
                   { type: 'POSTGRES', Icon: PostgresIcon, label: 'PostgreSQL' },
+                  { type: 'MONGODB', Icon: MongoDbIcon, label: 'MongoDB' },
                   { type: 'DBF', Icon: DbfIcon, label: 'DBF Dataset' },
                 ] as const).map((s) => (
                   <button
@@ -169,6 +171,11 @@ const NewJobPage = () => {
               </div>
             ) : form.source_type === 'POSTGRES' ? (
               <PgDatabasePicker
+                value={form.source_database}
+                onChange={(v) => update('source_database', v)}
+              />
+            ) : form.source_type === 'MONGODB' ? (
+              <MongoDatabasePicker
                 value={form.source_database}
                 onChange={(v) => update('source_database', v)}
               />

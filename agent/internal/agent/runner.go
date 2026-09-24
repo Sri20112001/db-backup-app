@@ -86,8 +86,8 @@ func failRun(c *Client, runID, msg string, err error) {
 func (r *Runner) executeBackup(ctx context.Context, runID string, job *JobConfig) {
 	log.Printf("run %s: starting backup job %q (%s)", runID, job.Name, job.SourceType)
 
-	if job.SourceType != "FILESYSTEM" && job.SourceType != "POSTGRES" {
-		failRun(r.client, runID, fmt.Sprintf("source type %s is not supported by agent v%s (supported: FILESYSTEM, POSTGRES)", job.SourceType, Version), nil)
+	if job.SourceType != "FILESYSTEM" && job.SourceType != "POSTGRES" && job.SourceType != "MONGODB" && !isMssqlSource(job.SourceType) {
+		failRun(r.client, runID, fmt.Sprintf("source type %s is not supported by agent v%s (supported: FILESYSTEM, POSTGRES, MONGODB, MSSQL_SERVER)", job.SourceType, Version), nil)
 		return
 	}
 	if job.StorageType != "LOCAL" {
@@ -110,7 +110,7 @@ func (r *Runner) executeBackup(ctx context.Context, runID string, job *JobConfig
 	}
 
 	// Produce the payload to store: a tar(.gz) archive for FILESYSTEM, a
-	// pg_dump custom-format file for POSTGRES (already compressed).
+	// plain-SQL dump for POSTGRES, a native .bak for MSSQL_SERVER.
 	var payloadPath string
 	var bytesRead, bytesCompressed int64
 	var payloadChecksum string
@@ -123,7 +123,7 @@ func (r *Runner) executeBackup(ctx context.Context, runID string, job *JobConfig
 		defer os.Remove(res.ArchivePath)
 		payloadPath, bytesRead, bytesCompressed = res.ArchivePath, res.BytesRead, res.BytesCompressed
 		payloadChecksum = res.Checksum
-	} else {
+	} else if job.SourceType == "POSTGRES" {
 		if job.SourceDatabase == "" {
 			failRun(r.client, runID, "POSTGRES job has no source_database configured", nil)
 			return
@@ -142,6 +142,44 @@ func (r *Runner) executeBackup(ctx context.Context, runID string, job *JobConfig
 		payloadPath, bytesRead, bytesCompressed = dumpPath, size, size
 		payloadChecksum = checksum
 		log.Printf("run %s: pg_dump %q -> %d bytes", runID, job.SourceDatabase, size)
+	} else if job.SourceType == "MONGODB" {
+		if job.SourceDatabase == "" {
+			failRun(r.client, runID, "MONGODB job has no source_database configured", nil)
+			return
+		}
+		archivePath, size, err := BackupMongo(ctx, r.cfg.MONGO.URI, job.SourceDatabase)
+		if err != nil {
+			failRun(r.client, runID, "mongodump failed", err)
+			return
+		}
+		defer os.Remove(archivePath)
+		checksum, err := ChecksumFile(archivePath)
+		if err != nil {
+			failRun(r.client, runID, "checksum failed", err)
+			return
+		}
+		payloadPath, bytesRead, bytesCompressed = archivePath, size, size
+		payloadChecksum = checksum
+		log.Printf("run %s: mongodump %q -> %d bytes", runID, job.SourceDatabase, size)
+	} else {
+		if job.SourceDatabase == "" {
+			failRun(r.client, runID, "MSSQL job has no source_database configured", nil)
+			return
+		}
+		bakPath, size, err := BackupMssql(ctx, r.cfg.MSSQL, job.SourceDatabase, strings.ToUpper(job.Mode) == "COMPRESSED")
+		if err != nil {
+			failRun(r.client, runID, "BACKUP DATABASE failed", err)
+			return
+		}
+		defer os.Remove(bakPath)
+		checksum, err := ChecksumFile(bakPath)
+		if err != nil {
+			failRun(r.client, runID, "checksum failed", err)
+			return
+		}
+		payloadPath, bytesRead, bytesCompressed = bakPath, size, size
+		payloadChecksum = checksum
+		log.Printf("run %s: BACKUP DATABASE %q -> %d bytes", runID, job.SourceDatabase, size)
 	}
 
 	// Encrypt the finished archive when requested. Encryption happens here,
@@ -280,6 +318,52 @@ func (r *Runner) executeRestore(ctx context.Context, rs *Restore) {
 			return
 		}
 		log.Printf("restore %s: COMPLETED pg_restore to %s", rs.ID, rs.TargetDatabase)
+		return
+	}
+	if isMssqlSource(rs.SourceType) {
+		if rs.TargetDatabase == "" {
+			msg := "SQL Server restore needs a target database"
+			log.Printf("restore %s FAILED: %s", rs.ID, msg)
+			_ = r.client.UpdateRestoreStatus(rs.ID, "FAILED", msg)
+			return
+		}
+		log.Printf("restore %s: RESTORE DATABASE to %q", rs.ID, rs.TargetDatabase)
+		if err := RestoreMssql(ctx, r.cfg.MSSQL, rs.TargetDatabase, archivePath); err != nil {
+			msg := fmt.Sprintf("RESTORE DATABASE failed: %v", err)
+			log.Printf("restore %s FAILED: %s", rs.ID, msg)
+			_ = r.client.UpdateRestoreStatus(rs.ID, "FAILED", msg)
+			return
+		}
+		if err := r.client.UpdateRestoreStatus(rs.ID, "COMPLETED", ""); err != nil {
+			log.Printf("restore %s: report completion: %v", rs.ID, err)
+			return
+		}
+		log.Printf("restore %s: COMPLETED RESTORE DATABASE to %s", rs.ID, rs.TargetDatabase)
+		return
+	}
+	if rs.SourceType == "MONGODB" {
+		target := rs.TargetDatabase
+		if target == "" {
+			target = rs.SourceDatabase // same-name restore
+		}
+		if target == "" {
+			msg := "MONGODB restore needs a target database"
+			log.Printf("restore %s FAILED: %s", rs.ID, msg)
+			_ = r.client.UpdateRestoreStatus(rs.ID, "FAILED", msg)
+			return
+		}
+		log.Printf("restore %s: mongorestore %q -> %q", rs.ID, rs.SourceDatabase, target)
+		if err := RestoreMongo(ctx, r.cfg.MONGO.URI, rs.SourceDatabase, target, archivePath); err != nil {
+			msg := fmt.Sprintf("mongorestore failed: %v", err)
+			log.Printf("restore %s FAILED: %s", rs.ID, msg)
+			_ = r.client.UpdateRestoreStatus(rs.ID, "FAILED", msg)
+			return
+		}
+		if err := r.client.UpdateRestoreStatus(rs.ID, "COMPLETED", ""); err != nil {
+			log.Printf("restore %s: report completion: %v", rs.ID, err)
+			return
+		}
+		log.Printf("restore %s: COMPLETED mongorestore to %s", rs.ID, target)
 		return
 	}
 	lastPush := time.Now()

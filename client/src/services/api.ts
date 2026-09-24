@@ -47,11 +47,30 @@ async function request<T>(path: string, options: RequestInit = {}, retry = true)
     },
   })
   if (res.status === 401 && retry) {
-    if (!refreshPromise) {
-      refreshPromise = refreshAccessToken().finally(() => { refreshPromise = null })
+    // Only authenticated calls (ones that sent an access token) are worth
+    // retrying via refresh. Login/register/refresh failing with 401 is the
+    // real answer (e.g. "invalid credentials") — surface it, don't mask it
+    // with a refresh attempt that has no token to send.
+    if (token && getRefreshToken()) {
+      if (!refreshPromise) {
+        refreshPromise = refreshAccessToken().finally(() => { refreshPromise = null })
+      }
+      await refreshPromise
+      return request<T>(path, options, false)
     }
-    await refreshPromise
-    return request<T>(path, options, false)
+    if (token) {
+      // A session existed but the refresh token is gone (logged out in
+      // another tab, storage cleared, server-side sessions wiped): leave
+      // quietly instead of throwing a confusing "no refresh token" error
+      // into whatever page issued the in-flight request.
+      if (
+        !window.location.pathname.startsWith('/login') &&
+        !window.location.pathname.startsWith('/register')
+      ) {
+        window.location.href = '/login'
+      }
+      return new Promise<never>(() => {})
+    }
   }
   if (!res.ok) {
     const err = await res.json().catch(() => ({ error: res.statusText }))

@@ -24,15 +24,24 @@ func StoreLocal(storageDir, jobName, runID, archivePath string) (string, int64, 
 	if base == "" {
 		base = "backup"
 	}
-	// Keep compound extensions (.tar.gz, .sql.gz) when present.
+	// Keep compound extensions (.tar.gz, .sql.gz) when present. Encrypted
+	// payloads carry a trailing .enc — look past it at the real extension.
+	probe := strings.TrimSuffix(archivePath, ".enc")
 	ext := ".tar"
 	switch {
-	case strings.HasSuffix(archivePath, ".tar.gz"):
+	case strings.HasSuffix(probe, ".tar.gz"):
 		ext = ".tar.gz"
-	case strings.HasSuffix(archivePath, ".sql.gz"):
+	case strings.HasSuffix(probe, ".sql.gz"):
 		ext = ".sql.gz"
-	case strings.HasSuffix(archivePath, ".sql"):
+	case strings.HasSuffix(probe, ".sql"):
 		ext = ".sql"
+	case strings.HasSuffix(probe, ".bak"):
+		ext = ".bak"
+	case strings.HasSuffix(probe, ".archive.gz"):
+		ext = ".archive.gz"
+	}
+	if strings.HasSuffix(archivePath, ".enc") {
+		ext += ".enc"
 	}
 	dest := filepath.Join(storageDir, fmt.Sprintf("%s_%s%s", base, runID, ext))
 

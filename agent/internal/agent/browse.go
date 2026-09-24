@@ -39,6 +39,7 @@ func StartBrowseServer(addr string) {
 	mux.HandleFunc("/browse", handleBrowse)
 	mux.HandleFunc("/databases", handleDatabases)
 	mux.HandleFunc("/pg-databases", handlePgDatabases)
+	mux.HandleFunc("/mongo-databases", handleMongoDatabases)
 	mux.HandleFunc("/health", func(w http.ResponseWriter, _ *http.Request) {
 		w.Write([]byte(`{"status":"ok"}`))
 	})

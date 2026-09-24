@@ -6,7 +6,8 @@
 //     (generate the key in the UI: Agents -> token). Credentials are cached
 //     in AGENT_STATE_FILE for subsequent runs.
 //  2. Steady state: poll /api/agent/runs and /api/agent/restores, claim
-//     work, execute FILESYSTEM and POSTGRES backups to LOCAL storage targets,
+//     work, execute FILESYSTEM, POSTGRES, MONGODB and MSSQL backups to LOCAL
+//     storage targets,
 //     and report progress/results. Polling doubles as the heartbeat that
 //     keeps the agent ONLINE.
 //
@@ -21,6 +22,11 @@
 //	AGENT_PG_PORT           PostgreSQL port (default 5432)
 //	AGENT_PG_USER           PostgreSQL user (default postgres)
 //	AGENT_PG_PASSWORD       PostgreSQL password (default empty)
+//	AGENT_MSSQL_SERVER      SQL Server host[\INSTANCE] for MSSQL jobs (default localhost)
+//	AGENT_MSSQL_USER        SQL login (default empty = Windows auth)
+//	AGENT_MSSQL_PASSWORD    SQL password (default empty)
+//	AGENT_MSSQL_BACKUP_DIR  .bak staging dir, engine-local (default OS temp dir)
+//	AGENT_MONGO_URI         MongoDB connection string (default mongodb://localhost:27017)
 package main
 
 import (
