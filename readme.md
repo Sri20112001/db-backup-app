@@ -44,6 +44,34 @@ If a backup fails, VaultGuard will show a red warning on your dashboard. Simply 
 
 ---
 
+## How It Works (Under the Hood)
+
+VaultGuard has three parts that talk to each other:
+
+```
+Dashboard (browser) ──REST──▶ Server (Go API + Postgres)
+                                    ▲  ▲
+                                 polls  │ events
+                                    │   ▼
+                              Agent (Go, on your machines) ──▶ Storage (disk / S3)
+```
+
+**1. You configure, the server remembers.** Backup jobs, schedules, storage targets, and history live in the server's PostgreSQL database. The dashboard never touches your actual data.
+
+**2. A scheduler fires jobs on time.** Every 30 seconds the server checks which enabled jobs are due (cron + timezone) and creates a PENDING run for each — unless one is already in flight.
+
+**3. The agent polls for work.** Each agent asks the server every 30 seconds: anything PENDING for me? This outbound-only design means you never open firewall ports. When it claims a run it:
+- Checks the source actually has data (files / tables / documents — empty sources fail loudly instead of "succeeding" with nothing),
+- Backs up natively (folder → tar, PostgreSQL → `.sql`, SQL Server → `.bak`, MongoDB → archive/JSON/CSV),
+- Compresses, optionally encrypts with a fresh per-backup key, checksums, and uploads straight to *your* storage (the server never sees your files),
+- Reports progress and completion back.
+
+**4. Everything stays visible live.** A WebSocket event bus pushes run progress, agent online/offline flips, alerts, and a live agent log to the dashboard — no manual refresh needed.
+
+**5. Safety nets run in the background.** A health monitor flags offline agents, missed backups, and enforces retention (old recovery points *and their files* are deleted); failed runs raise alerts, optionally by email; any completed backup can be re-verified by checksum from its History page; and a Cancel request stops a running backup cooperatively.
+
+---
+
 ## How to Set Up VaultGuard (After Downloading)
 
 If you have just downloaded VaultGuard from the internet (Git) and want to get it running on your computer, follow these simple steps. 
