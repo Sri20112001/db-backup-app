@@ -27,6 +27,7 @@
 //	AGENT_MSSQL_PASSWORD    SQL password (default empty)
 //	AGENT_MSSQL_BACKUP_DIR  .bak staging dir, engine-local (default OS temp dir)
 //	AGENT_MONGO_URI         MongoDB connection string (default mongodb://localhost:27017)
+//	AGENT_TLS_SKIP_VERIFY   accept self-signed certs, e.g. true (default false)
 package main
 
 import (
@@ -65,9 +66,14 @@ func main() {
 		log.Fatalf("setup: %v", err)
 	}
 
-	client := agent.NewClient(cfg.Server, st.AgentToken)
+	client := agent.NewClientWithTLS(cfg.Server, st.AgentToken, cfg.TLSSkipVerify)
 	client.SetAgentID(st.AgentID)
-	runner := agent.NewRunner(cfg, client)
+
+	// Live socket: instant cancels + log streaming to dashboards.
+	// Polling keeps working if the socket drops.
+	ws := agent.NewWSClient(cfg.Server, st.AgentID, st.AgentToken, cfg.TLSSkipVerify)
+	go ws.Run(ctx, nil)
+	runner := agent.NewRunner(cfg, client, ws)
 
 	log.Printf("hostname=%s poll=%s", cfg.Hostname, cfg.PollInterval)
 	runner.Run(ctx)

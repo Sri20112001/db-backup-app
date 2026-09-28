@@ -4,8 +4,10 @@ import { useAuthStore } from '@/store/authStore'
 import { useUIStore } from '@/store/uiStore'
 import type { Alert, AlertType } from '@/types'
 import EmptyState from '@/components/EmptyState'
+import Pagination from '@/components/Pagination'
+import { useRealtimeStore } from '@/stores/realtimeStore'
 import { formatRelative } from '@/utils/format'
-import { XCircle, Clock, WifiOff, Database, RotateCcw, ShieldOff, Bell, ChevronLeft, ChevronRight } from 'lucide-react'
+import { XCircle, Clock, WifiOff, Database, RotateCcw, ShieldOff, Bell } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 
 const alertIcon: Record<AlertType, LucideIcon> = {
@@ -35,6 +37,7 @@ const AlertsPage = () => {
   const [unreadOnly, setUnreadOnly] = useState(false)
   const [isLoading, setIsLoading] = useState(true)
   const limit = 50
+  const alertTick = useRealtimeStore((s) => s.alertTick)
 
   const loadAlerts = () => {
     if (!currentOrg) return
@@ -46,6 +49,13 @@ const AlertsPage = () => {
   }
 
   useEffect(() => { loadAlerts() }, [currentOrg, unreadOnly, page])
+
+  // New alerts pushed over the socket refresh the list (toast included).
+  useEffect(() => {
+    if (alertTick === 0) return
+    loadAlerts()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [alertTick])
 
   const handleMarkRead = async (id: string) => {
     if (!currentOrg) return
@@ -69,7 +79,7 @@ const AlertsPage = () => {
   })
 
   return (
-    <div className="flex flex-col gap-6">
+    <div className="h-full min-h-0 flex flex-col gap-4">
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
           <h1 className="text-[20px] font-semibold text-[#141b2b] tracking-tight flex items-center gap-2.5">
@@ -94,7 +104,7 @@ const AlertsPage = () => {
       ) : alerts.length === 0 ? (
         <EmptyState icon={Bell} title={unreadOnly ? 'All caught up' : 'No alerts'} description={unreadOnly ? 'No unread alerts.' : 'Alerts will appear here when issues are detected.'} />
       ) : (
-        <div className="flex flex-col gap-6">
+        <div className="flex-1 min-h-0 overflow-y-auto flex flex-col gap-4 pr-0.5">
           {Object.entries(grouped).map(([group, items]) => (
             <div key={group} className="flex flex-col gap-2">
               <span className="text-[12px] font-semibold uppercase tracking-wider text-[#737686] px-1">{group}</span>
@@ -128,17 +138,13 @@ const AlertsPage = () => {
         </div>
       )}
 
-      {Math.ceil(total / limit) > 1 && (
-        <div className="flex items-center justify-center gap-2">
-          <button type="button" disabled={page === 1} onClick={() => setPage((p) => p - 1)} className="p-1.5 rounded-lg bg-[#e9edff] disabled:opacity-40">
-            <ChevronLeft size={16} />
-          </button>
-          <span className="text-[13px] text-[#434655]">Page {page}</span>
-          <button type="button" disabled={page >= Math.ceil(total / limit)} onClick={() => setPage((p) => p + 1)} className="p-1.5 rounded-lg bg-[#e9edff] disabled:opacity-40">
-            <ChevronRight size={16} />
-          </button>
-        </div>
-      )}
+      <Pagination
+        page={page}
+        totalPages={Math.ceil(total / limit)}
+        total={total}
+        perPage={limit}
+        onPage={setPage}
+      />
     </div>
   )
 }

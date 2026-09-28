@@ -8,10 +8,10 @@ VaultGuard automatically copies your important data on a schedule that you choos
 
 Here are the main things you can do:
 - **Back up regular files and folders** (like your Documents or Photos).
-- **Back up business databases** (supports Microsoft SQL Server, PostgreSQL, MongoDB, and DBF files).
+- **Back up business databases** (supports Microsoft SQL Server, PostgreSQL, and MongoDB).
 - **Set it and forget it**: Tell VaultGuard to run your backups every day, every week, or at any time you choose.
 - **Save space**: VaultGuard can automatically compress your backups so they take up less storage space.
-- **Keep it private**: You can encrypt your backups with a password. This means even if someone gets their hands on your backup file, they won't be able to read your data without your password.
+- **Keep it private**: You can encrypt your backups. Each backup gets its own encryption key, so the stored files are unreadable without going through VaultGuard.
 - **Track history**: See a clear log of all your past backups, showing exactly what succeeded and when it happened.
 
 ## How to use VaultGuard
@@ -26,7 +26,7 @@ Using VaultGuard is as simple as following a few steps in the **New Backup Job**
    Decide how often you want the backup to happen (for example, "Every day at 11 PM"). You can also choose how long to keep old backups before they are automatically deleted to save space.
 4. **Choose Processing Options**: 
    - *Compression*: Turn this on to shrink your backup size.
-   - *Encryption*: Turn this on and set a secure password to lock your data.
+   - *Encryption*: Turn this on to lock your data (each backup is encrypted with its own key).
 5. **Review and Create**: 
    Check your settings and hit "Create Backup Job". 
 
@@ -49,9 +49,14 @@ If a backup fails, VaultGuard will show a red warning on your dashboard. Simply 
 If you have just downloaded VaultGuard from the internet (Git) and want to get it running on your computer, follow these simple steps. 
 
 ### 1. What You Need Installed First
-Before you start, you'll need two basic pieces of free software installed on your computer:
+Before you start, you'll need these free pieces of software on your computer:
 - **Go** (for the background server): [Download Go here](https://go.dev/dl/)
 - **Node.js** (for the visual dashboard): [Download Node.js here](https://nodejs.org/)
+- **PostgreSQL** (the server's own database — your backups can target anything, but VaultGuard itself needs Postgres running locally)
+
+Both the server and the agent read their settings from `.env` files, which are picked up automatically:
+- `server/.env` must define `DATABASE_URL`, `JWT_SECRET`, `JWT_REFRESH_SECRET`, and `ENCRYPTION_KEY`.
+- `agent/agent.env` must define `AGENT_SERVER` (e.g. `http://localhost:7541/vaultguard/api`), plus any database credentials the agent needs (`AGENT_PG_PASSWORD`, `AGENT_MSSQL_*`, `AGENT_MONGO_URI`).
 
 ### 2. Start the Backend Server (The Brain)
 The server handles the central database, scheduling, and tracking.

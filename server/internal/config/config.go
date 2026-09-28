@@ -13,6 +13,20 @@ type Config struct {
 	GRPCPort         string
 	EncryptionKey    string
 	CORSOrigin       string
+	// SMTP is optional: empty SMTPHost disables outgoing alert email.
+	SMTPHost     string
+	SMTPPort     int
+	SMTPUser     string
+	SMTPPassword string
+	SMTPFrom     string
+	// Token lifetimes. Existing sessions keep their issued expiry; new
+	// logins pick these up. E.g. 30-day refresh: REFRESH_TOKEN_TTL_DAYS=30.
+	AccessTokenTTLMinutes int
+	RefreshTokenTTLDays   int
+	// TLS is opt-in: set both to serve HTTPS. Empty = plain HTTP (fine on
+	// loopback/LAN behind a reverse proxy, not for agents over the internet).
+	TLSCertFile string
+	TLSKeyFile  string
 }
 
 func Load() *Config {
@@ -41,6 +55,15 @@ func Load() *Config {
 		GRPCPort:         getEnv("GRPC_PORT", "9090"),
 		EncryptionKey:    encKey,
 		CORSOrigin:       getEnv("CORS_ORIGIN", "http://localhost:7540"),
+		SMTPHost:         getEnv("SMTP_HOST", ""),
+		SMTPPort:         getEnvInt("SMTP_PORT", 587),
+		SMTPUser:         getEnv("SMTP_USER", ""),
+		SMTPPassword:     getEnv("SMTP_PASSWORD", ""),
+		SMTPFrom:         getEnv("SMTP_FROM", ""),
+		AccessTokenTTLMinutes: getEnvInt("ACCESS_TOKEN_TTL_MINUTES", 60),
+		RefreshTokenTTLDays:   getEnvInt("REFRESH_TOKEN_TTL_DAYS", 7),
+		TLSCertFile: getEnv("TLS_CERT_FILE", ""),
+		TLSKeyFile:  getEnv("TLS_KEY_FILE", ""),
 	}
 }
 

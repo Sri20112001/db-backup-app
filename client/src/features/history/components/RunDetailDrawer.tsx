@@ -5,10 +5,15 @@ import { useUIStore } from '@/store/uiStore'
 import type { BackupRun, BackupArtifact } from '@/types'
 import StatusBadge from '@/components/StatusBadge'
 import { formatBytes, formatDuration, formatDate, truncate } from '@/utils/format'
-import { X, Check, Loader2 } from 'lucide-react'
+import { X, Check, Loader2, ShieldCheck, Terminal } from 'lucide-react'
 import normalizeWindowsPath from '../../../utils/normalizeWindowsPath';
+import { useRealtimeStore, mergeRunPatch } from '@/stores/realtimeStore'
 
 const STATUSES = ['PENDING', 'RUNNING', 'UPLOADING', 'VERIFYING', 'COMPLETED']
+
+// Stable empty array: selectors must return cached references, never fresh
+// literals, or useSyncExternalStore loops forever.
+const EMPTY_LINES: string[] = []
 
 const RunDetailDrawer = ({ runId }: { runId: string }) => {
   const { currentOrg } = useAuthStore()
@@ -16,6 +21,10 @@ const RunDetailDrawer = ({ runId }: { runId: string }) => {
   const [run, setRun] = useState<BackupRun | null>(null)
   const [artifacts, setArtifacts] = useState<BackupArtifact[]>([])
   const [isLoading, setIsLoading] = useState(true)
+  const [isVerifying, setIsVerifying] = useState(false)
+  const [verifyResult, setVerifyResult] = useState<'ok' | 'mismatch' | null>(null)
+  const lastRunEvent = useRealtimeStore((s) => s.lastRunEvent)
+  const liveLines = useRealtimeStore((s) => (runId ? s.logs[runId] ?? EMPTY_LINES : EMPTY_LINES))
 
   useEffect(() => {
     if (!currentOrg || !runId) return
@@ -29,6 +38,16 @@ const RunDetailDrawer = ({ runId }: { runId: string }) => {
       .finally(() => setIsLoading(false))
   }, [runId, currentOrg])
 
+  // Live patches for the open run (progress bytes, status flips).
+  useEffect(() => {
+    if (!lastRunEvent || lastRunEvent.id !== runId) return
+    setRun((prev) => {
+      if (!prev) return prev
+      const [merged] = mergeRunPatch([prev], lastRunEvent)
+      return merged
+    })
+  }, [lastRunEvent, runId])
+
   const handleCancel = async () => {
     if (!currentOrg || !run) return
     try {
@@ -37,6 +56,21 @@ const RunDetailDrawer = ({ runId }: { runId: string }) => {
       closeRunDetail()
     } catch {
       addToast('error', 'Failed to cancel backup')
+    }
+  }
+
+  const handleVerify = async () => {
+    if (!currentOrg || !run) return
+    setIsVerifying(true)
+    setVerifyResult(null)
+    try {
+      const res = await runApi.verify(currentOrg.id, run.id)
+      setVerifyResult(res.match ? 'ok' : 'mismatch')
+      addToast(res.match ? 'success' : 'warning', res.match ? 'Checksum verified' : 'Checksum mismatch — see alerts')
+    } catch (err: unknown) {
+      addToast('error', err instanceof Error ? err.message : 'Verification failed')
+    } finally {
+      setIsVerifying(false)
     }
   }
 
@@ -156,6 +190,29 @@ const RunDetailDrawer = ({ runId }: { runId: string }) => {
               </div>
             )}
 
+            {/* Live log */}
+            {(liveLines.length > 0 || run.status === 'RUNNING' || run.status === 'UPLOADING') && (
+              <div className="flex flex-col gap-2">
+                <h3 className="text-[12px] font-semibold uppercase tracking-wider text-[#434655] flex items-center gap-1.5">
+                  <Terminal size={13} />
+                  Live Log
+                  {(run.status === 'RUNNING' || run.status === 'UPLOADING') && (
+                    <span className="relative flex h-2 w-2">
+                      <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-[#006591] opacity-75" />
+                      <span className="relative inline-flex rounded-full h-2 w-2 bg-[#006591]" />
+                    </span>
+                  )}
+                </h3>
+                <div className="max-h-40 overflow-y-auto rounded-lg bg-[#141b2b] p-3 font-mono text-[11px] leading-relaxed text-[#dbe1ff]">
+                  {liveLines.length === 0 ? (
+                    <span className="text-[#737686]">Waiting for agent output…</span>
+                  ) : (
+                    liveLines.map((line, i) => <div key={i} className="break-all">{line}</div>)
+                  )}
+                </div>
+              </div>
+            )}
+
             {/* Cancel action */}
             {(run.status === 'RUNNING' || run.status === 'UPLOADING') && (
               <button
@@ -165,6 +222,31 @@ const RunDetailDrawer = ({ runId }: { runId: string }) => {
               >
                 Cancel Backup
               </button>
+            )}
+
+            {/* Verify action */}
+            {run.status === 'COMPLETED' && (
+              <div className="flex flex-col gap-2">
+                <button
+                  type="button"
+                  onClick={handleVerify}
+                  disabled={isVerifying}
+                  className="w-full h-9 rounded-lg bg-[#ffffff] border border-[#e9edff] text-[#141b2b] text-[13px] font-medium hover:bg-[#f1f3ff] transition-colors disabled:opacity-60 flex items-center justify-center gap-2"
+                >
+                  {isVerifying ? <Loader2 size={14} className="animate-spin" /> : <ShieldCheck size={14} className="text-[#006591]" />}
+                  {isVerifying ? 'Verifying…' : 'Verify Checksum'}
+                </button>
+                {verifyResult === 'ok' && (
+                  <p className="text-[12px] text-[#006591] flex items-center gap-1.5">
+                    <Check size={13} /> Stored file matches the recorded checksum.
+                  </p>
+                )}
+                {verifyResult === 'mismatch' && (
+                  <p className="text-[12px] text-[#ba1a1a]">
+                    Checksum mismatch — an alert was raised. Treat this recovery point as suspect.
+                  </p>
+                )}
+              </div>
             )}
           </div>
         ) : null}

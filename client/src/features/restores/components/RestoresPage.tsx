@@ -5,6 +5,8 @@ import { useUIStore } from '@/store/uiStore'
 import type { RestoreJob, BackupRun, Agent } from '@/types'
 import StatusBadge from '@/components/StatusBadge'
 import EmptyState from '@/components/EmptyState'
+import Pagination, { usePagination } from '@/components/Pagination'
+import { useRealtimeStore } from '@/stores/realtimeStore'
 import { formatRelative, formatDate } from '@/utils/format'
 import { RotateCcw, X, Check, Loader2 } from 'lucide-react'
 
@@ -27,6 +29,22 @@ const RestoresPage = () => {
   }
 
   useEffect(() => { loadRestores() }, [currentOrg])
+
+  const restoresSeq = useRealtimeStore((s) => s.entitySeq.restores)
+  const lastRunEvent = useRealtimeStore((s) => s.lastRunEvent)
+
+  // Restore lifecycle + finished backup runs refresh the list.
+  useEffect(() => {
+    loadRestores()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [restoresSeq])
+
+  useEffect(() => {
+    if (!lastRunEvent) return
+    const s = lastRunEvent.status ?? ''
+    if (s === 'COMPLETED' || s === 'FAILED' || s === 'CANCELLED') loadRestores()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [lastRunEvent])
 
   const openWizard = async () => {
     if (!currentOrg) return
@@ -56,10 +74,11 @@ const RestoresPage = () => {
   }
 
   const selectedRun = recentRuns.find((r) => r.id === form.backup_run_id)
+  const paged = usePagination(restores, 8)
   const inputCls = "w-full h-9 px-3 rounded-lg border border-[#e9edff] bg-[#f9f9ff] text-[14px] text-[#141b2b] focus:outline-none focus:ring-2 focus:ring-[#2563eb]/20 focus:border-[#2563eb] transition-all"
 
   return (
-    <div className="flex flex-col gap-6">
+    <div className="h-full min-h-0 flex flex-col gap-4">
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
           <h1 className="text-[20px] font-semibold text-[#141b2b] tracking-tight">Restores</h1>
@@ -78,8 +97,8 @@ const RestoresPage = () => {
           action={<button type="button" onClick={openWizard} className="px-4 h-9 rounded-lg bg-[#2563eb] text-white text-[13px] font-medium hover:bg-[#1d4ed8] transition-colors">Start First Restore</button>}
         />
       ) : (
-        <div className="flex flex-col gap-2">
-          {restores.map((r) => (
+        <div className="flex-1 min-h-0 overflow-y-auto flex flex-col gap-2 pr-0.5">
+          {paged.pageItems.map((r) => (
             <div key={r.id} className="flex items-center gap-4 p-4 rounded-xl bg-[#ffffff] border border-[#e9edff] shadow-sm hover:shadow-md transition-all">
               <StatusBadge status={r.status} />
               <div className="flex-1 min-w-0">
@@ -103,6 +122,14 @@ const RestoresPage = () => {
           ))}
         </div>
       )}
+
+      <Pagination
+        page={paged.page}
+        totalPages={paged.totalPages}
+        total={paged.total}
+        perPage={paged.perPage}
+        onPage={paged.setPage}
+      />
 
       {/* Restore wizard drawer */}
       {showWizard && (

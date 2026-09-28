@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { runApi } from '@/services/api'
 import { useAuthStore } from '@/store/authStore'
 import { useUIStore } from '@/store/uiStore'
@@ -7,8 +7,10 @@ import StatusBadge from '@/components/StatusBadge'
 import EmptyState from '@/components/EmptyState'
 import { SkeletonRow } from '@/components/Skeleton'
 import RunDetailDrawer from './RunDetailDrawer'
+import Pagination from '@/components/Pagination'
+import { useRealtimeStore, mergeRunPatch } from '@/stores/realtimeStore'
 import { formatBytes, formatDuration, formatRelative } from '@/utils/format'
-import { ChevronLeft, ChevronRight, History } from 'lucide-react'
+import { History } from 'lucide-react'
 
 const STATUS_FILTERS: { label: string; value: BackupRunStatus | '' }[] = [
   { label: 'All', value: '' },
@@ -27,20 +29,37 @@ const HistoryPage = () => {
   const [statusFilter, setStatusFilter] = useState<BackupRunStatus | ''>('')
   const [isLoading, setIsLoading] = useState(true)
   const limit = 50
+  const lastRunEvent = useRealtimeStore((s) => s.lastRunEvent)
 
-  useEffect(() => {
+  const loadHistory = () => {
     if (!currentOrg) return
     setIsLoading(true)
     runApi.list(currentOrg.id, { status: statusFilter || undefined, page, limit })
       .then((res) => { setRuns(res.data); setTotal(res.total) })
       .catch(() => addToast('error', 'Failed to load history'))
       .finally(() => setIsLoading(false))
-  }, [currentOrg, statusFilter, page])
+  }
+
+  useEffect(() => { loadHistory() }, [currentOrg, statusFilter, page])
+
+  // Live patches: merge known rows in place, refetch when an unseen run
+  // appears (new scheduled/manual run on page 1).
+  const runsRef = useRef(runs)
+  runsRef.current = runs
+  useEffect(() => {
+    if (!lastRunEvent) return
+    if (!runsRef.current.some((r) => r.id === lastRunEvent.id)) {
+      if (page === 1) loadHistory()
+      return
+    }
+    setRuns((prev) => mergeRunPatch(prev, lastRunEvent))
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [lastRunEvent])
 
   const totalPages = Math.ceil(total / limit)
 
   return (
-    <div className="flex flex-col gap-5">
+    <div className="h-full min-h-0 flex flex-col gap-4">
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
           <h1 className="text-[20px] font-semibold text-[#141b2b] tracking-tight">Backup History</h1>
@@ -67,10 +86,10 @@ const HistoryPage = () => {
       </div>
 
       {/* Table */}
-      <div className="flex flex-col rounded-lg bg-[#ffffff] shadow-sm overflow-hidden border border-[#e9edff]">
-        <div className="overflow-x-auto">
+      <div className="flex-1 min-h-0 flex flex-col rounded-lg bg-[#ffffff] shadow-sm overflow-hidden border border-[#e9edff]">
+        <div className="flex-1 min-h-0 overflow-auto">
           <table className="w-full text-left border-collapse">
-            <thead>
+            <thead className="sticky top-0 z-10">
               <tr className="bg-[#f1f3ff] text-[12px] font-semibold uppercase tracking-wider text-[#434655]">
                 {['Status', 'Job Name', 'Source', 'Agent', 'Started', 'Duration', 'Original', 'Uploaded', ''].map((h) => (
                   <th key={h} className="py-2.5 px-4 whitespace-nowrap">{h}</th>
@@ -116,27 +135,8 @@ const HistoryPage = () => {
         </div>
 
         {/* Pagination */}
-        <div className="p-3 bg-[#f1f3ff]/40 flex items-center justify-between text-[12px] text-[#434655]">
-          <span>Showing {Math.min((page - 1) * limit + 1, total)}–{Math.min(page * limit, total)} of {total} runs</span>
-          <div className="flex items-center gap-1">
-            <button
-              type="button"
-              disabled={page === 1}
-              onClick={() => setPage((p) => p - 1)}
-              className="p-1.5 rounded-lg bg-[#e9edff] text-[#434655] disabled:opacity-40 hover:bg-[#dce2f7] transition-colors"
-            >
-              <ChevronLeft size={16} />
-            </button>
-            <span className="px-3 py-1 rounded-lg bg-[#2563eb] text-white font-medium">{page}</span>
-            <button
-              type="button"
-              disabled={page >= totalPages}
-              onClick={() => setPage((p) => p + 1)}
-              className="p-1.5 rounded-lg bg-[#e9edff] text-[#434655] disabled:opacity-40 hover:bg-[#dce2f7] transition-colors"
-            >
-              <ChevronRight size={16} />
-            </button>
-          </div>
+        <div className="p-3 bg-[#f1f3ff]/40 shrink-0">
+          <Pagination page={page} totalPages={totalPages} total={total} perPage={limit} onPage={setPage} />
         </div>
       </div>
 

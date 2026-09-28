@@ -198,6 +198,8 @@ export const runApi = {
   get: (orgId: string, id: string) => request<BackupRun>(`/organizations/${orgId}/backup-runs/${id}`),
   cancel: (orgId: string, id: string) =>
     request(`/organizations/${orgId}/backup-runs/${id}/cancel`, { method: 'POST' }),
+  verify: (orgId: string, id: string) =>
+    request<{ match: boolean; checksum?: string; expected?: string; actual?: string }>(`/organizations/${orgId}/backup-runs/${id}/verify`, { method: 'POST' }),
   artifacts: (orgId: string, id: string) =>
     request<BackupArtifact[]>(`/organizations/${orgId}/backup-runs/${id}/artifacts`),
 }

@@ -25,7 +25,7 @@ const PRESETS = [
 
 const storageTypeIcon = { S3: CloudUpload, SMB: FolderOpen, LOCAL: HardDrive }
 
-const NewJobPage = () => {
+const JobWizard = ({ onClose, onSaved }: { onClose?: () => void; onSaved?: () => void } = {}) => {
   const { currentOrg } = useAuthStore()
   const { addToast } = useUIStore()
   const navigate = useNavigate()
@@ -48,6 +48,7 @@ const NewJobPage = () => {
     mode: 'COMPRESSED' as BackupMode,
     encrypted: true,
     retention_days: 30,
+    export_format: 'ARCHIVE',
   })
 
   useEffect(() => {
@@ -73,7 +74,9 @@ const NewJobPage = () => {
     try {
       await jobApi.create(currentOrg.id, form as Record<string, unknown>)
       addToast('success', `${form.name} created successfully`)
-      navigate('/jobs')
+      if (onSaved) onSaved()
+      if (onClose) onClose()
+      else navigate('/jobs')
     } catch (err: unknown) {
       addToast('error', err instanceof Error ? err.message : 'Failed to create job')
     } finally {
@@ -84,8 +87,14 @@ const NewJobPage = () => {
   const selectedAgent = agents.find((a) => a.id === form.agent_id)
   const selectedStorage = storageTargets.find((s) => s.id === form.storage_target_id)
 
+  const closeWizard = () => {
+    if (onClose) onClose()
+    else navigate('/jobs')
+  }
+
   return (
-    <div className="flex flex-col gap-6 max-w-3xl mx-auto">
+    <div className={onClose ? 'flex flex-col gap-5' : 'h-full min-h-0 overflow-y-auto flex flex-col gap-5 max-w-3xl mx-auto pr-0.5 pb-1'}>
+      {!onClose && (
       <div>
         <div className="flex items-center gap-2 text-[12px] text-[#434655] mb-1">
           <button type="button" onClick={() => navigate('/jobs')} className="hover:text-[#004ac6]">Backup Jobs</button>
@@ -94,6 +103,7 @@ const NewJobPage = () => {
         </div>
         <h1 className="text-[20px] font-semibold text-[#141b2b]">Create Backup Job</h1>
       </div>
+      )}
 
       {/* Step indicator */}
       <div className="flex items-center gap-1">
@@ -175,10 +185,41 @@ const NewJobPage = () => {
                 onChange={(v) => update('source_database', v)}
               />
             ) : form.source_type === 'MONGODB' ? (
-              <MongoDatabasePicker
-                value={form.source_database}
-                onChange={(v) => update('source_database', v)}
-              />
+              <div className="flex flex-col gap-4">
+                <MongoDatabasePicker
+                  value={form.source_database}
+                  onChange={(v) => update('source_database', v)}
+                />
+                <div>
+                  <label className="block text-[13px] font-medium text-[#434655] mb-2">Export Format</label>
+                  <div className="grid grid-cols-3 gap-2">
+                    {[
+                      { v: 'ARCHIVE', t: 'Archive', d: 'Binary, full fidelity' },
+                      { v: 'JSON', t: 'JSON', d: 'Readable, per-doc lines' },
+                      { v: 'CSV', t: 'CSV', d: 'Spreadsheet friendly' },
+                    ].map((o) => (
+                      <button
+                        key={o.v}
+                        type="button"
+                        onClick={() => update('export_format', o.v)}
+                        className={`flex flex-col items-start gap-0.5 p-3 rounded-xl border-2 text-left transition-all ${
+                          form.export_format === o.v
+                            ? 'border-[#2563eb] bg-[#dbe1ff]/20'
+                            : 'border-[#e9edff] hover:border-[#c3c6d7]'
+                        }`}
+                      >
+                        <span className="text-[13px] font-semibold text-[#141b2b]">{o.t}</span>
+                        <span className="text-[11px] text-[#737686]">{o.d}</span>
+                      </button>
+                    ))}
+                  </div>
+                  {form.export_format === 'CSV' && (
+                    <p className="text-[11px] text-[#737686] mt-1.5">
+                      CSV restores values as strings — use Archive or JSON for exact restores.
+                    </p>
+                  )}
+                </div>
+              </div>
             ) : (
               <SqlDatabasePicker
                 value={form.source_database}
@@ -221,7 +262,7 @@ const NewJobPage = () => {
                 No agents registered. <button type="button" onClick={() => navigate('/agents')} className="text-[#004ac6] hover:underline">Register an agent first.</button>
               </div>
             ) : (
-              <div className="flex flex-col gap-2">
+              <div className="flex flex-col gap-2 max-h-[320px] overflow-y-auto pr-1">
                 {agents.map((agent) => (
                   <button
                     key={agent.id}
@@ -319,7 +360,7 @@ const NewJobPage = () => {
                   No storage targets. <button type="button" onClick={() => navigate('/storage')} className="text-[#004ac6] hover:underline">Add one first.</button>
                 </div>
               ) : (
-                <div className="flex flex-col gap-2">
+                <div className="flex flex-col gap-2 max-h-[280px] overflow-y-auto pr-1">
                   {storageTargets.map((s) => {
                     const StorIcon = storageTypeIcon[s.type as keyof typeof storageTypeIcon] ?? HardDrive
                     return (
@@ -366,6 +407,9 @@ const NewJobPage = () => {
                 { label: 'Job Name', value: form.name },
                 { label: 'Source Type', value: form.source_type.replace('_', ' ') },
                 { label: 'Source', value: form.source_path || form.source_database || '—', mono: true },
+                ...(form.source_type === 'MONGODB'
+                  ? [{ label: 'Export Format', value: form.export_format || 'ARCHIVE' }]
+                  : []),
                 { label: 'Agent', value: selectedAgent?.name ?? '—' },
                 { label: 'Schedule', value: form.cron_expr, mono: true },
                 { label: 'Timezone', value: form.timezone },
@@ -388,7 +432,7 @@ const NewJobPage = () => {
       <div className="flex items-center justify-between">
         <button
           type="button"
-          onClick={() => step === 0 ? navigate('/jobs') : setStep((s) => s - 1)}
+          onClick={() => step === 0 ? closeWizard() : setStep((s) => s - 1)}
           className="px-4 h-9 rounded-lg bg-[#ffffff] border border-[#e9edff] text-[#141b2b] text-[13px] font-medium hover:bg-[#f1f3ff] transition-colors"
         >
           {step === 0 ? 'Cancel' : '← Back'}
@@ -416,4 +460,4 @@ const NewJobPage = () => {
   )
 }
 
-export default NewJobPage
+export default JobWizard

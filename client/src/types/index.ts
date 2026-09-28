@@ -81,6 +81,7 @@ export interface BackupJob {
   mode: BackupMode
   encrypted: boolean
   retention_days: number
+  export_format: string
   enabled: boolean
   schedule?: BackupSchedule
   agent: Agent

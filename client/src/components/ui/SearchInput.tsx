@@ -19,7 +19,7 @@ const SearchInput: React.FC<SearchInputProps> = ({ className = '', ...props }) =
   }, []);
 
   return (
-    <div className={`relative inline-flex items-center w-[300px] ${className}`}>
+    <div className={`relative inline-flex items-center w-full ${className}`}>
       <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-[#434655]" />
       <input
         ref={inputRef}

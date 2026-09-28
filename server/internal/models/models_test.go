@@ -19,6 +19,9 @@ func TestCanTransition(t *testing.T) {
 		{RunUploading, RunCancelled, true},
 		{RunVerifying, RunCompleted, true},
 		{RunVerifying, RunFailed, true},
+		// A user cancel wins at every non-terminal stage, including
+		// VERIFYING (the agent reports CANCELLED instead of COMPLETED).
+		{RunVerifying, RunCancelled, true},
 
 		// Terminal states cannot transition anywhere
 		{RunCompleted, RunRunning, false},
@@ -41,9 +44,6 @@ func TestCanTransition(t *testing.T) {
 		{RunRunning, RunCompleted, false},
 		{RunUploading, RunCompleted, false},
 		{RunUploading, RunRunning, false},
-
-		// Verifying cannot be cancelled (verification is near-instant; cancelling mid-verify is undefined)
-		{RunVerifying, RunCancelled, false},
 	}
 
 	for _, tt := range tests {

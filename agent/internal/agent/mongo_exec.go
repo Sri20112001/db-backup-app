@@ -5,6 +5,8 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"io"
+	"log"
 	"net/http"
 	"os"
 	"os/exec"
@@ -53,9 +55,21 @@ func validMongoURI(uri string) bool {
 	return mongoURIScheme.MatchString(uri) && len(uri) <= 2048
 }
 
-// BackupMongo dumps one database with mongodump --archive --gzip into a temp
-// file. Returns the archive path and its size.
+// BackupMongo dumps one database. It prefers mongodump when the Database
+// Tools are installed and otherwise uses the built-in driver engine —
+// either way the result is a single archive file.
 func BackupMongo(ctx context.Context, uri, dbName string) (string, int64, error) {
+	if err := PrecheckMongo(ctx, uri, dbName); err != nil {
+		return "", 0, err
+	}
+	if _, err := mongoBin("mongodump"); err == nil {
+		return backupMongoTools(ctx, uri, dbName)
+	}
+	log.Printf("mongodump not available, using built-in backup engine")
+	return BackupMongoNative(ctx, uri, dbName)
+}
+
+func backupMongoTools(ctx context.Context, uri, dbName string) (string, int64, error) {
 	mongodump, err := mongoBin("mongodump")
 	if err != nil {
 		return "", 0, err
@@ -94,13 +108,15 @@ func BackupMongo(ctx context.Context, uri, dbName string) (string, int64, error)
 	return archivePath, st.Size(), nil
 }
 
-// RestoreMongo restores an archive into targetDB (same-name restore when
-// sourceDB == targetDB, namespace remap otherwise). --drop makes restores
-// idempotent.
+// RestoreMongo replays an archive into targetDB. Native (.vgm) archives
+// restore via the driver; mongodump (.gz) archives via mongorestore.
 func RestoreMongo(ctx context.Context, uri, sourceDB, targetDB, archivePath string) error {
+	if isNativeMongoArchive(archivePath) {
+		return RestoreMongoNative(ctx, uri, targetDB, archivePath)
+	}
 	mongorestore, err := mongoBin("mongorestore")
 	if err != nil {
-		return err
+		return fmt.Errorf("legacy mongodump archive requires mongorestore: %w", err)
 	}
 	c, cancel := context.WithTimeout(ctx, 30*time.Minute)
 	defer cancel()
@@ -125,6 +141,20 @@ func RestoreMongo(ctx context.Context, uri, sourceDB, targetDB, archivePath stri
 		return fmt.Errorf("mongorestore: %s", sanitizeMongoErr(uri, msg))
 	}
 	return nil
+}
+
+// isNativeMongoArchive sniffs the VGM1 magic of driver-built archives.
+func isNativeMongoArchive(path string) bool {
+	f, err := os.Open(path)
+	if err != nil {
+		return false
+	}
+	defer f.Close()
+	magic := make([]byte, len(nativeMagic))
+	if _, err := io.ReadFull(f, magic); err != nil {
+		return false
+	}
+	return string(magic) == nativeMagic
 }
 
 // MongoDatabasesRequest carries the connection string for one-shot discovery.
@@ -177,6 +207,13 @@ func handleMongoDatabases(w http.ResponseWriter, r *http.Request) {
 }
 
 func discoverMongoDatabases(uri string) ([]string, error) {
+	if _, err := mongoBin("mongosh"); err == nil {
+		return discoverMongoShell(uri)
+	}
+	return DiscoverMongoNative(context.Background(), uri)
+}
+
+func discoverMongoShell(uri string) ([]string, error) {
 	mongosh, err := mongoBin("mongosh")
 	if err != nil {
 		return nil, err

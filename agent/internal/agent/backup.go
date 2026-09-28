@@ -23,6 +23,7 @@ type BackupResult struct {
 	BytesRead       int64
 	BytesCompressed int64
 	Checksum        string // hex sha256 of the archive file
+	FilesCount      int64  // regular files archived (dirs excluded)
 }
 
 func splitPatterns(s string) []string {
@@ -100,7 +101,7 @@ func BackupFilesystem(sourcePath, mode string, include, exclude []string, progre
 		tw = tar.NewWriter(fileWriter)
 	}
 
-	var bytesRead int64
+	var bytesRead, filesCount int64
 	lastReport := time.Now()
 	report := func() {
 		if progress == nil {
@@ -140,6 +141,7 @@ func BackupFilesystem(sourcePath, mode string, include, exclude []string, progre
 				return err
 			}
 			bytesRead += n
+			filesCount++
 			if time.Since(lastReport) > 2*time.Second {
 				lastReport = time.Now()
 				report()
@@ -211,6 +213,13 @@ func BackupFilesystem(sourcePath, mode string, include, exclude []string, progre
 		os.Remove(tmpPath)
 		return nil, err
 	}
+	// Pre-flight data check: an archive with zero files means an empty
+	// source (or patterns that excluded everything) — fail loudly instead
+	// of recording a successful backup of nothing.
+	if filesCount == 0 {
+		os.Remove(tmpPath)
+		return nil, fmt.Errorf("source contains no files to back up (empty directory or include/exclude patterns filtered everything out)")
+	}
 	st, err := os.Stat(tmpPath)
 	if err != nil {
 		os.Remove(tmpPath)
@@ -222,5 +231,6 @@ func BackupFilesystem(sourcePath, mode string, include, exclude []string, progre
 		BytesRead:       bytesRead,
 		BytesCompressed: st.Size(),
 		Checksum:        hex.EncodeToString(hash.Sum(nil)),
+		FilesCount:      filesCount,
 	}, nil
 }

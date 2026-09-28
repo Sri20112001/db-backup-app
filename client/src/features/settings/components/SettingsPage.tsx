@@ -4,6 +4,7 @@ import { useAuthStore } from '@/store/authStore'
 import { useUIStore } from '@/store/uiStore'
 import type { OrganizationMember, MemberRole } from '@/types'
 import { UserPlus, UserMinus, Loader2 } from 'lucide-react'
+import Pagination, { usePagination } from '@/components/Pagination'
 
 const TABS = ['Organization', 'Team Members', 'Security']
 
@@ -19,6 +20,7 @@ const SettingsPage = () => {
   const { addToast } = useUIStore()
   const [tab, setTab] = useState(0)
   const [members, setMembers] = useState<OrganizationMember[]>([])
+  const pagedMembers = usePagination(members, 8, currentOrg?.id ?? '')
   const [isLoading, setIsLoading] = useState(false)
   const [showInvite, setShowInvite] = useState(false)
   const [inviteForm, setInviteForm] = useState({ email: '', name: '', role: 'VIEWER' as MemberRole })
@@ -91,14 +93,14 @@ const SettingsPage = () => {
   const inputCls = "w-full h-9 px-3 rounded-lg border border-[#e9edff] bg-[#f9f9ff] text-[14px] text-[#141b2b] focus:outline-none focus:ring-2 focus:ring-[#2563eb]/20 focus:border-[#2563eb] transition-all"
 
   return (
-    <div className="flex flex-col gap-6 max-w-3xl">
+    <div className="h-full min-h-0 flex flex-col gap-4 max-w-3xl overflow-y-auto pr-0.5">
       <div>
         <h1 className="text-[20px] font-semibold text-[#141b2b] tracking-tight">Settings</h1>
         <p className="text-[12px] text-[#434655] mt-0.5">Manage your organization and team</p>
       </div>
 
       {/* Tabs */}
-      <div className="flex items-center gap-1 border-b border-[#e9edff]">
+      <div className="flex items-center gap-1 border-b border-[#e9edff] shrink-0">
         {TABS.map((t, i) => (
           <button
             key={t}
@@ -148,8 +150,9 @@ const SettingsPage = () => {
           </div>
 
           <div className="flex flex-col rounded-xl bg-[#ffffff] border border-[#e9edff] shadow-sm overflow-hidden">
+            <div className="overflow-y-auto max-h-[420px]">
             <table className="w-full text-left border-collapse">
-              <thead>
+              <thead className="sticky top-0 z-10">
                 <tr className="bg-[#f1f3ff] text-[12px] font-semibold uppercase tracking-wider text-[#434655]">
                   {['Member', 'Email', 'Role', 'Actions'].map((h) => (
                     <th key={h} className="py-2.5 px-4">{h}</th>
@@ -169,7 +172,7 @@ const SettingsPage = () => {
                       No team members yet.
                     </td>
                   </tr>
-                ) : members.map((m) => (
+                ) : pagedMembers.pageItems.map((m) => (
                   <tr key={m.id} className="hover:bg-[#f9f9ff] transition-colors">
                     <td className="py-3 px-4">
                       <div className="flex items-center gap-2.5">
@@ -205,7 +208,16 @@ const SettingsPage = () => {
                 ))}
               </tbody>
             </table>
+            </div>
           </div>
+
+          <Pagination
+            page={pagedMembers.page}
+            totalPages={pagedMembers.totalPages}
+            total={pagedMembers.total}
+            perPage={pagedMembers.perPage}
+            onPage={pagedMembers.setPage}
+          />
 
           {/* Invite modal */}
           {showInvite && (

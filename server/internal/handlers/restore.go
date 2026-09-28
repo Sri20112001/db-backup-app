@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/backup-saas/server/internal/models"
+	"github.com/backup-saas/server/internal/realtime"
 	pb "github.com/backup-saas/server/proto/agentpb"
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
@@ -71,6 +72,7 @@ func (h *RestoreHandler) Create(c *gin.Context) {
 		TargetDatabase:  req.TargetDatabase,
 	}
 	h.db.Create(&job)
+	publishEntity(orgID.String(), realtime.TypeRestores, "created", job.ID.String())
 
 	// Dispatch to agent
 	h.grpc.SendCommand(agentID.String(), &pb.ServerCommand{
@@ -152,6 +154,7 @@ func (h *RestoreHandler) UpdateStatus(c *gin.Context) {
 	h.db.Model(&models.RestoreJob{}).
 		Where("id = ? AND agent_id = ?", id, agent.ID).
 		Updates(updates)
+	publishEntity(agent.OrganizationID.String(), realtime.TypeRestores, "updated", id.String())
 
 	c.JSON(http.StatusOK, gin.H{"updated": true})
 }

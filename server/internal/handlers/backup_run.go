@@ -1,11 +1,19 @@
 package handlers
 
 import (
+	"crypto/sha256"
+	"encoding/hex"
+	"fmt"
+	"io"
 	"net/http"
+	"os"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/backup-saas/server/internal/models"
+	"github.com/backup-saas/server/internal/realtime"
+	"github.com/backup-saas/server/internal/services"
 	pb "github.com/backup-saas/server/proto/agentpb"
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
@@ -17,10 +25,11 @@ type BackupRunHandler struct {
 	db     *gorm.DB
 	grpc   CommandDispatcher
 	encKey []byte
+	mailer *services.Mailer
 }
 
-func NewBackupRunHandler(db *gorm.DB, grpc CommandDispatcher, encKey []byte) *BackupRunHandler {
-	return &BackupRunHandler{db: db, grpc: grpc, encKey: encKey}
+func NewBackupRunHandler(db *gorm.DB, grpc CommandDispatcher, encKey []byte, mailer *services.Mailer) *BackupRunHandler {
+	return &BackupRunHandler{db: db, grpc: grpc, encKey: encKey, mailer: mailer}
 }
 
 func (h *BackupRunHandler) List(c *gin.Context) {
@@ -74,7 +83,9 @@ func (h *BackupRunHandler) Get(c *gin.Context) {
 	c.JSON(http.StatusOK, run)
 }
 
-// Cancel sends CANCEL_BACKUP to the agent and marks the run cancelled.
+// Cancel requests cancellation. PENDING runs (unclaimed) flip to CANCELLED
+// immediately; claimed runs get cancel_requested=true, which the agent
+// honors at stage boundaries and reports as CANCELLED itself.
 func (h *BackupRunHandler) Cancel(c *gin.Context) {
 	orgID := c.MustGet("org_id").(uuid.UUID)
 	runID, err := uuid.Parse(c.Param("id"))
@@ -93,7 +104,23 @@ func (h *BackupRunHandler) Cancel(c *gin.Context) {
 		return
 	}
 
-	h.db.Model(&run).Update("status", models.RunCancelled)
+	updates := map[string]interface{}{"cancel_requested": true}
+	if run.Status == models.RunPending {
+		updates["status"] = models.RunCancelled
+	}
+	h.db.Model(&run).Updates(updates)
+
+	if run.Status == models.RunPending {
+		publishRun(run, models.RunCancelled, run.BytesRead, run.BytesCompressed, run.BytesUploaded, run.Checksum, run.ErrorMessage, run.StoragePath)
+	} else {
+		// Claimed run: nudge the live agent socket too so it aborts without
+		// waiting for its next poll/progress round-trip.
+		realtime.SendToAgent(realtime.DefaultHub, run.AgentID.String(), realtime.Event{
+			Type:    realtime.TypeCancel,
+			Payload: map[string]interface{}{"run_id": run.ID.String()},
+		})
+		publishRun(run, run.Status, run.BytesRead, run.BytesCompressed, run.BytesUploaded, run.Checksum, run.ErrorMessage, run.StoragePath)
+	}
 
 	h.grpc.SendCommand(run.AgentID.String(), &pb.ServerCommand{
 		Command: &pb.ServerCommand_CancelBackup{
@@ -186,6 +213,7 @@ func (h *BackupRunHandler) UpdateStatus(c *gin.Context) {
 				"bytes_compressed": req.BytesCompressed,
 				"bytes_uploaded":   req.BytesUploaded,
 			})
+			publishRun(run, req.Status, req.BytesRead, req.BytesCompressed, req.BytesUploaded, run.Checksum, run.ErrorMessage, run.StoragePath)
 			c.JSON(http.StatusOK, gin.H{"updated": true})
 			return
 		}
@@ -219,7 +247,111 @@ func (h *BackupRunHandler) UpdateStatus(c *gin.Context) {
 	}
 
 	h.db.Model(&run).Updates(updates)
-	c.JSON(http.StatusOK, gin.H{"updated": true})
+	// Re-read: a Cancel may have landed concurrently with this report.
+	var fresh models.BackupRun
+	h.db.Select("cancel_requested").Where("id = ?", run.ID).First(&fresh)
+	publishRun(run, req.Status, req.BytesRead, req.BytesCompressed, req.BytesUploaded, req.Checksum, req.ErrorMessage, req.StoragePath)
+
+	// First FAILED report for a run raises an alert + email. Terminal states
+	// never transition out, so exactly one FAILED report exists per run.
+	if req.Status == models.RunFailed {
+		var job models.BackupJob
+		jobName := run.BackupJobID.String()
+		if err := h.db.Where("id = ?", run.BackupJobID).First(&job).Error; err == nil {
+			jobName = job.Name
+		}
+		agentID := agent.ID
+		jobID := run.BackupJobID
+		alert := models.Alert{
+			OrganizationID: run.OrganizationID,
+			Type:           models.AlertBackupFailed,
+			Title:          "Backup Failed: " + jobName,
+			Message:        req.ErrorMessage,
+			BackupJobID:    &jobID,
+			AgentID:        &agentID,
+		}
+		h.db.Create(&alert)
+		publishAlert(alert)
+		services.NotifyOrg(h.db, h.mailer, run.OrganizationID,
+			"[VaultGuard] Backup Failed: "+jobName,
+			"Backup job "+jobName+" failed on agent "+agent.Name+":\n\n"+req.ErrorMessage)
+	}
+
+	c.JSON(http.StatusOK, gin.H{"updated": true, "cancel_requested": fresh.CancelRequested})
+}
+
+// Verify recomputes the SHA-256 of a COMPLETED run's stored file and
+// compares it with the checksum the agent reported at upload time. Only
+// LOCAL storage targets can be verified server-side (no S3/SMB client yet).
+// A mismatch raises a VERIFY_FAILED alert + email; the run row is untouched.
+func (h *BackupRunHandler) Verify(c *gin.Context) {
+	orgID := c.MustGet("org_id").(uuid.UUID)
+	runID, err := uuid.Parse(c.Param("id"))
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid id"})
+		return
+	}
+	var run models.BackupRun
+	if err := h.db.Where("id = ? AND organization_id = ?", runID, orgID).First(&run).Error; err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "not found"})
+		return
+	}
+	if run.Status != models.RunCompleted {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "only COMPLETED runs can be verified"})
+		return
+	}
+	if run.Checksum == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "run has no recorded checksum"})
+		return
+	}
+	var target models.StorageTarget
+	if err := h.db.Where("id = ?", run.StorageTargetID).First(&target).Error; err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "storage target not found"})
+		return
+	}
+	if target.Type != models.StorageLocal {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "verification is only supported for LOCAL storage targets"})
+		return
+	}
+	sum, err := sha256File(run.StoragePath)
+	if err != nil {
+		c.JSON(http.StatusBadGateway, gin.H{"error": "could not read stored file: " + err.Error()})
+		return
+	}
+	if sum != strings.ToLower(run.Checksum) {
+		jobID := run.BackupJobID
+		alert := models.Alert{
+			OrganizationID: run.OrganizationID,
+			Type:           models.AlertVerifyFailed,
+			Title:          "Backup verification failed",
+			Message:        fmt.Sprintf("stored file hash mismatch for run %s (expected %s, got %s)", run.ID, run.Checksum, sum),
+			BackupJobID:    &jobID,
+			AgentID:        &run.AgentID,
+		}
+		h.db.Create(&alert)
+		publishAlert(alert)
+		services.NotifyOrg(h.db, h.mailer, run.OrganizationID,
+			"[VaultGuard] Backup verification failed",
+			fmt.Sprintf("Stored file for run %s does not match its recorded checksum.\nExpected: %s\nActual:   %s\n\nTreat this recovery point as suspect until investigated.",
+				run.ID, run.Checksum, sum))
+		c.JSON(http.StatusOK, gin.H{"match": false, "expected": run.Checksum, "actual": sum})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"match": true, "checksum": sum})
+}
+
+// sha256File streams a file into a hex digest without loading it.
+func sha256File(path string) (string, error) {
+	f, err := os.Open(path)
+	if err != nil {
+		return "", err
+	}
+	defer f.Close()
+	h := sha256.New()
+	if _, err := io.Copy(h, f); err != nil {
+		return "", err
+	}
+	return hex.EncodeToString(h.Sum(nil)), nil
 }
 
 // RegisterArtifact lets the agent record a backup artifact for a run.

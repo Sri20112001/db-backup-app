@@ -9,6 +9,8 @@ import (
 
 	"github.com/backup-saas/server/internal/handlers"
 	"github.com/backup-saas/server/internal/models"
+	"github.com/backup-saas/server/internal/realtime"
+	"github.com/backup-saas/server/internal/services"
 	pb "github.com/backup-saas/server/proto/agentpb"
 	"github.com/google/uuid"
 	"github.com/rs/zerolog/log"
@@ -27,15 +29,17 @@ type Server struct {
 	pb.UnimplementedAgentServiceServer
 	db            *gorm.DB
 	mu            sync.RWMutex
-	streams        map[string]*agentConn
-	encryptionKey  []byte
+	streams       map[string]*agentConn
+	encryptionKey []byte
+	mailer        *services.Mailer
 }
 
-func NewServer(db *gorm.DB, encryptionKey []byte) *Server {
+func NewServer(db *gorm.DB, encryptionKey []byte, mailer *services.Mailer) *Server {
 	return &Server{
 		db:            db,
 		streams:       make(map[string]*agentConn),
 		encryptionKey: encryptionKey,
+		mailer:        mailer,
 	}
 }
 
@@ -194,6 +198,13 @@ func (s *Server) handleEvent(agent *models.Agent, evt *pb.AgentEvent) {
 			alert.BackupJobID = &run.BackupJobID
 		}
 		s.db.Create(&alert)
+		services.NotifyOrg(s.db, s.mailer, agent.OrganizationID,
+			"[VaultGuard] Backup Failed",
+			"Backup failed on agent "+agent.Name+":\n\n"+p.BackupFailed.Error)
+		realtime.Publish(realtime.DefaultHub, agent.OrganizationID.String(), realtime.Event{
+			Type:    realtime.TypeAlert,
+			Payload: alert,
+		})
 
 	case *pb.AgentEvent_RestoreStarted:
 		s.db.Model(&models.RestoreJob{}).Where("id = ?", p.RestoreStarted.RestoreId).

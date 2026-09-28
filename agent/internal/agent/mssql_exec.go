@@ -77,11 +77,28 @@ func runSqlcmd(ctx context.Context, cfg MssqlConfig, timeout time.Duration, quer
 	return strings.TrimSpace(stdout.String()), nil
 }
 
+// PrecheckMssql fails when the database holds no user tables — backing up
+// an empty database would record a successful backup of nothing.
+func PrecheckMssql(ctx context.Context, cfg MssqlConfig, dbName string) error {
+	out, err := runSqlcmd(ctx, cfg, time.Minute,
+		"SET NOCOUNT ON; SELECT COUNT(*) FROM "+mssqlQuote(dbName)+".sys.tables WHERE is_ms_shipped = 0;")
+	if err != nil {
+		return fmt.Errorf("pre-check %s: %w", dbName, err)
+	}
+	if strings.TrimSpace(out) == "0" {
+		return fmt.Errorf("pre-check %s: database contains no tables to back up", dbName)
+	}
+	return nil
+}
+
 // BackupMssql takes a native full backup (BACKUP DATABASE) to a .bak file
 // and returns its path and size. The .bak is written by the SQL Server
 // engine itself, so backupDir must be engine-local and writable by its
 // service account (AGENT_MSSQL_BACKUP_DIR, default OS temp dir).
 func BackupMssql(ctx context.Context, cfg MssqlConfig, dbName string, compressed bool) (string, int64, error) {
+	if err := PrecheckMssql(ctx, cfg, dbName); err != nil {
+		return "", 0, err
+	}
 	dir := cfg.BackupDir
 	if dir == "" {
 		dir = os.TempDir()

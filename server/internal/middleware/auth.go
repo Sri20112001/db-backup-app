@@ -16,22 +16,22 @@ type Claims struct {
 	jwt.RegisteredClaims
 }
 
-func GenerateAccessToken(userID, email, secret string) (string, error) {
+func GenerateAccessToken(userID, email, secret string, ttl time.Duration) (string, error) {
 	claims := Claims{
 		UserID: userID,
 		Email:  email,
 		RegisteredClaims: jwt.RegisteredClaims{
-			ExpiresAt: jwt.NewNumericDate(time.Now().Add(60 * time.Minute)),
+			ExpiresAt: jwt.NewNumericDate(time.Now().Add(ttl)),
 			IssuedAt:  jwt.NewNumericDate(time.Now()),
 		},
 	}
 	return jwt.NewWithClaims(jwt.SigningMethodHS256, claims).SignedString([]byte(secret))
 }
 
-func GenerateRefreshToken(userID, secret string) (string, error) {
+func GenerateRefreshToken(userID, secret string, ttl time.Duration) (string, error) {
 	claims := jwt.RegisteredClaims{
 		Subject:   userID,
-		ExpiresAt: jwt.NewNumericDate(time.Now().Add(7 * 24 * time.Hour)),
+		ExpiresAt: jwt.NewNumericDate(time.Now().Add(ttl)),
 		IssuedAt:  jwt.NewNumericDate(time.Now()),
 	}
 	return jwt.NewWithClaims(jwt.SigningMethodHS256, claims).SignedString([]byte(secret))

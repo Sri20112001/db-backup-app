@@ -1,20 +1,3 @@
-// VaultGuard CI/CD — Jenkins declarative pipeline.
-//
-// The agent is expected to have Docker and Go on PATH, and to BE the deploy target
-// (same-machine `docker compose up`).
-// Works both on a bare-metal agent and from a containerized Jenkins with the
-// Docker socket mounted: the pipeline self-provisions a Compose binary if the
-// `docker compose` plugin is missing.
-//
-// Required Jenkins "Secret text" credentials (Manage Jenkins → Credentials):
-//   vaultguard-postgres-password
-//   vaultguard-jwt-secret          
-//   vaultguard-jwt-refresh-secret
-//   vaultguard-encryption-key      
-//
-// Job setup: New Item → Pipeline → "Pipeline script from SCM",
-// SCM: Git, Script Path: Jenkinsfile. Trigger via webhook or polling as usual.
-
 pipeline {
   agent any
 

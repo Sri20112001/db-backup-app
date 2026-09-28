@@ -1,6 +1,8 @@
 import { useState, useRef, useEffect } from 'react'
-import { NavLink, useNavigate } from 'react-router-dom'
+import { NavLink, useNavigate, useLocation } from 'react-router-dom'
 import { useAuthStore } from '../store/authStore'
+import { alertApi } from '../services/api'
+import { useRealtimeStore } from '../stores/realtimeStore'
 import {
   Shield, Archive, History, RotateCcw, Server,
   Database, Bell, Settings, LogOut, Building2,
@@ -19,8 +21,30 @@ const navItems = [
 const FloatingDock = () => {
   const { logout, user, currentOrg } = useAuthStore()
   const navigate = useNavigate()
+  const location = useLocation()
   const [menuOpen, setMenuOpen] = useState(false)
   const menuRef = useRef<HTMLDivElement>(null)
+  const [unreadCount, setUnreadCount] = useState(0)
+  const alertTick = useRealtimeStore((s) => s.alertTick)
+
+  // Unread badge: total only (limit 1 keeps it cheap). Refreshes on org or
+  // route change, and instantly on socket-pushed alerts.
+  useEffect(() => {
+    if (!currentOrg) {
+      setUnreadCount(0)
+      return
+    }
+    let cancelled = false
+    alertApi
+      .list(currentOrg.id, { unread: true, limit: 1 })
+      .then((res) => {
+        if (!cancelled) setUnreadCount(res.total)
+      })
+      .catch(() => {})
+    return () => {
+      cancelled = true
+    }
+  }, [currentOrg, location.pathname, alertTick])
 
   const handleLogout = () => {
     logout()
@@ -73,6 +97,11 @@ const FloatingDock = () => {
             }
           >
             <item.icon size={20} />
+            {item.path === '/alerts' && unreadCount > 0 && (
+              <span className="absolute -top-1 -right-1 min-w-[18px] h-[18px] px-1 rounded-full bg-[#ba1a1a] text-white text-[10px] font-bold flex items-center justify-center shadow-sm">
+                {unreadCount > 99 ? '99+' : unreadCount}
+              </span>
+            )}
             <span className="absolute left-14 px-2 py-1 bg-[#293040] text-[#edf0ff] text-[12px] font-medium rounded shadow-md opacity-0 pointer-events-none group-hover:opacity-100 transition-opacity z-50 whitespace-nowrap">
               {item.label}
             </span>

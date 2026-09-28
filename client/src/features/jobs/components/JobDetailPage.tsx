@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { jobApi, runApi } from '@/services/api'
 import { useAuthStore } from '@/store/authStore'
@@ -8,8 +8,11 @@ import StatusBadge from '@/components/StatusBadge'
 import { SkeletonRow } from '@/components/Skeleton'
 import ConfirmDialog from '@/components/ConfirmDialog'
 import RunDetailDrawer from '@/features/history/components/RunDetailDrawer'
+import EditJobModal from './EditJobModal'
+import Pagination from '@/components/Pagination'
+import { useRealtimeStore, mergeRunPatch } from '@/stores/realtimeStore'
 import { formatBytes, formatDuration, formatRelative } from '@/utils/format'
-import { ChevronRight, Play, ChevronLeft, Loader2 } from 'lucide-react'
+import { ChevronRight, Play, Loader2 } from 'lucide-react'
 import normalizeWindowsPath from '@/utils/normalizeWindowsPath'
 import Action3DButton from '@/components/ui/Action3DButton'
 
@@ -24,7 +27,23 @@ const JobDetailPage = () => {
   const [page, setPage] = useState(1)
   const [isLoading, setIsLoading] = useState(true)
   const [showDelete, setShowDelete] = useState(false)
+  const [showEdit, setShowEdit] = useState(false)
   const limit = 20
+  const lastRunEvent = useRealtimeStore((s) => s.lastRunEvent)
+
+  // Live patches for this job's runs; unseen runs trigger a refetch.
+  const runsRef = useRef(runs)
+  runsRef.current = runs
+  useEffect(() => {
+    if (!lastRunEvent) return
+    if (lastRunEvent.backup_job_id && lastRunEvent.backup_job_id !== id) return
+    if (!runsRef.current.some((r) => r.id === lastRunEvent.id)) {
+      if (page === 1) loadData()
+      return
+    }
+    setRuns((prev) => mergeRunPatch(prev, lastRunEvent))
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [lastRunEvent])
 
   const loadData = () => {
     if (!currentOrg || !id) return
@@ -81,7 +100,7 @@ const JobDetailPage = () => {
   if (!job) return null
 
   return (
-    <div className="flex flex-col gap-6">
+    <div className="h-full min-h-0 flex flex-col gap-4 overflow-y-auto pr-0.5 pb-1">
       {/* Breadcrumb */}
       <div className="flex items-center gap-2 text-[12px] text-[#434655]">
         <button type="button" onClick={() => navigate('/jobs')} className="hover:text-[#004ac6]">Backup Jobs</button>
@@ -115,7 +134,7 @@ const JobDetailPage = () => {
           </Action3DButton>
           <button
             type="button"
-            onClick={() => navigate(`/jobs/${job.id}/edit`)}
+            onClick={() => setShowEdit(true)}
             className="px-3 h-9 rounded-lg bg-[#ffffff] border border-[#e9edff] text-[#141b2b] text-[13px] font-medium hover:bg-[#f1f3ff] transition-colors"
           >
             Edit
@@ -136,9 +155,9 @@ const JobDetailPage = () => {
         <div className="lg:col-span-8 flex flex-col gap-4">
           <h2 className="text-[14px] font-semibold uppercase tracking-wider text-[#434655]">Run History</h2>
           <div className="flex flex-col rounded-lg bg-[#ffffff] shadow-sm overflow-hidden border border-[#e9edff]">
-            <div className="overflow-x-auto">
+            <div className="overflow-auto max-h-[380px]">
               <table className="w-full text-left border-collapse">
-                <thead>
+                <thead className="sticky top-0 z-10">
                   <tr className="bg-[#f1f3ff] text-[12px] font-semibold uppercase tracking-wider text-[#434655]">
                     {['Status', 'Started', 'Duration', 'Original', 'Uploaded', 'Checksum', ''].map((h) => (
                       <th key={h} className="py-2.5 px-4">{h}</th>
@@ -171,17 +190,8 @@ const JobDetailPage = () => {
               </table>
             </div>
             {totalPages > 1 && (
-              <div className="p-3 bg-[#f1f3ff]/40 flex items-center justify-between text-[12px] text-[#434655]">
-                <span>{total} total runs</span>
-                <div className="flex items-center gap-1">
-                  <button type="button" disabled={page === 1} onClick={() => setPage((p) => p - 1)} className="p-1.5 rounded bg-[#e9edff] disabled:opacity-40">
-                    <ChevronLeft size={16} />
-                  </button>
-                  <span className="px-3 py-1 rounded bg-[#2563eb] text-white font-medium">{page}</span>
-                  <button type="button" disabled={page >= totalPages} onClick={() => setPage((p) => p + 1)} className="p-1.5 rounded bg-[#e9edff] disabled:opacity-40">
-                    <ChevronRight size={16} />
-                  </button>
-                </div>
+              <div className="p-3 bg-[#f1f3ff]/40 shrink-0">
+                <Pagination page={page} totalPages={totalPages} total={total} perPage={limit} onPage={setPage} />
               </div>
             )}
           </div>
@@ -218,6 +228,10 @@ const JobDetailPage = () => {
           onConfirm={handleDelete}
           onCancel={() => setShowDelete(false)}
         />
+      )}
+
+      {showEdit && id && (
+        <EditJobModal jobId={id} onClose={() => setShowEdit(false)} onSaved={loadData} />
       )}
 
       {runDetailId && <RunDetailDrawer runId={runDetailId} />}

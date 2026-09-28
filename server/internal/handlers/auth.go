@@ -19,10 +19,18 @@ type AuthHandler struct {
 	db            *gorm.DB
 	jwtSecret     string
 	refreshSecret string
+	accessTTL     time.Duration
+	refreshTTL    time.Duration
 }
 
-func NewAuthHandler(db *gorm.DB, jwtSecret, refreshSecret string) *AuthHandler {
-	return &AuthHandler{db: db, jwtSecret: jwtSecret, refreshSecret: refreshSecret}
+func NewAuthHandler(db *gorm.DB, jwtSecret, refreshSecret string, accessTTL, refreshTTL time.Duration) *AuthHandler {
+	if accessTTL <= 0 {
+		accessTTL = 60 * time.Minute
+	}
+	if refreshTTL <= 0 {
+		refreshTTL = 7 * 24 * time.Hour
+	}
+	return &AuthHandler{db: db, jwtSecret: jwtSecret, refreshSecret: refreshSecret, accessTTL: accessTTL, refreshTTL: refreshTTL}
 }
 
 // hashToken returns the hex-encoded SHA-256 of a token string.
@@ -67,13 +75,13 @@ func (h *AuthHandler) Login(c *gin.Context) {
 		return
 	}
 
-	accessToken, err := middleware.GenerateAccessToken(user.ID.String(), user.Email, h.jwtSecret)
+	accessToken, err := middleware.GenerateAccessToken(user.ID.String(), user.Email, h.jwtSecret, h.accessTTL)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "token generation failed"})
 		return
 	}
 
-	rawRefresh, err := middleware.GenerateRefreshToken(user.ID.String(), h.refreshSecret)
+	rawRefresh, err := middleware.GenerateRefreshToken(user.ID.String(), h.refreshSecret, h.refreshTTL)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "token generation failed"})
 		return
@@ -85,7 +93,7 @@ func (h *AuthHandler) Login(c *gin.Context) {
 		UserID:    user.ID,
 		FamilyID:  familyID,
 		Token:     hashToken(rawRefresh),
-		ExpiresAt: time.Now().Add(7 * 24 * time.Hour),
+		ExpiresAt: time.Now().Add(h.refreshTTL),
 	})
 
 	h.writeAudit(user.ID, uuid.Nil, "LOGIN_SUCCESS", c.ClientIP())
@@ -153,11 +161,11 @@ func (h *AuthHandler) Refresh(c *gin.Context) {
 		}
 
 		var genErr error
-		accessToken, genErr = middleware.GenerateAccessToken(user.ID.String(), user.Email, h.jwtSecret)
+		accessToken, genErr = middleware.GenerateAccessToken(user.ID.String(), user.Email, h.jwtSecret, h.accessTTL)
 		if genErr != nil {
 			return genErr
 		}
-		newRawRefresh, genErr = middleware.GenerateRefreshToken(user.ID.String(), h.refreshSecret)
+		newRawRefresh, genErr = middleware.GenerateRefreshToken(user.ID.String(), h.refreshSecret, h.refreshTTL)
 		if genErr != nil {
 			return genErr
 		}
@@ -167,7 +175,7 @@ func (h *AuthHandler) Refresh(c *gin.Context) {
 			UserID:    user.ID,
 			FamilyID:  rt.FamilyID,
 			Token:     hashToken(newRawRefresh),
-			ExpiresAt: time.Now().Add(7 * 24 * time.Hour),
+			ExpiresAt: time.Now().Add(h.refreshTTL),
 		}).Error
 	})
 
@@ -207,7 +215,9 @@ func (h *AuthHandler) Logout(c *gin.Context) {
 
 type registerRequest struct {
 	Email    string `json:"email" binding:"required,email"`
-	Password string `json:"password" binding:"required,min=8"`
+	// bcrypt caps input at 72 bytes; longer passwords fail closed with 400
+	// instead of a misleading 500 from the hasher.
+	Password string `json:"password" binding:"required,min=8,max=72"`
 	Name     string `json:"name" binding:"required"`
 }
 
@@ -247,7 +257,7 @@ func (h *AuthHandler) ChangePassword(c *gin.Context) {
 
 	var req struct {
 		CurrentPassword string `json:"current_password" binding:"required"`
-		NewPassword     string `json:"new_password" binding:"required,min=8"`
+		NewPassword     string `json:"new_password" binding:"required,min=8,max=72"`
 	}
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})

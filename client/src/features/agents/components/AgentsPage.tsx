@@ -7,6 +7,8 @@ import type { Agent } from '@/types'
 import StatusBadge from '@/components/StatusBadge'
 import EmptyState from '@/components/EmptyState'
 import ConfirmDialog from '@/components/ConfirmDialog'
+import Pagination, { usePagination } from '@/components/Pagination'
+import { useRealtimeStore } from '@/stores/realtimeStore'
 import { formatRelative } from '@/utils/format'
 import { Plus, Server, Trash2, Copy, Check, Loader2 } from 'lucide-react'
 
@@ -20,6 +22,24 @@ const AgentsPage = () => {
   const [regToken, setRegToken] = useState<{ agent_id: string; registration_key: string } | null>(null)
   const [copied, setCopied] = useState(false)
   const [deleteId, setDeleteId] = useState<string | null>(null)
+  const paged = usePagination(agents, 6)
+  const presence = useRealtimeStore((s) => s.presence)
+  const agentsSeq = useRealtimeStore((s) => s.entitySeq.agents)
+
+  // Instant presence flips; full reload on register/remove.
+  useEffect(() => {
+    if (!presence?.id) return
+    setAgents((prev) =>
+      prev.map((a) =>
+        a.id === presence.id ? { ...a, status: (presence.status as Agent['status']) ?? a.status, name: presence.name ?? a.name } : a,
+      ),
+    )
+  }, [presence])
+
+  useEffect(() => {
+    loadAgents()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [agentsSeq])
 
   const loadAgents = () => {
     if (!currentOrg) return
@@ -59,7 +79,7 @@ const AgentsPage = () => {
   }
 
   return (
-    <div className="flex flex-col gap-6">
+    <div className="h-full min-h-0 flex flex-col gap-4">
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
           <h1 className="text-[20px] font-semibold text-[#141b2b] tracking-tight">Agents & Machines</h1>
@@ -93,8 +113,8 @@ const AgentsPage = () => {
           }
         />
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {agents.map((agent) => (
+        <div className="flex-1 min-h-0 overflow-y-auto grid grid-cols-1 md:grid-cols-2 gap-4 content-start pr-0.5">
+          {paged.pageItems.map((agent) => (
             <div
               key={agent.id}
               onClick={() => navigate(`/agents/${agent.id}`)}
@@ -127,6 +147,14 @@ const AgentsPage = () => {
           ))}
         </div>
       )}
+
+      <Pagination
+        page={paged.page}
+        totalPages={paged.totalPages}
+        total={paged.total}
+        perPage={paged.perPage}
+        onPage={paged.setPage}
+      />
 
       {/* Register modal */}
       {showRegister && (

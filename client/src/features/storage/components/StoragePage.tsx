@@ -4,6 +4,7 @@ import { useAuthStore } from '@/store/authStore'
 import { useUIStore } from '@/store/uiStore'
 import type { StorageTarget, StorageType } from '@/types'
 import EmptyState from '@/components/EmptyState'
+import Pagination, { usePagination } from '@/components/Pagination'
 import ConfirmDialog from '@/components/ConfirmDialog'
 import { CloudUpload, HardDrive, FolderOpen, Lock, Trash2, Plus, X, Loader2, Database } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
@@ -16,6 +17,7 @@ const StoragePage = () => {
   const { currentOrg } = useAuthStore()
   const { addToast } = useUIStore()
   const [targets, setTargets] = useState<StorageTarget[]>([])
+  const paged = usePagination(targets, 6)
   const [isLoading, setIsLoading] = useState(true)
   const [showAdd, setShowAdd] = useState(false)
   const [deleteId, setDeleteId] = useState<string | null>(null)
@@ -58,7 +60,7 @@ const StoragePage = () => {
   const labelCls = "block text-[13px] font-medium text-[#434655] mb-1.5"
 
   return (
-    <div className="flex flex-col gap-6">
+    <div className="h-full min-h-0 flex flex-col gap-4">
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
           <h1 className="text-[20px] font-semibold text-[#141b2b] tracking-tight">Storage Targets</h1>
@@ -79,8 +81,8 @@ const StoragePage = () => {
           action={<button type="button" onClick={() => setShowAdd(true)} className="px-4 h-9 rounded-lg bg-[#2563eb] text-white text-[13px] font-medium hover:bg-[#1d4ed8] transition-colors">+ Add Storage</button>}
         />
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          {targets.map((t) => {
+        <div className="flex-1 min-h-0 overflow-y-auto grid grid-cols-1 md:grid-cols-3 gap-4 content-start pr-0.5">
+          {paged.pageItems.map((t) => {
             const TypeIcon = typeIcon[t.type]
             return (
               <div key={t.id} className="flex flex-col gap-3 p-5 rounded-xl bg-[#ffffff] border border-[#e9edff] shadow-sm">
@@ -109,6 +111,14 @@ const StoragePage = () => {
           })}
         </div>
       )}
+
+      <Pagination
+        page={paged.page}
+        totalPages={paged.totalPages}
+        total={paged.total}
+        perPage={paged.perPage}
+        onPage={paged.setPage}
+      />
 
       {/* Add drawer */}
       {showAdd && (

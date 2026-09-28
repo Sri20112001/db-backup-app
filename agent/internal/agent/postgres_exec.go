@@ -97,11 +97,45 @@ func GunzipFile(src, dst string) error {
 	return err
 }
 
+// PrecheckPostgres fails when the database holds no user tables — dumping
+// an empty schema would record a successful backup of nothing.
+func PrecheckPostgres(pg PgConfig, dbName string) error {
+	psql, err := findPsql()
+	if err != nil {
+		return err
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+	cmd := exec.CommandContext(ctx, psql,
+		"-h", pg.Host, "-p", strconv.Itoa(pg.Port), "-U", pg.User,
+		"-d", dbName, "-t", "-A",
+		"-c", "SELECT count(*) FROM information_schema.tables WHERE table_schema NOT IN ('pg_catalog', 'information_schema');",
+	)
+	cmd.Env = pgEnv(os.Environ(), pg)
+	var stdout, stderr bytes.Buffer
+	cmd.Stdout = &stdout
+	cmd.Stderr = &stderr
+	if err := cmd.Run(); err != nil {
+		msg := strings.TrimSpace(stderr.String())
+		if msg == "" {
+			msg = err.Error()
+		}
+		return fmt.Errorf("pre-check %s: %s", dbName, firstLine(msg))
+	}
+	if n, err := strconv.Atoi(strings.TrimSpace(stdout.String())); err != nil || n == 0 {
+		return fmt.Errorf("pre-check %s: database contains no tables to back up", dbName)
+	}
+	return nil
+}
+
 // BackupPostgres dumps one database with pg_dump in plain SQL format (.sql)
 // — replayable with a single psql -f, human-readable and diffable — into a
 // temp file. When compressed is true the dump is additionally gzipped
 // (.sql.gz). Returns the dump path and its size.
 func BackupPostgres(pg PgConfig, dbName string, compressed bool) (string, int64, error) {
+	if err := PrecheckPostgres(pg, dbName); err != nil {
+		return "", 0, err
+	}
 	pgDump, err := pgBin("pg_dump")
 	if err != nil {
 		return "", 0, err

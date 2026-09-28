@@ -2,6 +2,7 @@ package agent
 
 import (
 	"bytes"
+	"crypto/tls"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -28,6 +29,8 @@ type JobConfig struct {
 	StorageRegion   string `json:"storage_region"`
 	StorageEndpoint string `json:"storage_endpoint"`
 	StoragePath     string `json:"storage_path"`
+	// ExportFormat selects the MongoDB payload (ARCHIVE/JSON/CSV).
+	ExportFormat string `json:"export_format"`
 }
 
 type Run struct {
@@ -38,8 +41,9 @@ type Run struct {
 }
 
 type ClaimRunResponse struct {
-	Run    Run       `json:"run"`
-	Config JobConfig `json:"config"`
+	Run             Run       `json:"run"`
+	Config          JobConfig `json:"config"`
+	CancelRequested bool      `json:"cancel_requested"`
 }
 
 type Restore struct {
@@ -55,6 +59,8 @@ type Restore struct {
 	// SourceType/SourceDatabase identify what is being restored.
 	SourceType     string `json:"source_type"`
 	SourceDatabase string `json:"source_database"`
+	// ExportFormat selects the MongoDB restore path (ARCHIVE/JSON/CSV).
+	ExportFormat string `json:"export_format"`
 	CreatedAt string `json:"created_at"`
 }
 
@@ -66,10 +72,22 @@ type Client struct {
 }
 
 func NewClient(server, token string) *Client {
+	return NewClientWithTLS(server, token, false)
+}
+
+// NewClientWithTLS optionally skips certificate verification (self-signed
+// or lab CAs only — never in production).
+func NewClientWithTLS(server, token string, skipVerify bool) *Client {
+	transport := http.DefaultTransport
+	if skipVerify {
+		transport = &http.Transport{
+			TLSClientConfig: &tls.Config{InsecureSkipVerify: true}, //nolint:gosec // explicit lab opt-in
+		}
+	}
 	return &Client{
 		server: server,
 		token:  token,
-		http:   &http.Client{Timeout: 60 * time.Second},
+		http:   &http.Client{Timeout: 60 * time.Second, Transport: transport},
 	}
 }
 
@@ -189,9 +207,18 @@ type RunStatusUpdate struct {
 	DataKey string `json:"data_key,omitempty"`
 }
 
-func (c *Client) UpdateRunStatus(runID string, u RunStatusUpdate) error {
-	_, _, err := c.do("PUT", "/backup-runs/"+runID+"/status", u, true)
-	return err
+func (c *Client) UpdateRunStatus(runID string, u RunStatusUpdate) (bool, error) {
+	data, _, err := c.do("PUT", "/backup-runs/"+runID+"/status", u, true)
+	if err != nil {
+		return false, err
+	}
+	var out struct {
+		CancelRequested bool `json:"cancel_requested"`
+	}
+	if err := json.Unmarshal(data, &out); err != nil {
+		return false, nil // old server: no flag, assume keep going
+	}
+	return out.CancelRequested, nil
 }
 
 type ArtifactResponse struct {

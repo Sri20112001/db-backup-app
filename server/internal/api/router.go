@@ -1,16 +1,20 @@
 package api
 
 import (
+	"time"
+
 	"github.com/backup-saas/server/internal/config"
 	"github.com/backup-saas/server/internal/grpcserver"
 	"github.com/backup-saas/server/internal/handlers"
 	"github.com/backup-saas/server/internal/middleware"
 	"github.com/backup-saas/server/internal/models"
+	"github.com/backup-saas/server/internal/realtime"
+	"github.com/backup-saas/server/internal/services"
 	"github.com/gin-gonic/gin"
 	"gorm.io/gorm"
 )
 
-func NewRouter(db *gorm.DB, cfg *config.Config, grpcSrv *grpcserver.Server) *gin.Engine {
+func NewRouter(db *gorm.DB, cfg *config.Config, grpcSrv *grpcserver.Server, hub *realtime.Hub) *gin.Engine {
 	r := gin.New()
 	r.Use(gin.Recovery())
 	r.Use(gin.LoggerWithConfig(gin.LoggerConfig{SkipPaths: []string{"/api/health"}}))
@@ -18,14 +22,17 @@ func NewRouter(db *gorm.DB, cfg *config.Config, grpcSrv *grpcserver.Server) *gin
 
 	encKey := make([]byte, 32)
 	copy(encKey, []byte(cfg.EncryptionKey))
+	mailer := services.NewMailer(cfg.SMTPHost, cfg.SMTPPort, cfg.SMTPUser, cfg.SMTPPassword, cfg.SMTPFrom)
 
-	authH    := handlers.NewAuthHandler(db, cfg.JWTSecret, cfg.JWTRefreshSecret)
+	authH    := handlers.NewAuthHandler(db, cfg.JWTSecret, cfg.JWTRefreshSecret,
+		time.Duration(cfg.AccessTokenTTLMinutes)*time.Minute,
+		time.Duration(cfg.RefreshTokenTTLDays)*24*time.Hour)
 	orgH     := handlers.NewOrgHandler(db)
 	agentH   := handlers.NewAgentHandler(db, grpcSrv)
 	machineH := handlers.NewMachineHandler(db)
 	storageH := handlers.NewStorageHandler(db, encKey)
 	jobH     := handlers.NewBackupJobHandler(db, grpcSrv)
-	runH     := handlers.NewBackupRunHandler(db, grpcSrv, encKey)
+	runH     := handlers.NewBackupRunHandler(db, grpcSrv, encKey, mailer)
 	restoreH := handlers.NewRestoreHandler(db, grpcSrv, encKey)
 	alertH   := handlers.NewAlertHandler(db)
 	dashH    := handlers.NewDashboardHandler(db)
@@ -41,10 +48,16 @@ func NewRouter(db *gorm.DB, cfg *config.Config, grpcSrv *grpcserver.Server) *gin
 		c.JSON(200, gin.H{"status": "ok"})
 	})
 
+	// Realtime event bus (own JWT/agent handshake, not the JWT group).
+	api.GET("/ws", func(c *gin.Context) {
+		hub.ServeWS(c.Writer, c.Request)
+	})
+
 	// Public
 	auth := api.Group("/auth")
-	auth.POST("/register", authH.Register)
-	auth.POST("/login", authH.Login)
+	authLoginLimit := middleware.NewRateLimiter(10, time.Minute)
+	auth.POST("/register", authLoginLimit.LimitAuth(), authH.Register)
+	auth.POST("/login", authLoginLimit.LimitAuth(), authH.Login)
 	auth.POST("/refresh", authH.Refresh)
 	auth.POST("/logout", authH.Logout)
 
@@ -117,6 +130,7 @@ func NewRouter(db *gorm.DB, cfg *config.Config, grpcSrv *grpcserver.Server) *gin
 	org.GET("/backup-runs", runH.List)
 	org.GET("/backup-runs/:id", runH.Get)
 	org.POST("/backup-runs/:id/cancel", middleware.RequireRole(models.RoleOwner, models.RoleAdmin, models.RoleOperator), runH.Cancel)
+	org.POST("/backup-runs/:id/verify", middleware.RequireRole(models.RoleOwner, models.RoleAdmin, models.RoleOperator), runH.Verify)
 	org.GET("/backup-runs/:id/artifacts", runH.ListArtifacts)
 
 	// Restores

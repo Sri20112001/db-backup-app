@@ -151,6 +151,11 @@ type BackupJob struct {
 	SourceDatabase  string           `json:"source_database"`
 	IncludePatterns string           `json:"include_patterns"`
 	ExcludePatterns string           `json:"exclude_patterns"`
+	// ExportFormat selects the MongoDB payload shape: ARCHIVE (default,
+	// mongodump-compatible binary), JSON (one EJSON doc per line), or CSV
+	// (flattened, header row; values restore as strings). Ignored by other
+	// source types.
+	ExportFormat string           `gorm:"default:'ARCHIVE'" json:"export_format"`
 	Mode            BackupMode       `gorm:"not null;default:'NORMAL'" json:"mode"`
 	Encrypted       bool             `gorm:"default:false" json:"encrypted"`
 	RetentionDays   int              `gorm:"default:30" json:"retention_days"`
@@ -190,6 +195,10 @@ type BackupRun struct {
 	AgentID         uuid.UUID       `gorm:"type:uuid;not null;index" json:"agent_id"`
 	StorageTargetID uuid.UUID       `gorm:"type:uuid;not null" json:"storage_target_id"`
 	Status          BackupRunStatus `gorm:"not null;default:'PENDING'" json:"status"`
+	// CancelRequested is set by Cancel; the agent honors it at stage
+	// boundaries and reports CANCELLED itself. PENDING runs flip to
+	// CANCELLED immediately since no agent owns them yet.
+	CancelRequested bool             `gorm:"default:false" json:"cancel_requested"`
 	StartedAt       *time.Time      `json:"started_at"`
 	CompletedAt     *time.Time      `json:"completed_at"`
 	BytesRead       int64           `json:"bytes_read"`
@@ -217,7 +226,7 @@ func CanTransition(from, to BackupRunStatus) bool {
 	case RunUploading:
 		return to == RunVerifying || to == RunFailed || to == RunCancelled
 	case RunVerifying:
-		return to == RunCompleted || to == RunFailed
+		return to == RunCompleted || to == RunFailed || to == RunCancelled
 	}
 	return false
 }

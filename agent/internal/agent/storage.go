@@ -11,6 +11,15 @@ import (
 
 var safeName = regexp.MustCompile(`[^a-zA-Z0-9._-]+`)
 
+// payloadSize returns a payload file's size for the post-backup data check.
+func payloadSize(path string) (int64, error) {
+	st, err := os.Stat(path)
+	if err != nil {
+		return 0, err
+	}
+	return st.Size(), nil
+}
+
 // StoreLocal copies the finished archive into a LOCAL storage target
 // directory and returns the full destination path.
 func StoreLocal(storageDir, jobName, runID, archivePath string) (string, int64, error) {
@@ -39,6 +48,16 @@ func StoreLocal(storageDir, jobName, runID, archivePath string) (string, int64, 
 		ext = ".bak"
 	case strings.HasSuffix(probe, ".archive.gz"):
 		ext = ".archive.gz"
+	case strings.HasSuffix(probe, ".json.gz"):
+		ext = ".json.gz"
+	case strings.HasSuffix(probe, ".json"):
+		ext = ".json"
+	case strings.HasSuffix(probe, ".csv.gz"):
+		ext = ".csv.gz"
+	case strings.HasSuffix(probe, ".csv"):
+		ext = ".csv"
+	case strings.HasSuffix(probe, ".vgm"):
+		ext = ".vgm"
 	}
 	if strings.HasSuffix(archivePath, ".enc") {
 		ext += ".enc"

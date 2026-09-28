@@ -6,6 +6,7 @@ import (
 	"os"
 	"path/filepath"
 	"strconv"
+	"strings"
 	"time"
 )
 
@@ -69,6 +70,9 @@ type Config struct {
 	MSSQL MssqlConfig
 	// MONGO configures MongoDB access for MONGODB backup jobs.
 	MONGO MongoConfig
+	// TLSSkipVerify accepts self-signed/lab certificates. Default false:
+	// production agents must trust the server CA instead.
+	TLSSkipVerify bool
 }
 
 type state struct {
@@ -155,6 +159,7 @@ func LoadConfig() Config {
 		MONGO: MongoConfig{
 			URI: firstNonEmpty(os.Getenv("AGENT_MONGO_URI"), "mongodb://localhost:27017"),
 		},
+		TLSSkipVerify: strings.EqualFold(os.Getenv("AGENT_TLS_SKIP_VERIFY"), "true"),
 	}
 }
 

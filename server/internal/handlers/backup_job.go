@@ -1,9 +1,12 @@
 package handlers
 
 import (
+	"fmt"
 	"net/http"
+	"strings"
 
 	"github.com/backup-saas/server/internal/models"
+	"github.com/backup-saas/server/internal/realtime"
 	pb "github.com/backup-saas/server/proto/agentpb"
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
@@ -36,12 +39,35 @@ type createJobRequest struct {
 	Mode            models.BackupMode       `json:"mode"`
 	Encrypted       bool                    `json:"encrypted"`
 	RetentionDays   int                     `json:"retention_days"`
+	// ExportFormat is only meaningful for MONGODB jobs; anything else is
+	// rejected. Empty defaults to ARCHIVE.
+	ExportFormat    string                  `json:"export_format"`
 	CronExpr        string                  `json:"cron_expr"`
 	Timezone        string                  `json:"timezone"`
 }
 
-func (h *BackupJobHandler) List(c *gin.Context) {
-	orgID := c.MustGet("org_id").(uuid.UUID)
+// normalizeExportFormat validates the MongoDB export shape. Empty defaults
+// to ARCHIVE; other source types must leave it empty.
+func normalizeExportFormat(sourceType models.BackupSourceType, raw string) (string, error) {
+	format := strings.ToUpper(strings.TrimSpace(raw))
+	if format == "" {
+		format = "ARCHIVE"
+	}
+	if sourceType == models.SourceMongo {
+		switch format {
+		case "ARCHIVE", "JSON", "CSV":
+			return format, nil
+		default:
+			return "", fmt.Errorf("export_format must be ARCHIVE, JSON, or CSV")
+		}
+	}
+	if raw != "" {
+		return "", fmt.Errorf("export_format only applies to MONGODB jobs")
+	}
+	return format, nil
+}
+
+func (h *BackupJobHandler) List(c *gin.Context) {	orgID := c.MustGet("org_id").(uuid.UUID)
 	var jobs []models.BackupJob
 	h.db.Preload("Schedule").Preload("Agent").Preload("StorageTarget").
 		Where("organization_id = ?", orgID).Find(&jobs)
@@ -71,6 +97,11 @@ func (h *BackupJobHandler) Create(c *gin.Context) {
 	if mode == "" {
 		mode = models.ModeNormal
 	}
+	exportFormat, err := normalizeExportFormat(req.SourceType, req.ExportFormat)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
 	retDays := req.RetentionDays
 	if retDays == 0 {
 		retDays = 30
@@ -90,6 +121,7 @@ func (h *BackupJobHandler) Create(c *gin.Context) {
 		Mode:            mode,
 		Encrypted:       req.Encrypted,
 		RetentionDays:   retDays,
+		ExportFormat:    exportFormat,
 		Enabled:         true,
 	}
 	if err := h.db.Create(&job).Error; err != nil {
@@ -110,6 +142,7 @@ func (h *BackupJobHandler) Create(c *gin.Context) {
 	}
 
 	h.db.Preload("Schedule").Preload("Agent").Preload("StorageTarget").First(&job, job.ID)
+	publishEntity(orgID.String(), realtime.TypeJobs, "created", job.ID.String())
 	c.JSON(http.StatusCreated, job)
 }
 
@@ -149,6 +182,12 @@ func (h *BackupJobHandler) Update(c *gin.Context) {
 		return
 	}
 
+	exportFormat, err := normalizeExportFormat(job.SourceType, req.ExportFormat)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
 	h.db.Model(&job).Updates(map[string]interface{}{
 		"name":             req.Name,
 		"source_path":      req.SourcePath,
@@ -158,6 +197,7 @@ func (h *BackupJobHandler) Update(c *gin.Context) {
 		"mode":             req.Mode,
 		"encrypted":        req.Encrypted,
 		"retention_days":   req.RetentionDays,
+		"export_format":    exportFormat,
 	})
 
 	if req.CronExpr != "" {
@@ -175,6 +215,7 @@ func (h *BackupJobHandler) Update(c *gin.Context) {
 	}
 
 	h.db.Preload("Schedule").Preload("Agent").Preload("StorageTarget").First(&job, job.ID)
+	publishEntity(orgID.String(), realtime.TypeJobs, "updated", job.ID.String())
 	c.JSON(http.StatusOK, job)
 }
 
@@ -186,6 +227,7 @@ func (h *BackupJobHandler) Delete(c *gin.Context) {
 		return
 	}
 	h.db.Where("id = ? AND organization_id = ?", jobID, orgID).Delete(&models.BackupJob{})
+	publishEntity(orgID.String(), realtime.TypeJobs, "deleted", jobID.String())
 	c.JSON(http.StatusNoContent, nil)
 }
 
@@ -214,6 +256,7 @@ func (h *BackupJobHandler) RunNow(c *gin.Context) {
 		SourceType:      string(job.SourceType),
 	}
 	h.db.Create(&run)
+	publishRun(run, models.RunPending, 0, 0, 0, "", "", "")
 
 	// Dispatch to agent if connected
 	h.grpc.SendCommand(job.AgentID.String(), &pb.ServerCommand{
@@ -246,5 +289,10 @@ func (h *BackupJobHandler) setEnabled(c *gin.Context, enabled bool) {
 	h.db.Model(&models.BackupJob{}).
 		Where("id = ? AND organization_id = ?", jobID, orgID).
 		Update("enabled", enabled)
+	action := "disabled"
+	if enabled {
+		action = "enabled"
+	}
+	publishEntity(orgID.String(), realtime.TypeJobs, action, jobID.String())
 	c.JSON(http.StatusOK, gin.H{"enabled": enabled})
 }

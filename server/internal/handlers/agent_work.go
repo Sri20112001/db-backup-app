@@ -49,13 +49,19 @@ func (h *AgentWorkHandler) authenticateAgent(c *gin.Context) (*models.Agent, boo
 
 // touch records a heartbeat so the health monitor (3-minute staleness
 // threshold) does not flap polling agents OFFLINE. Polling agents have no
-// gRPC stream, so this is their only liveness signal.
+// gRPC stream, so this is their only liveness signal. An OFFLINE → ONLINE
+// flip is broadcast so dashboards update instantly.
 func (h *AgentWorkHandler) touch(agent *models.Agent) {
+	wasOffline := agent.Status != models.AgentOnline
 	now := time.Now()
 	h.db.Model(agent).Updates(map[string]interface{}{
 		"status":       models.AgentOnline,
 		"last_seen_at": &now,
 	})
+	if wasOffline {
+		agent.Status = models.AgentOnline
+		publishPresence(*agent)
+	}
 }
 
 // --- Backup runs ---
@@ -78,6 +84,7 @@ type agentJobConfigDTO struct {
 	Mode            string `json:"mode"`
 	Encrypted       bool   `json:"encrypted"`
 	RetentionDays   int    `json:"retention_days"`
+	ExportFormat    string `json:"export_format"`
 	StorageType     string `json:"storage_type"`
 	StorageBucket   string `json:"storage_bucket"`
 	StorageRegion   string `json:"storage_region"`
@@ -149,6 +156,7 @@ func (h *AgentWorkHandler) ClaimRun(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to load run"})
 		return
 	}
+	publishRun(run, models.RunRunning, 0, 0, 0, "", "", "")
 
 	c.JSON(http.StatusOK, gin.H{
 		"run": agentRunDTO{
@@ -157,6 +165,7 @@ func (h *AgentWorkHandler) ClaimRun(c *gin.Context) {
 			Status:      string(run.Status),
 			CreatedAt:   run.CreatedAt,
 		},
+		"cancel_requested": run.CancelRequested,
 		"config": agentJobConfigDTO{
 			JobID:           run.BackupJob.ID.String(),
 			Name:            run.BackupJob.Name,
@@ -168,6 +177,7 @@ func (h *AgentWorkHandler) ClaimRun(c *gin.Context) {
 			Mode:            string(run.BackupJob.Mode),
 			Encrypted:       run.BackupJob.Encrypted,
 			RetentionDays:   run.BackupJob.RetentionDays,
+			ExportFormat:    run.BackupJob.ExportFormat,
 			StorageType:     string(run.BackupJob.StorageTarget.Type),
 			StorageBucket:   run.BackupJob.StorageTarget.Bucket,
 			StorageRegion:   run.BackupJob.StorageTarget.Region,
@@ -193,6 +203,8 @@ type agentRestoreDTO struct {
 	// SourceType/SourceDatabase identify what is being restored.
 	SourceType     string `json:"source_type"`
 	SourceDatabase string `json:"source_database"`
+	// ExportFormat selects the MongoDB restore path (ARCHIVE/JSON/CSV).
+	ExportFormat string `json:"export_format,omitempty"`
 	CreatedAt time.Time `json:"created_at"`
 }
 
@@ -207,6 +219,7 @@ func (h *AgentWorkHandler) toAgentRestoreDTO(job models.RestoreJob) agentRestore
 		StorageType:     string(job.BackupRun.BackupJob.StorageTarget.Type),
 		SourceType:      string(job.BackupRun.BackupJob.SourceType),
 		SourceDatabase:  job.BackupRun.BackupJob.SourceDatabase,
+		ExportFormat:    job.BackupRun.BackupJob.ExportFormat,
 		CreatedAt:       job.CreatedAt,
 	}
 	if job.BackupRun.DataKeyEncrypted != "" {

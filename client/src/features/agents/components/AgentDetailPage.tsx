@@ -5,6 +5,8 @@ import { useAuthStore } from '@/store/authStore'
 import { useUIStore } from '@/store/uiStore'
 import type { Agent, Machine, BackupJob } from '@/types'
 import StatusBadge from '@/components/StatusBadge'
+import Pagination, { usePagination } from '@/components/Pagination'
+import NewJobModal from '@/features/jobs/components/NewJobModal'
 import { formatRelative } from '@/utils/format'
 import { ChevronRight, Server, Loader2, Monitor, Archive } from 'lucide-react'
 
@@ -17,6 +19,10 @@ const AgentDetailPage = () => {
   const [machines, setMachines] = useState<Machine[]>([])
   const [jobs, setJobs] = useState<BackupJob[]>([])
   const [isLoading, setIsLoading] = useState(true)
+  const [showNew, setShowNew] = useState(false)
+  const [reloadKey, setReloadKey] = useState(0)
+  const pagedMachines = usePagination(machines, 4, id)
+  const pagedJobs = usePagination(jobs, 4, id)
 
   useEffect(() => {
     if (!currentOrg || !id) return
@@ -33,7 +39,7 @@ const AgentDetailPage = () => {
       })
       .catch(() => addToast('error', 'Failed to load agent'))
       .finally(() => setIsLoading(false))
-  }, [currentOrg, id])
+  }, [currentOrg, id, reloadKey])
 
   if (isLoading) {
     return (
@@ -46,7 +52,7 @@ const AgentDetailPage = () => {
   if (!agent) return null
 
   return (
-    <div className="flex flex-col gap-6">
+    <div className="h-full min-h-0 flex flex-col gap-4 overflow-y-auto pr-0.5">
       {/* Breadcrumb */}
       <div className="flex items-center gap-2 text-[12px] text-[#434655]">
         <button type="button" onClick={() => navigate('/agents')} className="hover:text-[#004ac6]">
@@ -86,7 +92,7 @@ const AgentDetailPage = () => {
             </div>
           ) : (
             <div className="flex flex-col gap-2">
-              {machines.map((m) => (
+              {pagedMachines.pageItems.map((m) => (
                 <div key={m.id} className="p-4 rounded-xl bg-[#ffffff] border border-[#e9edff] shadow-sm">
                   <div className="flex items-center justify-between">
                     <p className="text-[14px] font-semibold text-[#141b2b]">{m.hostname}</p>
@@ -95,6 +101,13 @@ const AgentDetailPage = () => {
                   <p className="text-[12px] text-[#737686] mt-0.5">{m.os || '—'}</p>
                 </div>
               ))}
+              <Pagination
+                page={pagedMachines.page}
+                totalPages={pagedMachines.totalPages}
+                total={pagedMachines.total}
+                perPage={pagedMachines.perPage}
+                onPage={pagedMachines.setPage}
+              />
             </div>
           )}
         </div>
@@ -108,13 +121,13 @@ const AgentDetailPage = () => {
           {jobs.length === 0 ? (
             <div className="p-5 rounded-xl bg-[#ffffff] border border-[#e9edff] text-center text-[13px] text-[#737686]">
               No backup jobs assigned to this agent.{' '}
-              <button type="button" onClick={() => navigate('/jobs/new')} className="text-[#004ac6] hover:underline">
+              <button type="button" onClick={() => setShowNew(true)} className="text-[#004ac6] hover:underline">
                 Create one
               </button>
             </div>
           ) : (
             <div className="flex flex-col gap-2">
-              {jobs.map((job) => (
+              {pagedJobs.pageItems.map((job) => (
                 <button
                   key={job.id}
                   type="button"
@@ -130,6 +143,13 @@ const AgentDetailPage = () => {
                   <StatusBadge status={job.enabled ? 'ONLINE' : 'OFFLINE'} size="sm" />
                 </button>
               ))}
+              <Pagination
+                page={pagedJobs.page}
+                totalPages={pagedJobs.totalPages}
+                total={pagedJobs.total}
+                perPage={pagedJobs.perPage}
+                onPage={pagedJobs.setPage}
+              />
             </div>
           )}
         </div>
@@ -154,6 +174,10 @@ const AgentDetailPage = () => {
           ))}
         </div>
       </div>
+
+      {showNew && (
+        <NewJobModal onClose={() => setShowNew(false)} onSaved={() => setReloadKey((k) => k + 1)} />
+      )}
     </div>
   )
 }

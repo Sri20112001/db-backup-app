@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/backup-saas/server/internal/models"
+	"github.com/backup-saas/server/internal/realtime"
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
 	"golang.org/x/crypto/bcrypt"
@@ -51,6 +52,7 @@ func (h *AgentHandler) GenerateRegistrationToken(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to create agent"})
 		return
 	}
+	publishEntity(orgID.String(), realtime.TypeAgents, "token-created", agent.ID.String())
 	c.JSON(http.StatusCreated, gin.H{
 		"agent_id":         agent.ID,
 		"registration_key": token,
@@ -145,6 +147,7 @@ func (h *AgentHandler) Delete(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "delete failed"})
 		return
 	}
+	publishEntity(orgID.String(), realtime.TypeAgents, "deleted", agentID.String())
 	c.JSON(http.StatusNoContent, nil)
 }
 

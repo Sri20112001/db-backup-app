@@ -8,6 +8,8 @@ import StatusBadge from '@/components/StatusBadge'
 import { SkeletonCard } from '@/components/Skeleton'
 import { formatBytes, formatRelative, formatDuration } from '@/utils/format'
 import RunDetailDrawer from '@/features/history/components/RunDetailDrawer'
+import NewJobModal from '@/features/jobs/components/NewJobModal'
+import { useRealtimeStore } from '@/stores/realtimeStore'
 import {
   AlertTriangle, X, Plus, Radio, FolderArchive, BadgeCheck,
   LayoutGrid, Play,
@@ -21,8 +23,13 @@ const DashboardPage = () => {
   const [health, setHealth] = useState<JobHealth[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [alertDismissed, setAlertDismissed] = useState(false)
+  const [showNew, setShowNew] = useState(false)
+  const jobsSeq = useRealtimeStore((s) => s.entitySeq.jobs)
+  const presenceSeq = useRealtimeStore((s) => s.presenceSeq)
+  const alertTick = useRealtimeStore((s) => s.alertTick)
+  const lastRunEvent = useRealtimeStore((s) => s.lastRunEvent)
 
-  useEffect(() => {
+  const loadDashboard = () => {
     if (!currentOrg) return
     setIsLoading(true)
     Promise.all([
@@ -32,7 +39,25 @@ const DashboardPage = () => {
       .then(([ov, h]) => { setOverview(ov); setHealth(h) })
       .catch(() => addToast('error', 'Failed to load dashboard'))
       .finally(() => setIsLoading(false))
-  }, [currentOrg])
+  }
+
+  useEffect(() => { loadDashboard() }, [currentOrg])
+
+  // Live refresh: entity/presence/alert changes reload; run events only on
+  // lifecycle transitions (new/finished), not per-progress heartbeat.
+  useEffect(() => {
+    loadDashboard()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [jobsSeq, presenceSeq, alertTick])
+
+  useEffect(() => {
+    if (!lastRunEvent) return
+    const s = lastRunEvent.status ?? ''
+    if (s === 'PENDING' || s === 'COMPLETED' || s === 'FAILED' || s === 'CANCELLED') {
+      loadDashboard()
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [lastRunEvent])
 
   const handleRunNow = async (jobId: string, jobName: string) => {
     if (!currentOrg) return
@@ -47,7 +72,7 @@ const DashboardPage = () => {
   const failedAlerts = health.filter((h) => h.status === 'FAILED' || h.status === 'WARNING')
 
   return (
-    <div className="flex flex-col gap-6">
+    <div className="h-full min-h-0 overflow-y-auto flex flex-col gap-4 pr-0.5 pb-1">
       {/* Alert banner */}
       {!alertDismissed && failedAlerts.length > 0 && (
         <div className="flex items-center justify-between px-4 py-2.5 rounded-lg bg-[#ffdad6]/60 text-[#141b2b] shadow-sm">
@@ -101,7 +126,7 @@ const DashboardPage = () => {
           )}
           <button
             type="button"
-            onClick={() => navigate('/jobs/new')}
+            onClick={() => setShowNew(true)}
             className="flex items-center gap-2 px-4 py-2 rounded-lg bg-[#2563eb] text-white text-[13px] font-medium hover:bg-[#1d4ed8] transition-colors shadow-sm"
           >
             <Plus size={16} />
@@ -123,7 +148,7 @@ const DashboardPage = () => {
         ) : health.length === 0 ? (
           <div className="p-6 rounded-lg bg-[#ffffff] border border-[#e9edff] text-center text-[13px] text-[#737686]">
             No backup jobs configured yet.{' '}
-            <button type="button" onClick={() => navigate('/jobs/new')} className="text-[#004ac6] hover:underline">
+            <button type="button" onClick={() => setShowNew(true)} className="text-[#004ac6] hover:underline">
               Create your first job
             </button>
           </div>
@@ -214,7 +239,7 @@ const DashboardPage = () => {
                   ) : !overview?.recent_runs?.length ? (
                     <tr>
                       <td colSpan={7} className="py-12 text-center text-[13px] text-[#737686]">
-                        No backup runs yet. <button type="button" onClick={() => navigate('/jobs/new')} className="text-[#004ac6] hover:underline">Create a backup job</button> to get started.
+                        No backup runs yet. <button type="button" onClick={() => setShowNew(true)} className="text-[#004ac6] hover:underline">Create a backup job</button> to get started.
                       </td>
                     </tr>
                   ) : overview.recent_runs.map((run) => (
@@ -263,7 +288,7 @@ const DashboardPage = () => {
               {health.length === 0 ? (
                 <div className="p-5 text-center text-[13px] text-[#737686]">
                   No jobs yet.{' '}
-                  <button type="button" onClick={() => navigate('/jobs/new')} className="text-[#004ac6] hover:underline">
+                  <button type="button" onClick={() => setShowNew(true)} className="text-[#004ac6] hover:underline">
                     Create one
                   </button>
                 </div>
@@ -294,6 +319,10 @@ const DashboardPage = () => {
       </div>
 
       {runDetailId && <RunDetailDrawer runId={runDetailId} />}
+
+      {showNew && (
+        <NewJobModal onClose={() => setShowNew(false)} onSaved={loadDashboard} />
+      )}
     </div>
   )
 }
