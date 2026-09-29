@@ -214,7 +214,7 @@ func (h *AuthHandler) Logout(c *gin.Context) {
 }
 
 type registerRequest struct {
-	Email    string `json:"email" binding:"required,email"`
+	Email    string `json:"email" binding:"required"`
 	// bcrypt caps input at 72 bytes; longer passwords fail closed with 400
 	// instead of a misleading 500 from the hasher.
 	Password string `json:"password" binding:"required,min=8,max=72"`

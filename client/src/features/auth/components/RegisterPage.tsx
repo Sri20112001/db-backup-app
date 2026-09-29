@@ -98,12 +98,12 @@ const RegisterPage = () => {
               {(['name', 'email', 'password'] as const).map((field) => (
                 <div key={field}>
                   <label className="block text-[13px] font-medium text-on-surface-variant mb-1.5" htmlFor={field}>
-                    {field === 'name' ? 'Full name' : field === 'email' ? 'Email address' : 'Password'}
+                    {field === 'name' ? 'Full name' : field === 'email' ? 'Username or Email' : 'Password'}
                   </label>
                   <input
                     id={field}
                     name={field}
-                    type={field === 'password' ? 'password' : field === 'email' ? 'email' : 'text'}
+                    type={field === 'password' ? 'password' : 'text'}
                     value={form[field]}
                     onChange={handleChange}
                     required
