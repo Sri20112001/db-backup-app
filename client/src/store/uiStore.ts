@@ -23,7 +23,9 @@ interface UIState {
 export const useUIStore = create<UIState>((set) => ({
   toasts: [],
   addToast: (type, message) => {
-    const id = crypto.randomUUID()
+    const id = typeof crypto !== 'undefined' && crypto.randomUUID 
+      ? crypto.randomUUID() 
+      : Math.random().toString(36).substring(2, 15) + Date.now().toString(36)
     set((s) => ({ toasts: [...s.toasts, { id, type, message }] }))
     setTimeout(() => set((s) => ({ toasts: s.toasts.filter((t) => t.id !== id) })), 4000)
   },
