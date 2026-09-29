@@ -11,6 +11,10 @@ import Pagination from '@/components/Pagination'
 import { useRealtimeStore, mergeRunPatch } from '@/stores/realtimeStore'
 import { formatBytes, formatDuration, formatRelative } from '@/utils/format'
 import { History } from 'lucide-react'
+import SearchInput from '@/components/ui/SearchInput'
+import SortableTh from '@/components/ui/SortableTh'
+import { useDebouncedValue } from '@/hooks/useDebouncedValue'
+import type { SortDir } from '@/hooks/useSort'
 
 const STATUS_FILTERS: { label: string; value: BackupRunStatus | '' }[] = [
   { label: 'All', value: '' },
@@ -20,6 +24,9 @@ const STATUS_FILTERS: { label: string; value: BackupRunStatus | '' }[] = [
   { label: 'Cancelled', value: 'CANCELLED' },
 ]
 
+const RUN_SORT_KEYS = ['job', 'started', 'duration', 'uploaded'] as const
+type RunSortKey = (typeof RUN_SORT_KEYS)[number]
+
 const HistoryPage = () => {
   const { currentOrg } = useAuthStore()
   const { addToast, openRunDetail, runDetailId } = useUIStore()
@@ -27,25 +34,43 @@ const HistoryPage = () => {
   const [total, setTotal] = useState(0)
   const [page, setPage] = useState(1)
   const [statusFilter, setStatusFilter] = useState<BackupRunStatus | ''>('')
+  const [search, setSearch] = useState('')
+  const [sortKey, setSortKey] = useState<RunSortKey>('started')
+  const [sortDir, setSortDir] = useState<SortDir>('desc')
   const [isLoading, setIsLoading] = useState(true)
   const limit = 50
   const lastRunEvent = useRealtimeStore((s) => s.lastRunEvent)
+  const debouncedSearch = useDebouncedValue(search)
+
+  const toggleSort = (key: string) => {
+    if (!RUN_SORT_KEYS.includes(key as RunSortKey)) return
+    if (key === sortKey) setSortDir((d) => (d === 'asc' ? 'desc' : 'asc'))
+    else { setSortKey(key as RunSortKey); setSortDir('desc') }
+    setPage(1)
+  }
 
   const loadHistory = () => {
     if (!currentOrg) return
     setIsLoading(true)
-    runApi.list(currentOrg.id, { status: statusFilter || undefined, page, limit })
+    runApi.list(currentOrg.id, {
+      status: statusFilter || undefined,
+      search: debouncedSearch || undefined,
+      sort: sortKey,
+      order: sortDir,
+      page,
+      limit,
+    })
       .then((res) => { setRuns(res.data); setTotal(res.total) })
       .catch(() => addToast('error', 'Failed to load history'))
       .finally(() => setIsLoading(false))
   }
 
-  useEffect(() => { loadHistory() }, [currentOrg, statusFilter, page])
+  useEffect(() => { loadHistory() }, [currentOrg, statusFilter, page, debouncedSearch, sortKey, sortDir])
 
   // Live patches: merge known rows in place, refetch when an unseen run
   // appears (new scheduled/manual run on page 1).
   const runsRef = useRef(runs)
-  runsRef.current = runs
+  useEffect(() => { runsRef.current = runs })
   useEffect(() => {
     if (!lastRunEvent) return
     if (!runsRef.current.some((r) => r.id === lastRunEvent.id)) {
@@ -62,41 +87,55 @@ const HistoryPage = () => {
     <div className="h-full min-h-0 flex flex-col gap-4">
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
-          <h1 className="text-[20px] font-semibold text-[#141b2b] tracking-tight">Backup History</h1>
-          <p className="text-[12px] text-[#434655] mt-0.5">All backup run executions across all jobs</p>
+          <h1 className="text-[20px] font-semibold text-on-surface tracking-tight">Backup History</h1>
+          <p className="text-[12px] text-on-surface-variant mt-0.5">All backup run executions across all jobs</p>
         </div>
       </div>
 
       {/* Filters */}
-      <div className="flex items-center gap-1.5 overflow-x-auto">
-        {STATUS_FILTERS.map((f) => (
-          <button
-            key={f.value}
-            type="button"
-            onClick={() => { setStatusFilter(f.value); setPage(1) }}
-            className={`px-3 h-8 rounded-lg text-[12px] font-medium whitespace-nowrap transition-colors ${
-              statusFilter === f.value
-                ? 'bg-[#2563eb] text-white shadow-sm'
-                : 'bg-[#f1f3ff] text-[#434655] hover:bg-[#e9edff]'
-            }`}
-          >
-            {f.label}
-          </button>
-        ))}
+      <div className="flex flex-col lg:flex-row lg:items-center gap-3">
+        <SearchInput
+          value={search}
+          onChange={(e) => { setSearch(e.target.value); setPage(1) }}
+          placeholder="Search by job name…"
+          className="lg:max-w-xs"
+        />
+        <div className="flex items-center gap-1.5 overflow-x-auto">
+          {STATUS_FILTERS.map((f) => (
+            <button
+              key={f.value}
+              type="button"
+              onClick={() => { setStatusFilter(f.value); setPage(1) }}
+              className={`px-3 h-8 rounded-lg text-[12px] font-medium whitespace-nowrap transition-colors ${
+                statusFilter === f.value
+                  ? 'bg-primary text-on-primary shadow-sm'
+                  : 'bg-surface-container-low text-on-surface-variant hover:bg-surface-container-high'
+              }`}
+            >
+              {f.label}
+            </button>
+          ))}
+        </div>
       </div>
 
       {/* Table */}
-      <div className="flex-1 min-h-0 flex flex-col rounded-lg bg-[#ffffff] shadow-sm overflow-hidden border border-[#e9edff]">
+      <div className="flex-1 min-h-0 flex flex-col rounded-lg bg-surface-container-lowest shadow-sm overflow-hidden border border-surface-variant">
         <div className="flex-1 min-h-0 overflow-auto">
           <table className="w-full text-left border-collapse">
             <thead className="sticky top-0 z-10">
-              <tr className="bg-[#f1f3ff] text-[12px] font-semibold uppercase tracking-wider text-[#434655]">
-                {['Status', 'Job Name', 'Source', 'Agent', 'Started', 'Duration', 'Original', 'Uploaded', ''].map((h) => (
-                  <th key={h} className="py-2.5 px-4 whitespace-nowrap">{h}</th>
-                ))}
+              <tr className="bg-surface-container-low text-[12px] font-semibold uppercase tracking-wider text-on-surface-variant">
+                <th className="py-2.5 px-4 whitespace-nowrap">Status</th>
+                <SortableTh label="Job Name" sortKey="job" activeKey={sortKey} dir={sortDir} onToggle={toggleSort} />
+                <th className="py-2.5 px-4 whitespace-nowrap">Source</th>
+                <th className="py-2.5 px-4 whitespace-nowrap">Agent</th>
+                <SortableTh label="Started" sortKey="started" activeKey={sortKey} dir={sortDir} onToggle={toggleSort} />
+                <SortableTh label="Duration" sortKey="duration" activeKey={sortKey} dir={sortDir} onToggle={toggleSort} />
+                <th className="py-2.5 px-4 whitespace-nowrap">Original</th>
+                <SortableTh label="Uploaded" sortKey="uploaded" activeKey={sortKey} dir={sortDir} onToggle={toggleSort} />
+                <th className="py-2.5 px-4 whitespace-nowrap" />
               </tr>
             </thead>
-            <tbody className="divide-y divide-[#e9edff] text-[14px] text-[#141b2b]">
+            <tbody className="divide-y divide-[#e9edff] text-[14px] text-on-surface">
               {isLoading ? (
                 [...Array(8)].map((_, i) => <SkeletonRow key={i} cols={9} />)
               ) : runs.length === 0 ? (
@@ -109,22 +148,22 @@ const HistoryPage = () => {
                 <tr
                   key={run.id}
                   onClick={() => openRunDetail(run.id)}
-                  className={`hover:bg-[#f1f3ff]/50 transition-colors cursor-pointer ${run.status === 'FAILED' ? 'bg-[#ffdad6]/10' : ''}`}
+                  className={`hover:bg-surface-container-low/50 transition-colors cursor-pointer ${run.status === 'FAILED' ? 'bg-error-container/10' : ''}`}
                 >
                   <td className="py-3 px-4"><StatusBadge status={run.status} size="sm" /></td>
                   <td className="py-3 px-4 font-medium">{run.backup_job?.name ?? '—'}</td>
                   <td className="py-3 px-4">
-                    <span className="px-1.5 py-0.5 rounded bg-[#e9edff] text-[#434655] font-mono text-[11px]">
+                    <span className="px-1.5 py-0.5 rounded bg-surface-container-high text-on-surface-variant font-mono text-[11px]">
                       {run.source_type || run.backup_job?.source_type || '—'}
                     </span>
                   </td>
-                  <td className="py-3 px-4 font-mono text-[12px] text-[#434655]">{run.backup_job?.agent?.name ?? '—'}</td>
-                  <td className="py-3 px-4 text-[12px] text-[#737686]">{formatRelative(run.started_at)}</td>
+                  <td className="py-3 px-4 font-mono text-[12px] text-on-surface-variant">{run.backup_job?.agent?.name ?? '—'}</td>
+                  <td className="py-3 px-4 text-[12px] text-outline">{formatRelative(run.started_at)}</td>
                   <td className="py-3 px-4 font-mono text-[12px]">{formatDuration(run.duration_seconds)}</td>
                   <td className="py-3 px-4 font-mono text-[12px]">{formatBytes(run.bytes_read)}</td>
                   <td className="py-3 px-4 font-mono text-[12px]">{formatBytes(run.bytes_uploaded)}</td>
                   <td className="py-3 px-4 text-right">
-                    <button type="button" className="px-2 py-1 rounded text-[12px] text-[#434655] hover:bg-[#e9edff] transition-colors">
+                    <button type="button" className="px-2 py-1 rounded text-[12px] text-on-surface-variant hover:bg-surface-container-high transition-colors">
                       Details
                     </button>
                   </td>
@@ -135,7 +174,7 @@ const HistoryPage = () => {
         </div>
 
         {/* Pagination */}
-        <div className="p-3 bg-[#f1f3ff]/40 shrink-0">
+        <div className="p-3 bg-surface-container-low/40 shrink-0">
           <Pagination page={page} totalPages={totalPages} total={total} perPage={limit} onPage={setPage} />
         </div>
       </div>

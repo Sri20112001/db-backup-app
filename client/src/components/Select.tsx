@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from "react";
-import { Search, ChevronDown, Check, Edit3, RotateCcw, Database } from "lucide-react";
+import { Search, ChevronDown, Check, RotateCcw, Database } from "lucide-react";
 
 interface DatabaseSelectProps {
   dbs: string[];
@@ -133,7 +133,7 @@ export const Select: React.FC<DatabaseSelectProps> = ({
   if (isManual) {
     return (
       <div className={`relative flex items-center ${className}`}>
-        <div className="absolute left-3 text-[#737686] pointer-events-none flex items-center">
+        <div className="absolute left-3 text-outline pointer-events-none flex items-center">
           <Database size={15} />
         </div>
         <input
@@ -142,12 +142,12 @@ export const Select: React.FC<DatabaseSelectProps> = ({
           value={value}
           onChange={(e) => onChange(e.target.value)}
           placeholder="Enter database name manually…"
-          className="w-full h-10 pl-9 pr-24 rounded-lg bg-white border border-[#2563eb] text-[13px] text-[#141b2b] placeholder-[#737686] outline-none shadow-sm focus:ring-2 focus:ring-blue-500/20 font-mono transition-all"
+          className="w-full h-10 pl-9 pr-24 rounded-lg bg-surface-container-lowest border border-primary text-[13px] text-on-surface placeholder-[#737686] outline-none shadow-sm focus:ring-2 focus:ring-blue-500/20 font-mono transition-all"
         />
         <button
           type="button"
           onClick={handleSwitchBackToSelect}
-          className="absolute right-2 px-2 py-1 text-[11px] font-medium text-[#006591] bg-[#c9e6ff]/50 hover:bg-[#c9e6ff] rounded flex items-center gap-1 transition-colors"
+          className="absolute right-2 px-2 py-1 text-[11px] font-medium text-on-primary-container bg-primary-container/50 hover:bg-primary-container rounded flex items-center gap-1 transition-colors"
           title="Switch back to database list"
         >
           <RotateCcw size={12} />
@@ -170,18 +170,18 @@ export const Select: React.FC<DatabaseSelectProps> = ({
         aria-haspopup="listbox"
         aria-expanded={isOpen}
         onClick={() => setIsOpen((prev) => !prev)}
-        className="w-full h-10 px-3.5 rounded-lg bg-white border border-[#e9edff] hover:border-[#b8c2ea] focus:border-[#2563eb] focus:ring-2 focus:ring-blue-500/20 shadow-sm flex items-center justify-between text-left transition-all outline-none"
+        className="w-full h-10 px-3.5 rounded-lg bg-surface-container-lowest border border-surface-variant hover:border-[#b8c2ea] focus:border-primary focus:ring-2 focus:ring-blue-500/20 shadow-sm flex items-center justify-between text-left transition-all outline-none"
       >
         <span
           className={`text-[13px] truncate ${
-            value ? "text-[#141b2b] font-medium" : "text-[#737686]"
+            value ? "text-on-surface font-medium" : "text-outline"
           }`}
         >
           {value || placeholder}
         </span>
         <ChevronDown
           size={16}
-          className={`text-[#737686] shrink-0 transition-transform duration-200 ${
+          className={`text-outline shrink-0 transition-transform duration-200 ${
             isOpen ? "rotate-180" : ""
           }`}
         />
@@ -189,13 +189,13 @@ export const Select: React.FC<DatabaseSelectProps> = ({
 
       {/* Dropdown Menu */}
       {isOpen && (
-        <div className="absolute z-50 left-0 right-0 top-full mt-1.5 bg-white border border-[#e9edff] rounded-xl shadow-lg shadow-black/5 overflow-hidden animate-in fade-in-0 zoom-in-95 duration-100">
+        <div className="absolute z-50 left-0 right-0 top-full mt-1.5 bg-surface-container-lowest border border-surface-variant rounded-xl shadow-lg shadow-black/5 overflow-hidden animate-in fade-in-0 zoom-in-95 duration-100">
           {/* Search Box */}
-          <div className="p-2 border-b border-[#e9edff] bg-slate-50/50">
+          <div className="p-2 border-b border-surface-variant bg-slate-50/50">
             <div className="relative flex items-center">
               <Search
                 size={14}
-                className="absolute left-2.5 text-[#737686] pointer-events-none"
+                className="absolute left-2.5 text-outline pointer-events-none"
               />
               <input
                 ref={searchInputRef}
@@ -206,7 +206,7 @@ export const Select: React.FC<DatabaseSelectProps> = ({
                   setHighlightedIndex(0);
                 }}
                 placeholder="Search databases…"
-                className="w-full h-8 pl-8 pr-3 text-[12px] bg-white border border-[#e9edff] rounded-md text-[#141b2b] placeholder-[#737686] outline-none focus:border-[#2563eb] focus:ring-1 focus:ring-[#2563eb] transition-all"
+                className="w-full h-8 pl-8 pr-3 text-[12px] bg-surface-container-lowest border border-surface-variant rounded-md text-on-surface placeholder-[#737686] outline-none focus:border-primary focus:ring-1 focus:ring-primary transition-all"
               />
             </div>
           </div>
@@ -231,21 +231,21 @@ export const Select: React.FC<DatabaseSelectProps> = ({
                     onMouseEnter={() => setHighlightedIndex(idx)}
                     className={`flex items-center justify-between px-2.5 py-1.5 rounded-lg text-[13px] cursor-pointer font-mono transition-colors ${
                       isSelected
-                        ? "bg-[#e9edff] text-[#2563eb] font-semibold"
+                        ? "bg-surface-container-high text-primary font-semibold"
                         : isHighlighted
-                        ? "bg-slate-100 text-[#141b2b]"
-                        : "text-[#141b2b] hover:bg-slate-50"
+                        ? "bg-slate-100 text-on-surface"
+                        : "text-on-surface hover:bg-slate-50"
                     }`}
                   >
                     <span className="truncate">{db}</span>
                     {isSelected && (
-                      <Check size={14} className="text-[#2563eb] shrink-0" />
+                      <Check size={14} className="text-primary shrink-0" />
                     )}
                   </li>
                 );
               })
             ) : (
-              <li className="px-3 py-3 text-center text-[12px] text-[#737686]">
+              <li className="px-3 py-3 text-center text-[12px] text-outline">
                 No matching databases found.
               </li>
             )}

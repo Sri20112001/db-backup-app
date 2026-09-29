@@ -6,12 +6,14 @@ import { useUIStore } from "@/store/uiStore";
 import type { BackupJob, BackupSourceType } from "@/types";
 import StatusBadge from "@/components/StatusBadge";
 import EmptyState from "@/components/EmptyState";
-import Pagination, { usePagination } from "@/components/Pagination";
+import Pagination from "@/components/Pagination";
+import { usePagination } from "@/hooks/usePagination";
 import EditJobModal from "./EditJobModal";
 import NewJobModal from "./NewJobModal";
 import { useRealtimeStore } from "@/stores/realtimeStore";
 import { SkeletonCard } from "@/components/Skeleton";
 import SearchInput from "@/components/ui/SearchInput";
+import SortSelect from "@/components/ui/SortSelect";
 import Action3DButton from "@/components/ui/Action3DButton";
 import {
   ChevronRight,
@@ -64,6 +66,7 @@ const JobsPage = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [sourceFilter, setSourceFilter] = useState<BackupSourceType | "">("");
+  const [sort, setSort] = useState("name-asc");
   const [editId, setEditId] = useState<string | null>(null);
   const [showNew, setShowNew] = useState(false);
 
@@ -109,7 +112,7 @@ const JobsPage = () => {
     }
   };
 
-  const handleToggle = async (e: React.MouseEvent, job: BackupJob) => {
+  const handleToggle = async (e: React.SyntheticEvent, job: BackupJob) => {
     e.stopPropagation();
     if (!currentOrg) return;
     try {
@@ -126,20 +129,36 @@ const JobsPage = () => {
   };
 
   const filtered = jobs.filter((j) => {
+    const q = search.toLowerCase();
     const matchSearch =
-      !search || j.name.toLowerCase().includes(search.toLowerCase());
+      !search ||
+      j.name.toLowerCase().includes(q) ||
+      (j.source_path || "").toLowerCase().includes(q) ||
+      (j.agent?.name || "").toLowerCase().includes(q);
     const matchSource = !sourceFilter || j.source_type === sourceFilter;
     return matchSearch && matchSource;
   });
+  const sorted = [...filtered].sort((a, b) => {
+    switch (sort) {
+      case "name-desc":
+        return b.name.localeCompare(a.name);
+      case "enabled-first":
+        return Number(b.enabled) - Number(a.enabled) || a.name.localeCompare(b.name);
+      case "disabled-first":
+        return Number(a.enabled) - Number(b.enabled) || a.name.localeCompare(b.name);
+      default:
+        return a.name.localeCompare(b.name);
+    }
+  });
   const paged = usePagination(
-    filtered,
+    sorted,
     8,
-    `${search}|${sourceFilter}|${currentOrg?.id ?? ""}`,
+    `${search}|${sourceFilter}|${sort}|${currentOrg?.id ?? ""}`,
   );
 
   const accentColor = (job: BackupJob) => {
     if (!job.enabled) return "bg-[#c3c6d7]";
-    return "bg-[#006591]";
+    return "bg-primary";
   };
 
   return (
@@ -147,18 +166,18 @@ const JobsPage = () => {
       {/* Header */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
-          <div className="flex items-center gap-2 text-[12px] text-[#434655] mb-1">
+          <div className="flex items-center gap-2 text-[12px] text-on-surface-variant mb-1">
             <span>VaultGuard</span>
             <ChevronRight size={14} />
-            <span className="text-[#004ac6] font-medium">Backup Jobs</span>
+            <span className="text-primary font-medium">Backup Jobs</span>
           </div>
-          <h1 className="text-[20px] font-semibold text-[#141b2b] tracking-tight flex items-center gap-2.5">
+          <h1 className="text-[20px] font-semibold text-on-surface tracking-tight flex items-center gap-2.5">
             Backup Jobs
-            <span className="px-2 py-0.5 rounded-full bg-[#e9edff] text-[#434655] text-[12px] font-medium">
+            <span className="px-2 py-0.5 rounded-full bg-surface-container-high text-on-surface-variant text-[12px] font-medium">
               {jobs.length} Workloads
             </span>
           </h1>
-          <p className="text-[13px] text-[#434655] mt-0.5">
+          <p className="text-[13px] text-on-surface-variant mt-0.5">
             Configure, schedule, and monitor backup policies.
           </p>
         </div>
@@ -177,38 +196,38 @@ const JobsPage = () => {
             label: "Total",
             value: jobs.length,
             Icon: Layers,
-            color: "text-[#004ac6]",
-            bg: "bg-[#e9edff]",
+            color: "text-primary",
+            bg: "bg-surface-container-high",
           },
           {
             label: "Active",
             value: jobs.filter((j) => j.enabled).length,
             Icon: CheckCircle,
-            color: "text-[#006591]",
-            bg: "bg-[#c9e6ff]/50",
+            color: "text-on-primary-container",
+            bg: "bg-primary-container/50",
           },
           {
             label: "Failed",
             value: 0,
             Icon: AlertCircle,
-            color: "text-[#ba1a1a]",
-            bg: "bg-[#ffdad6]/60",
+            color: "text-error",
+            bg: "bg-error-container/60",
           },
           {
             label: "Paused",
             value: jobs.filter((j) => !j.enabled).length,
             Icon: PauseCircle,
-            color: "text-[#434655]",
-            bg: "bg-[#dce2f7]",
+            color: "text-on-surface-variant",
+            bg: "bg-surface-variant",
           },
         ].map((m) => (
           <div
             key={m.label}
-            className="flex items-center justify-between p-3.5 rounded-xl bg-[#ffffff] shadow-sm border border-[#e9edff]"
+            className="flex items-center justify-between p-3.5 rounded-xl bg-surface-container-lowest shadow-sm border border-surface-variant"
           >
             <div>
-              <span className="text-[12px] text-[#737686]">{m.label}</span>
-              <p className="text-[22px] font-bold text-[#141b2b] leading-tight">
+              <span className="text-[12px] text-outline">{m.label}</span>
+              <p className="text-[22px] font-bold text-on-surface leading-tight">
                 {m.value}
               </p>
             </div>
@@ -222,7 +241,7 @@ const JobsPage = () => {
       </div>
 
       {/* Search + filters */}
-      <div className="flex flex-col gap-3 p-3 rounded-xl bg-[#ffffff] shadow-sm border border-[#e9edff]">
+      <div className="flex flex-col gap-3 p-3 rounded-xl bg-surface-container-lowest shadow-sm border border-surface-variant">
         <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3">
           <div className="relative flex-1 min-w-[280px]">
             <SearchInput
@@ -233,6 +252,16 @@ const JobsPage = () => {
             />
           </div>
           <div className="flex items-center gap-1.5 overflow-x-auto">
+            <SortSelect
+              value={sort}
+              onChange={setSort}
+              options={[
+                { label: "Name A–Z", value: "name-asc" },
+                { label: "Name Z–A", value: "name-desc" },
+                { label: "Enabled first", value: "enabled-first" },
+                { label: "Disabled first", value: "disabled-first" },
+              ]}
+            />
             {SOURCE_FILTERS.map((f) => (
               <button
                 key={f.value}
@@ -240,8 +269,8 @@ const JobsPage = () => {
                 onClick={() => setSourceFilter(f.value)}
                 className={`px-3 h-8 rounded-lg text-[12px] font-medium whitespace-nowrap transition-colors ${
                   sourceFilter === f.value
-                    ? "bg-[#2563eb] text-white shadow-sm"
-                    : "bg-[#f1f3ff] text-[#434655] hover:bg-[#e9edff]"
+                    ? "bg-primary text-on-primary shadow-sm"
+                    : "bg-surface-container-low text-on-surface-variant hover:bg-surface-container-high"
                 }`}
               >
                 {f.label}{" "}
@@ -255,7 +284,7 @@ const JobsPage = () => {
       </div>
 
       {/* Column headers */}
-      <div className="hidden xl:grid grid-cols-12 gap-4 px-5 py-2 shrink-0 text-[12px] font-semibold uppercase tracking-wider text-[#434655]">
+      <div className="hidden xl:grid grid-cols-12 gap-4 px-5 py-2 shrink-0 text-[12px] font-semibold uppercase tracking-wider text-on-surface-variant">
         <div className="col-span-4">Workload & Source</div>
         <div className="col-span-2">Agent & Storage</div>
         <div className="col-span-2">Schedule</div>
@@ -276,7 +305,7 @@ const JobsPage = () => {
               <button
                 type="button"
                 onClick={() => setShowNew(true)}
-                className="px-4 h-9 rounded-lg bg-[#2563eb] text-white text-[13px] font-medium hover:bg-[#1d4ed8] transition-colors"
+                className="px-4 h-9 rounded-lg bg-primary text-on-primary text-[13px] font-medium hover:bg-primary-container transition-colors"
               >
                 + New Backup Job
               </button>
@@ -297,7 +326,7 @@ const JobsPage = () => {
                     navigate(`/jobs/${job.id}`);
                   }
                 }}
-                className="group relative flex flex-col xl:grid xl:grid-cols-12 gap-3 xl:gap-4 items-stretch xl:items-center p-4 rounded-xl bg-white shadow-sm hover:shadow-md transition-shadow duration-150 cursor-pointer border border-[#e9edff] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
+                className="group relative flex flex-col xl:grid xl:grid-cols-12 gap-3 xl:gap-4 items-stretch xl:items-center p-4 rounded-xl bg-surface-container-lowest shadow-sm hover:shadow-md transition-shadow duration-150 cursor-pointer border border-surface-variant focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
               >
                 {/* Accent status stripe */}
                 <div
@@ -309,27 +338,27 @@ const JobsPage = () => {
                   <div
                     className={`w-10 h-10 rounded-lg flex items-center justify-center shrink-0 mt-0.5 ${
                       job.enabled
-                        ? "bg-[#c9e6ff]/40 text-[#006591]"
-                        : "bg-[#dce2f7] text-[#737686]"
+                        ? "bg-primary-container/40 text-on-primary-container"
+                        : "bg-surface-variant text-outline"
                     }`}
                   >
                     <SourceIcon size={20} />
                   </div>
                   <div className="flex flex-col min-w-0">
                     <div className="flex items-center gap-2 flex-wrap">
-                      <span className="text-[14px] font-semibold text-[#141b2b] truncate">
+                      <span className="text-[14px] font-semibold text-on-surface truncate">
                         {job.name}
                       </span>
-                      <span className="px-2 py-0.5 rounded bg-[#e9edff] text-[#434655] text-[11px] font-medium uppercase tracking-wide">
+                      <span className="px-2 py-0.5 rounded bg-surface-container-high text-on-surface-variant text-[11px] font-medium uppercase tracking-wide">
                         {normalizeWindowsPath(job.source_type)}
                       </span>
                       {job.encrypted && (
-                        <span className="px-1.5 py-0.5 rounded bg-[#e1e0ff] text-[#2f2ebe] text-[10px] font-semibold uppercase">
+                        <span className="px-1.5 py-0.5 rounded bg-primary-container text-primary text-[10px] font-semibold uppercase">
                           AES-256
                         </span>
                       )}
                     </div>
-                    <p className="font-mono text-[11px] text-[#434655] mt-0.5 truncate">
+                    <p className="font-mono text-[11px] text-on-surface-variant mt-0.5 truncate">
                       {job.source_path || job.source_database || "—"}
                     </p>
                   </div>
@@ -337,11 +366,11 @@ const JobsPage = () => {
 
                 {/* Agent & storage */}
                 <div className="xl:col-span-2 flex flex-col gap-1 min-w-0">
-                  <div className="flex items-center gap-1.5 font-mono text-[12px] text-[#141b2b]">
+                  <div className="flex items-center gap-1.5 font-mono text-[12px] text-on-surface">
                     <span
                       className={`w-2 h-2 rounded-full shrink-0 ${
                         job.agent?.status === "ONLINE"
-                          ? "bg-[#006591]"
+                          ? "bg-primary"
                           : "bg-[#737686]"
                       }`}
                     />
@@ -349,7 +378,7 @@ const JobsPage = () => {
                       {job.agent?.name ?? "—"}
                     </span>
                   </div>
-                  <div className="flex items-center gap-1 text-[#434655] text-[11px] truncate">
+                  <div className="flex items-center gap-1 text-on-surface-variant text-[11px] truncate">
                     <Cloud size={12} className="shrink-0" />
                     <span className="truncate">
                       {job.storage_target?.name ?? "—"}
@@ -359,13 +388,13 @@ const JobsPage = () => {
 
                 {/* Schedule */}
                 <div className="xl:col-span-2 flex flex-col gap-1 min-w-0">
-                  <div className="flex items-center gap-1.5 text-[13px] text-[#141b2b]">
-                    <Clock size={14} className="text-[#434655] shrink-0" />
+                  <div className="flex items-center gap-1.5 text-[13px] text-on-surface">
+                    <Clock size={14} className="text-on-surface-variant shrink-0" />
                     <span className="truncate">
                       {job.schedule?.cron_expr ?? "No schedule"}
                     </span>
                   </div>
-                  <div className="flex items-center gap-1.5 text-[11px] text-[#434655]">
+                  <div className="flex items-center gap-1.5 text-[11px] text-on-surface-variant">
                     <History size={12} className="shrink-0" />
                     <span>{job.retention_days}d retention</span>
                   </div>
@@ -377,7 +406,7 @@ const JobsPage = () => {
                     status={job.enabled ? "ONLINE" : "OFFLINE"}
                     size="sm"
                   />
-                  <span className="text-[11px] text-[#737686]">
+                  <span className="text-[11px] text-outline">
                     {job.mode === "COMPRESSED" ? "Zstandard" : "Normal"} mode
                   </span>
                 </div>
@@ -391,7 +420,7 @@ const JobsPage = () => {
                     onClick={(e) => handleRunNow(e, job)}
                     className="!px-2.5 !h-8 !text-[12px]"
                   >
-                    <Play size={14} className="text-white" />
+                    <Play size={14} className="text-on-primary" />
                     Run Now
                   </Action3DButton>
 
@@ -405,7 +434,7 @@ const JobsPage = () => {
                       onChange={(e) => handleToggle(e, job)}
                       className="sr-only peer"
                     />
-                    <div className="w-9 h-5 bg-[#dce2f7] peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-[#2563eb]" />
+                    <div className="w-9 h-5 bg-surface-variant peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-surface-container-lowest after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-primary" />
                   </label>
 
                   <button
@@ -415,7 +444,7 @@ const JobsPage = () => {
                       setEditId(job.id);
                     }}
                     title="Edit job"
-                    className="p-1.5 rounded-lg text-[#434655] hover:text-[#141b2b] hover:bg-[#e9edff] transition-colors"
+                    className="p-1.5 rounded-lg text-on-surface-variant hover:text-on-surface hover:bg-surface-container-high transition-colors"
                   >
                     <Pencil size={16} />
                   </button>
@@ -427,7 +456,7 @@ const JobsPage = () => {
                       navigate(`/jobs/${job.id}`);
                     }}
                     title="View details"
-                    className="p-1.5 rounded-lg text-[#434655] hover:text-[#141b2b] hover:bg-[#e9edff] transition-colors"
+                    className="p-1.5 rounded-lg text-on-surface-variant hover:text-on-surface hover:bg-surface-container-high transition-colors"
                   >
                     <MoreVertical size={18} />
                   </button>

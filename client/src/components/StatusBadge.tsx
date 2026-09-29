@@ -19,7 +19,7 @@ const config: Record<string, { bg: string; text: string; dot?: string; pulse?: b
   PAUSED:    { bg: 'bg-[#fef3c7]/80', text: 'text-[#92400e]', dot: 'bg-[#d97706]' },
 
   // Critical / Destructive States (Rose / Crimson)
-  FAILED:    { bg: 'bg-[#ffdad6]', text: 'text-[#93000a]', dot: 'bg-[#ba1a1a]' },
+  FAILED:    { bg: 'bg-error-container', text: 'text-on-error-container', dot: 'bg-error' },
 
   // Inactive / Neutral States (Muted Sage-Slate)
   CANCELLED: { bg: 'bg-[#e6ebe8]', text: 'text-[#3e4943]', dot: 'bg-[#6d7a73]' },

@@ -2,17 +2,31 @@ import type {
   AuthTokens, BackupJob, BackupRun, BackupArtifact,
   Agent, Machine, StorageTarget, RestoreJob, Alert,
   DashboardOverview, JobHealth, OrganizationMember,
-  Organization, PaginatedResponse
+  Organization, PaginatedResponse, PreflightResult, User
 } from '../types'
 
-const BASE = import.meta.env.VITE_API_URL || '/vaultguard/api'
+import { useAuthStore } from '../store/authStore'
+
+import { API_BASE_URL as BASE, LOGIN_URL, REGISTER_URL } from '../CONSTANTS'
 
 function getToken() {
-  return localStorage.getItem('access_token')
+  return useAuthStore.getState().accessToken
 }
 
 function getRefreshToken() {
-  return localStorage.getItem('refresh_token')
+  return useAuthStore.getState().refreshToken
+}
+
+// The session is unrecoverable: wipe auth state and bounce to the login
+// page. Skips the redirect on the auth pages themselves (a login/register
+// 401 is a credential error for the form, not session expiry). Never
+// settles the caller — the redirect unmounts the app anyway.
+function forceLogout() {
+  useAuthStore.getState().logout()
+  const p = window.location.pathname
+  if (!p.startsWith(LOGIN_URL) && !p.startsWith(REGISTER_URL)) {
+    window.location.href = LOGIN_URL
+  }
 }
 
 let refreshPromise: Promise<void> | null = null
@@ -26,14 +40,12 @@ async function refreshAccessToken(): Promise<void> {
     body: JSON.stringify({ refresh_token: rt }),
   })
   if (!res.ok) {
-    localStorage.removeItem('access_token')
-    localStorage.removeItem('refresh_token')
-    window.location.href = '/login'
+    forceLogout()
     throw new Error('session expired')
   }
   const data = await res.json()
-  localStorage.setItem('access_token', data.access_token)
-  localStorage.setItem('refresh_token', data.refresh_token)
+  const { user } = useAuthStore.getState()
+  useAuthStore.getState().setAuth(user!, data.access_token, data.refresh_token)
 }
 
 async function request<T>(path: string, options: RequestInit = {}, retry = true): Promise<T> {
@@ -46,29 +58,21 @@ async function request<T>(path: string, options: RequestInit = {}, retry = true)
       ...options.headers,
     },
   })
-  if (res.status === 401 && retry) {
-    // Only authenticated calls (ones that sent an access token) are worth
-    // retrying via refresh. Login/register/refresh failing with 401 is the
-    // real answer (e.g. "invalid credentials") — surface it, don't mask it
-    // with a refresh attempt that has no token to send.
-    if (token && getRefreshToken()) {
-      if (!refreshPromise) {
-        refreshPromise = refreshAccessToken().finally(() => { refreshPromise = null })
+  if (res.status === 401) {
+    // Login/register 401s are credential errors — surface them so the form
+    // can show a message instead of logging out.
+    const isAuthForm = path === '/auth/login' || path === '/auth/register'
+    if (!isAuthForm && token) {
+      if (retry && getRefreshToken()) {
+        if (!refreshPromise) {
+          refreshPromise = refreshAccessToken().finally(() => { refreshPromise = null })
+        }
+        await refreshPromise
+        return request<T>(path, options, false)
       }
-      await refreshPromise
-      return request<T>(path, options, false)
-    }
-    if (token) {
-      // A session existed but the refresh token is gone (logged out in
-      // another tab, storage cleared, server-side sessions wiped): leave
-      // quietly instead of throwing a confusing "no refresh token" error
-      // into whatever page issued the in-flight request.
-      if (
-        !window.location.pathname.startsWith('/login') &&
-        !window.location.pathname.startsWith('/register')
-      ) {
-        window.location.href = '/login'
-      }
+      // No refresh token left, or the retried request was rejected again —
+      // the session is dead, so log out.
+      forceLogout()
       return new Promise<never>(() => {})
     }
   }
@@ -83,16 +87,15 @@ async function request<T>(path: string, options: RequestInit = {}, retry = true)
 // Auth
 export const authApi = {
   login: async (email: string, password: string) => {
-  const data = await request<AuthTokens>('/auth/login', {
-    method: 'POST',
-    body: JSON.stringify({ email, password }),
-  })
-
-  localStorage.setItem('access_token', data.access_token)
-  localStorage.setItem('refresh_token', data.refresh_token)
-
-  return data
-},
+    const data = await request<AuthTokens>('/auth/login', {
+      method: 'POST',
+      body: JSON.stringify({ email, password }),
+    })
+    // Tokens are stored via setAuth into Zustand persist — no direct localStorage
+    const { setAuth } = useAuthStore.getState()
+    setAuth(data.user as User, data.access_token, data.refresh_token)
+    return data
+  },
   register: (email: string, password: string, name: string) =>
     request<{ id: string; email: string; name: string }>('/auth/register', {
       method: 'POST', body: JSON.stringify({ email, password, name }),
@@ -183,14 +186,19 @@ export const jobApi = {
     request(`/organizations/${orgId}/backup-jobs/${id}/enable`, { method: 'POST' }),
   disable: (orgId: string, id: string) =>
     request(`/organizations/${orgId}/backup-jobs/${id}/disable`, { method: 'POST' }),
+  preflight: (orgId: string, id: string) =>
+    request<PreflightResult>(`/organizations/${orgId}/backup-jobs/${id}/preflight`),
 }
 
 // Backup Runs
 export const runApi = {
-  list: (orgId: string, params?: { job_id?: string; status?: string; page?: number; limit?: number }) => {
+  list: (orgId: string, params?: { job_id?: string; status?: string; search?: string; sort?: string; order?: 'asc' | 'desc'; page?: number; limit?: number }) => {
     const q = new URLSearchParams()
     if (params?.job_id) q.set('job_id', params.job_id)
     if (params?.status) q.set('status', params.status)
+    if (params?.search) q.set('search', params.search)
+    if (params?.sort) q.set('sort', params.sort)
+    if (params?.order) q.set('order', params.order)
     if (params?.page) q.set('page', String(params.page))
     if (params?.limit) q.set('limit', String(params.limit))
     return request<PaginatedResponse<BackupRun>>(`/organizations/${orgId}/backup-runs?${q}`)
@@ -216,13 +224,17 @@ export const restoreApi = {
 
 // Alerts
 export const alertApi = {
-  list: (orgId: string, params?: { unread?: boolean; page?: number; limit?: number }) => {
+  list: (orgId: string, params?: { unread?: boolean; search?: string; order?: 'asc' | 'desc'; page?: number; limit?: number }) => {
     const q = new URLSearchParams()
     if (params?.unread) q.set('unread', 'true')
+    if (params?.search) q.set('search', params.search)
+    if (params?.order) q.set('order', params.order)
     if (params?.page) q.set('page', String(params.page))
     if (params?.limit) q.set('limit', String(params.limit))
     return request<PaginatedResponse<Alert>>(`/organizations/${orgId}/alerts?${q}`)
   },
   markRead: (orgId: string, id: string) =>
     request(`/organizations/${orgId}/alerts/${id}/read`, { method: 'PUT' }),
+  markAllRead: (orgId: string) =>
+    request<{ read: boolean; count: number }>(`/organizations/${orgId}/alerts/read-all`, { method: 'PUT' }),
 }

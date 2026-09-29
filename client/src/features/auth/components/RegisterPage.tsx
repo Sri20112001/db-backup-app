@@ -52,18 +52,18 @@ const RegisterPage = () => {
     }
   }
 
-  const inputCls = 'w-full h-9 px-3 rounded-lg border border-[#e9edff] bg-[#f9f9ff] text-[14px] text-[#141b2b] placeholder:text-[#737686] focus:outline-none focus:ring-2 focus:ring-[#2563eb]/20 focus:border-[#2563eb] transition-all'
+  const inputCls = 'w-full h-9 px-3 rounded-lg border border-surface-variant bg-surface-container-low text-[14px] text-on-surface placeholder:text-outline focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all'
 
   return (
-    <div className="min-h-screen bg-[#f9f9ff] flex items-center justify-center px-4">
-      <div className="w-full max-w-[420px] bg-[#ffffff] rounded-xl border border-[#e9edff] shadow-[0_4px_24px_rgba(20,27,43,0.08)] p-8">
+    <div className="min-h-screen bg-surface-container-low flex items-center justify-center px-4">
+      <div className="w-full max-w-[420px] bg-surface-container-lowest rounded-xl border border-surface-variant shadow-[0_4px_24px_rgba(20,27,43,0.08)] p-8">
         <div className="flex items-center gap-3 mb-8">
-          <div className="w-10 h-10 rounded-xl bg-[#2563eb] flex items-center justify-center">
-            <Shield size={20} className="text-white" />
+          <div className="w-10 h-10 rounded-xl bg-primary flex items-center justify-center">
+            <Shield size={20} className="text-on-primary" />
           </div>
           <div>
-            <h1 className="text-[20px] font-semibold text-[#141b2b] tracking-tight">VaultGuard</h1>
-            <p className="text-[12px] text-[#737686]">Backup & Recovery Platform</p>
+            <h1 className="text-[20px] font-semibold text-on-surface tracking-tight">VaultGuard</h1>
+            <p className="text-[12px] text-outline">Backup & Recovery Platform</p>
           </div>
         </div>
 
@@ -72,31 +72,31 @@ const RegisterPage = () => {
           {(['account', 'org'] as const).map((s, i) => (
             <div key={s} className="flex items-center gap-2 flex-1">
               <div className={`w-6 h-6 rounded-full flex items-center justify-center text-[11px] font-bold shrink-0 ${
-                step === s ? 'bg-[#2563eb] text-white' :
-                (step === 'org' && s === 'account') ? 'bg-[#006591] text-white' :
-                'bg-[#e9edff] text-[#737686]'
+                step === s ? 'bg-primary text-on-primary' :
+                (step === 'org' && s === 'account') ? 'bg-primary text-on-primary' :
+                'bg-surface-container-high text-outline'
               }`}>
                 {step === 'org' && s === 'account' ? '✓' : i + 1}
               </div>
-              <span className="text-[12px] text-[#737686]">{s === 'account' ? 'Account' : 'Organization'}</span>
-              {i === 0 && <div className={`flex-1 h-0.5 ${step === 'org' ? 'bg-[#006591]' : 'bg-[#e9edff]'}`} />}
+              <span className="text-[12px] text-outline">{s === 'account' ? 'Account' : 'Organization'}</span>
+              {i === 0 && <div className={`flex-1 h-0.5 ${step === 'org' ? 'bg-primary' : 'bg-surface-container-high'}`} />}
             </div>
           ))}
         </div>
 
         {error && (
-          <div className="mb-4 px-3 py-2.5 rounded-lg bg-[#ffdad6] border border-[#fca5a5] text-[#93000a] text-[13px]">
+          <div className="mb-4 px-3 py-2.5 rounded-lg bg-error-container border border-error text-on-error-container text-[13px]">
             {error}
           </div>
         )}
 
         {step === 'account' ? (
           <>
-            <h2 className="text-[18px] font-semibold text-[#141b2b] mb-6">Create account</h2>
+            <h2 className="text-[18px] font-semibold text-on-surface mb-6">Create account</h2>
             <form onSubmit={handleAccountSubmit} className="flex flex-col gap-4">
               {(['name', 'email', 'password'] as const).map((field) => (
                 <div key={field}>
-                  <label className="block text-[13px] font-medium text-[#434655] mb-1.5" htmlFor={field}>
+                  <label className="block text-[13px] font-medium text-on-surface-variant mb-1.5" htmlFor={field}>
                     {field === 'name' ? 'Full name' : field === 'email' ? 'Email address' : 'Password'}
                   </label>
                   <input
@@ -114,26 +114,26 @@ const RegisterPage = () => {
               <button
                 type="submit"
                 disabled={isLoading}
-                className="w-full h-10 rounded-lg bg-[#2563eb] text-white text-[13px] font-medium hover:bg-[#1d4ed8] transition-colors disabled:opacity-60 flex items-center justify-center gap-2"
+                className="w-full h-10 rounded-lg bg-primary text-on-primary text-[13px] font-medium hover:bg-primary-container transition-colors disabled:opacity-60 flex items-center justify-center gap-2"
               >
                 {isLoading && <Loader2 size={14} className="animate-spin" />}
                 {isLoading ? 'Creating account...' : 'Continue'}
               </button>
             </form>
-            <p className="mt-6 text-center text-[13px] text-[#737686]">
+            <p className="mt-6 text-center text-[13px] text-outline">
               Already have an account?{' '}
-              <a href="/login" className="text-[#004ac6] hover:underline font-medium">Sign in</a>
+              <a href="/login" className="text-primary hover:underline font-medium">Sign in</a>
             </p>
           </>
         ) : (
           <>
-            <h2 className="text-[18px] font-semibold text-[#141b2b] mb-1">Create your organization</h2>
-            <p className="text-[13px] text-[#737686] mb-6">
+            <h2 className="text-[18px] font-semibold text-on-surface mb-1">Create your organization</h2>
+            <p className="text-[13px] text-outline mb-6">
               Your organization is the workspace for your team's backup infrastructure.
             </p>
             <form onSubmit={handleOrgSubmit} className="flex flex-col gap-4">
               <div>
-                <label className="block text-[13px] font-medium text-[#434655] mb-1.5" htmlFor="orgName">
+                <label className="block text-[13px] font-medium text-on-surface-variant mb-1.5" htmlFor="orgName">
                   Organization name
                 </label>
                 <input
@@ -150,7 +150,7 @@ const RegisterPage = () => {
               <button
                 type="submit"
                 disabled={isLoading || !orgName.trim()}
-                className="w-full h-10 rounded-lg bg-[#2563eb] text-white text-[13px] font-medium hover:bg-[#1d4ed8] transition-colors disabled:opacity-60 flex items-center justify-center gap-2"
+                className="w-full h-10 rounded-lg bg-primary text-on-primary text-[13px] font-medium hover:bg-primary-container transition-colors disabled:opacity-60 flex items-center justify-center gap-2"
               >
                 {isLoading && <Loader2 size={14} className="animate-spin" />}
                 {isLoading ? 'Creating...' : 'Create Organization & Continue'}

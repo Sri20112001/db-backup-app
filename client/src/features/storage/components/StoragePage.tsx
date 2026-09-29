@@ -4,20 +4,46 @@ import { useAuthStore } from '@/store/authStore'
 import { useUIStore } from '@/store/uiStore'
 import type { StorageTarget, StorageType } from '@/types'
 import EmptyState from '@/components/EmptyState'
-import Pagination, { usePagination } from '@/components/Pagination'
+import Pagination from '@/components/Pagination'
+import { usePagination } from '@/hooks/usePagination'
 import ConfirmDialog from '@/components/ConfirmDialog'
 import { CloudUpload, HardDrive, FolderOpen, Lock, Trash2, Plus, X, Loader2, Database } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
+import SearchInput from '@/components/ui/SearchInput'
+import SortSelect from '@/components/ui/SortSelect'
+
+const TYPE_FILTERS: { label: string; value: StorageType | '' }[] = [
+  { label: 'All', value: '' },
+  { label: 'S3', value: 'S3' },
+  { label: 'Local', value: 'LOCAL' },
+  { label: 'SMB', value: 'SMB' },
+]
 
 const typeIcon: Record<StorageType, LucideIcon> = { S3: CloudUpload, LOCAL: HardDrive, SMB: FolderOpen }
-const typeColor: Record<StorageType, string> = { S3: 'text-[#004ac6]', LOCAL: 'text-[#434655]', SMB: 'text-[#3e3fcc]' }
-const typeBg: Record<StorageType, string> = { S3: 'bg-[#dbe1ff]', LOCAL: 'bg-[#dce2f7]', SMB: 'bg-[#e1e0ff]' }
+const typeColor: Record<StorageType, string> = { S3: 'text-primary', LOCAL: 'text-on-surface-variant', SMB: 'text-primary' }
+const typeBg: Record<StorageType, string> = { S3: 'bg-primary-container', LOCAL: 'bg-surface-variant', SMB: 'bg-primary-container' }
 
 const StoragePage = () => {
   const { currentOrg } = useAuthStore()
   const { addToast } = useUIStore()
   const [targets, setTargets] = useState<StorageTarget[]>([])
-  const paged = usePagination(targets, 6)
+  const [search, setSearch] = useState('')
+  const [typeFilter, setTypeFilter] = useState<StorageType | ''>('')
+  const [sort, setSort] = useState('name-asc')
+  const filtered = targets.filter((t) => {
+    const matchType = !typeFilter || t.type === typeFilter
+    const q = search.toLowerCase()
+    const matchSearch =
+      !search ||
+      t.name.toLowerCase().includes(q) ||
+      (t.bucket || '').toLowerCase().includes(q) ||
+      (t.path || '').toLowerCase().includes(q)
+    return matchType && matchSearch
+  })
+  const sorted = [...filtered].sort((a, b) =>
+    sort === 'name-desc' ? b.name.localeCompare(a.name) : a.name.localeCompare(b.name),
+  )
+  const paged = usePagination(sorted, 6, `${search}|${typeFilter}|${sort}|${currentOrg?.id ?? ''}`)
   const [isLoading, setIsLoading] = useState(true)
   const [showAdd, setShowAdd] = useState(false)
   const [deleteId, setDeleteId] = useState<string | null>(null)
@@ -56,53 +82,87 @@ const StoragePage = () => {
     } catch { addToast('error', 'Failed to delete') }
   }
 
-  const inputCls = "w-full h-9 px-3 rounded-lg border border-[#e9edff] bg-[#f9f9ff] text-[14px] text-[#141b2b] focus:outline-none focus:ring-2 focus:ring-[#2563eb]/20 focus:border-[#2563eb] transition-all"
-  const labelCls = "block text-[13px] font-medium text-[#434655] mb-1.5"
+  const inputCls = "w-full h-9 px-3 rounded-lg border border-surface-variant bg-surface-container-low text-[14px] text-on-surface focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all"
+  const labelCls = "block text-[13px] font-medium text-on-surface-variant mb-1.5"
 
   return (
     <div className="h-full min-h-0 flex flex-col gap-4">
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
-          <h1 className="text-[20px] font-semibold text-[#141b2b] tracking-tight">Storage Targets</h1>
-          <p className="text-[12px] text-[#434655] mt-0.5">Configure where backup data is stored</p>
+          <h1 className="text-[20px] font-semibold text-on-surface tracking-tight">Storage Targets</h1>
+          <p className="text-[12px] text-on-surface-variant mt-0.5">Configure where backup data is stored</p>
         </div>
-        <button type="button" onClick={() => setShowAdd(true)} className="flex items-center gap-2 px-4 h-9 rounded-lg bg-[#2563eb] text-white text-[13px] font-medium hover:bg-[#1d4ed8] transition-colors shadow-sm">
+        <button type="button" onClick={() => setShowAdd(true)} className="flex items-center gap-2 px-4 h-9 rounded-lg bg-primary text-on-primary text-[13px] font-medium hover:bg-primary-container transition-colors shadow-sm">
           <Plus size={16} />
           Add Storage
         </button>
       </div>
 
+      {/* Search + filters */}
+      <div className="flex flex-col lg:flex-row lg:items-center gap-3">
+        <SearchInput
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          placeholder="Search by name, bucket, or path…"
+          className="lg:max-w-xs"
+        />
+        <div className="flex items-center gap-1.5 overflow-x-auto">
+          <SortSelect
+            value={sort}
+            onChange={setSort}
+            options={[
+              { label: 'Name A–Z', value: 'name-asc' },
+              { label: 'Name Z–A', value: 'name-desc' },
+            ]}
+          />
+          {TYPE_FILTERS.map((f) => (
+            <button
+              key={f.value}
+              type="button"
+              onClick={() => setTypeFilter(f.value)}
+              className={`px-3 h-8 rounded-lg text-[12px] font-medium whitespace-nowrap transition-colors ${
+                typeFilter === f.value
+                  ? 'bg-primary text-on-primary shadow-sm'
+                  : 'bg-surface-container-low text-on-surface-variant hover:bg-surface-container-high'
+              }`}
+            >
+              {f.label}
+            </button>
+          ))}
+        </div>
+      </div>
+
       {isLoading ? (
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          {[...Array(3)].map((_, i) => <div key={i} className="animate-pulse h-40 rounded-xl bg-[#ffffff] border border-[#e9edff]" />)}
+          {[...Array(3)].map((_, i) => <div key={i} className="animate-pulse h-40 rounded-xl bg-surface-container-lowest border border-surface-variant" />)}
         </div>
-      ) : targets.length === 0 ? (
+      ) : filtered.length === 0 ? (
         <EmptyState icon={Database} title="No storage targets" description="Add your first storage target to start saving backups."
-          action={<button type="button" onClick={() => setShowAdd(true)} className="px-4 h-9 rounded-lg bg-[#2563eb] text-white text-[13px] font-medium hover:bg-[#1d4ed8] transition-colors">+ Add Storage</button>}
+          action={<button type="button" onClick={() => setShowAdd(true)} className="px-4 h-9 rounded-lg bg-primary text-on-primary text-[13px] font-medium hover:bg-primary-container transition-colors">+ Add Storage</button>}
         />
       ) : (
         <div className="flex-1 min-h-0 overflow-y-auto grid grid-cols-1 md:grid-cols-3 gap-4 content-start pr-0.5">
           {paged.pageItems.map((t) => {
             const TypeIcon = typeIcon[t.type]
             return (
-              <div key={t.id} className="flex flex-col gap-3 p-5 rounded-xl bg-[#ffffff] border border-[#e9edff] shadow-sm">
+              <div key={t.id} className="flex flex-col gap-3 p-5 rounded-xl bg-surface-container-lowest border border-surface-variant shadow-sm">
                 <div className="flex items-start justify-between">
                   <div className={`w-10 h-10 rounded-lg ${typeBg[t.type]} flex items-center justify-center ${typeColor[t.type]}`}>
                     <TypeIcon size={20} />
                   </div>
-                  <span className="px-2 py-0.5 rounded bg-[#e9edff] text-[#434655] text-[11px] font-medium uppercase">{t.type}</span>
+                  <span className="px-2 py-0.5 rounded bg-surface-container-high text-on-surface-variant text-[11px] font-medium uppercase">{t.type}</span>
                 </div>
                 <div>
-                  <h3 className="text-[15px] font-semibold text-[#141b2b]">{t.name}</h3>
-                  <p className="font-mono text-[11px] text-[#737686] mt-0.5 truncate">{t.bucket || t.path || '—'}</p>
-                  {t.region && <p className="text-[11px] text-[#737686]">{t.region}</p>}
+                  <h3 className="text-[15px] font-semibold text-on-surface">{t.name}</h3>
+                  <p className="font-mono text-[11px] text-outline mt-0.5 truncate">{t.bucket || t.path || '—'}</p>
+                  {t.region && <p className="text-[11px] text-outline">{t.region}</p>}
                 </div>
                 <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-1.5 text-[12px] text-[#006591]">
+                  <div className="flex items-center gap-1.5 text-[12px] text-on-primary-container">
                     <Lock size={12} />
                     <span>Credentials encrypted</span>
                   </div>
-                  <button type="button" onClick={() => setDeleteId(t.id)} className="p-1.5 rounded-lg text-[#737686] hover:text-[#ba1a1a] hover:bg-[#ffdad6]/30 transition-colors">
+                  <button type="button" onClick={() => setDeleteId(t.id)} className="p-1.5 rounded-lg text-outline hover:text-error hover:bg-error-container/30 transition-colors">
                     <Trash2 size={16} />
                   </button>
                 </div>
@@ -123,11 +183,11 @@ const StoragePage = () => {
       {/* Add drawer */}
       {showAdd && (
         <div className="fixed inset-0 z-[100] flex justify-end">
-          <div className="absolute inset-0 bg-[#141b2b]/30 backdrop-blur-[2px]" onClick={() => setShowAdd(false)} />
-          <div className="relative w-full max-w-[480px] bg-[#ffffff] h-full overflow-y-auto shadow-2xl border-l border-[#e9edff]">
-            <div className="flex items-center justify-between p-5 border-b border-[#e9edff] sticky top-0 bg-[#ffffff] z-10">
-              <h2 className="text-[16px] font-semibold text-[#141b2b]">Add Storage Target</h2>
-              <button type="button" onClick={() => setShowAdd(false)} className="p-1.5 rounded-lg text-[#434655] hover:bg-[#e9edff]">
+          <div className="absolute inset-0 bg-on-surface/30 backdrop-blur-[2px]" onClick={() => setShowAdd(false)} />
+          <div className="relative w-full max-w-[480px] bg-surface-container-lowest h-full overflow-y-auto shadow-2xl border-l border-surface-variant">
+            <div className="flex items-center justify-between p-5 border-b border-surface-variant sticky top-0 bg-surface-container-lowest z-10">
+              <h2 className="text-[16px] font-semibold text-on-surface">Add Storage Target</h2>
+              <button type="button" onClick={() => setShowAdd(false)} className="p-1.5 rounded-lg text-on-surface-variant hover:bg-surface-container-high">
                 <X size={18} />
               </button>
             </div>
@@ -140,9 +200,9 @@ const StoragePage = () => {
                     const TIcon = typeIcon[t]
                     return (
                       <button key={t} type="button" onClick={() => setForm((f) => ({ ...f, type: t }))}
-                        className={`flex flex-col items-center gap-1.5 p-3 rounded-xl border-2 transition-all ${form.type === t ? 'border-[#2563eb] bg-[#dbe1ff]/20' : 'border-[#e9edff] hover:border-[#c3c6d7]'}`}>
-                        <TIcon size={20} className={form.type === t ? 'text-[#2563eb]' : 'text-[#434655]'} />
-                        <span className="text-[12px] font-medium text-[#141b2b]">{t}</span>
+                        className={`flex flex-col items-center gap-1.5 p-3 rounded-xl border-2 transition-all ${form.type === t ? 'border-primary bg-primary-container/20' : 'border-surface-variant hover:border-outline'}`}>
+                        <TIcon size={20} className={form.type === t ? 'text-primary' : 'text-on-surface-variant'} />
+                        <span className="text-[12px] font-medium text-on-surface">{t}</span>
                       </button>
                     )
                   })}
@@ -160,11 +220,11 @@ const StoragePage = () => {
               {(form.type === 'LOCAL' || form.type === 'SMB') && (
                 <div><label className={labelCls}>Path</label><input type="text" value={form.path} onChange={(e) => setForm((f) => ({ ...f, path: e.target.value }))} placeholder={form.type === 'SMB' ? '\\\\server\\share' : 'D:\\Backups\\'} className={`${inputCls} font-mono text-[13px]`} /></div>
               )}
-              <p className="text-[12px] text-[#737686] flex items-center gap-1.5">
-                <Lock size={12} className="text-[#006591]" />
+              <p className="text-[12px] text-outline flex items-center gap-1.5">
+                <Lock size={12} className="text-on-primary-container" />
                 Credentials are encrypted with AES-256-GCM before storage
               </p>
-              <button type="submit" disabled={isSubmitting} className="w-full h-9 rounded-lg bg-[#2563eb] text-white text-[13px] font-medium hover:bg-[#1d4ed8] transition-colors disabled:opacity-60 flex items-center justify-center gap-2">
+              <button type="submit" disabled={isSubmitting} className="w-full h-9 rounded-lg bg-primary text-on-primary text-[13px] font-medium hover:bg-primary-container transition-colors disabled:opacity-60 flex items-center justify-center gap-2">
                 {isSubmitting && <Loader2 size={14} className="animate-spin" />}
                 Save Storage Target
               </button>

@@ -1,34 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
 import { ChevronLeft, ChevronRight } from 'lucide-react'
-
-// Client-side pagination over an already-fetched array. Use for endpoints
-// that return full lists (jobs, agents, storage, restores, members).
-// Server-paginated endpoints (runs, alerts) manage page state themselves
-// and only reuse the <Pagination> footer below.
-//
-// resetKey: pass a stable primitive (search text, org id, route id) to jump
-// back to page 1 when the listing context changes. Never pass a fresh array
-// or object here — its identity changes every render and would loop.
-export function usePagination<T>(items: T[], perPage: number, resetKey?: unknown) {
-  const [page, setPage] = useState(1)
-  const totalPages = Math.max(1, Math.ceil(items.length / perPage))
-
-  const [lastKey, setLastKey] = useState(resetKey)
-  if (lastKey !== resetKey) {
-    setLastKey(resetKey)
-    setPage(1)
-  }
-
-  useEffect(() => {
-    if (page > totalPages) setPage(totalPages)
-  }, [page, totalPages])
-
-  const pageItems = useMemo(
-    () => items.slice((page - 1) * perPage, page * perPage),
-    [items, page, perPage],
-  )
-  return { page, setPage, totalPages, pageItems, total: items.length, perPage }
-}
 
 interface Props {
   page: number
@@ -58,7 +28,7 @@ const Pagination = ({ page, totalPages, total, perPage, onPage }: Props) => {
 
   return (
     <div className="flex items-center justify-between gap-3 pt-1 shrink-0">
-      <p className="text-[12px] text-[#737686]">
+      <p className="text-[12px] text-outline">
         Showing {start}–{end} of {total}
       </p>
       <div className="flex items-center gap-1">
@@ -67,13 +37,13 @@ const Pagination = ({ page, totalPages, total, perPage, onPage }: Props) => {
           disabled={page <= 1}
           onClick={() => onPage(page - 1)}
           aria-label="Previous page"
-          className={`${btn} text-[#434655] hover:bg-[#f1f3ff] disabled:opacity-40 disabled:pointer-events-none`}
+          className={`${btn} text-on-surface-variant hover:bg-surface-container-low disabled:opacity-40 disabled:pointer-events-none`}
         >
           <ChevronLeft size={15} />
         </button>
         {pages.map((p, i) =>
           p === '…' ? (
-            <span key={`gap-${i}`} className={`${btn} text-[#737686] pointer-events-none`}>
+            <span key={`gap-${i}`} className={`${btn} text-outline pointer-events-none`}>
               …
             </span>
           ) : (
@@ -84,8 +54,8 @@ const Pagination = ({ page, totalPages, total, perPage, onPage }: Props) => {
               aria-current={p === page ? 'page' : undefined}
               className={`${btn} ${
                 p === page
-                  ? 'bg-[#2563eb] text-white shadow-sm'
-                  : 'text-[#434655] hover:bg-[#f1f3ff]'
+                  ? 'bg-primary text-on-primary shadow-sm'
+                  : 'text-on-surface-variant hover:bg-surface-container-low'
               }`}
             >
               {p}
@@ -97,7 +67,7 @@ const Pagination = ({ page, totalPages, total, perPage, onPage }: Props) => {
           disabled={page >= totalPages}
           onClick={() => onPage(page + 1)}
           aria-label="Next page"
-          className={`${btn} text-[#434655] hover:bg-[#f1f3ff] disabled:opacity-40 disabled:pointer-events-none`}
+          className={`${btn} text-on-surface-variant hover:bg-surface-container-low disabled:opacity-40 disabled:pointer-events-none`}
         >
           <ChevronRight size={15} />
         </button>

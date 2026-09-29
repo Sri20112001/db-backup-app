@@ -83,6 +83,9 @@ export interface BackupJob {
   retention_days: number
   export_format: string
   enabled: boolean
+  sla_target_minutes: number
+  rpo_target_minutes: number
+  rto_target_minutes: number
   schedule?: BackupSchedule
   agent: Agent
   storage_target: StorageTarget
@@ -113,6 +116,7 @@ export interface BackupRun {
   duration_seconds: number
   source_type: string
   error_message: string
+  failure_category: string
   storage_path: string
   checksum: string
   backup_job: BackupJob
@@ -174,6 +178,28 @@ export interface DashboardOverview {
   failed_runs: number
   total_bytes: number
   recent_runs: BackupRun[]
+  sla_breaches_24h: number
+  size_anomalies: SizeAnomaly[]
+}
+
+export interface SizeAnomaly {
+  job_id: string
+  job_name: string
+  run_id: string
+  actual_bytes: number
+  avg_bytes: number
+  pct_change: number
+}
+
+export interface PreflightCheck {
+  name: string
+  status: 'OK' | 'WARN' | 'FAIL'
+  detail?: string
+}
+
+export interface PreflightResult {
+  overall: 'OK' | 'WARN' | 'FAIL'
+  checks: PreflightCheck[]
 }
 
 export interface JobHealth {
@@ -183,6 +209,17 @@ export interface JobHealth {
   last_success_at: string | null
   last_failure_at: string | null
   recovery_points: number
+  next_run_at: string | null
+  sla_target_minutes: number
+  last_duration_seconds: number
+  sla_status: 'OK' | 'BREACH' | 'UNKNOWN'
+  rpo_target_minutes: number
+  actual_rpo_minutes: number
+  rpo_status: 'OK' | 'BREACH' | 'UNKNOWN'
+  rto_target_minutes: number
+  last_restore_seconds: number
+  rto_status: 'OK' | 'BREACH' | 'UNKNOWN' | 'NO_DATA'
+  size_anomaly_pct: number | null
 }
 
 export interface PaginatedResponse<T> {

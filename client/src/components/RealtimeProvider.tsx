@@ -1,4 +1,5 @@
 import { useEffect, useRef } from 'react'
+import { API_BASE_URL, toWebSocketUrl } from '@/CONSTANTS'
 import { useAuthStore } from '@/store/authStore'
 import { useUIStore } from '@/store/uiStore'
 import { useRealtimeStore } from '@/stores/realtimeStore'
@@ -7,10 +8,8 @@ import type { IncomingEvent } from '@/stores/realtimeStore'
 // Derive ws(s)://host/<base>/ws from the REST base URL so proxies and
 // basenames (e.g. /vaultguard/api) carry over automatically.
 function socketUrl(): string | null {
-  const base = import.meta.env.VITE_API_URL as string | undefined
-  if (!base) return null
-  const ws = base.replace(/^http/, 'ws').replace(/\/$/, '')
-  return `${ws}/ws`
+  const ws = toWebSocketUrl(API_BASE_URL)
+  return ws ? `${ws}/ws` : null
 }
 
 // Owns the single dashboard socket: connects when signed in, subscribes to
@@ -38,7 +37,7 @@ const RealtimeProvider = () => {
 
     const connect = () => {
       if (stopped) return
-      const token = localStorage.getItem('access_token')
+      const token = useAuthStore.getState().accessToken
       if (!token) {
         retryTimer = setTimeout(connect, retryMs)
         return

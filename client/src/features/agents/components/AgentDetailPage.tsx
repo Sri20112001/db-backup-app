@@ -5,7 +5,8 @@ import { useAuthStore } from '@/store/authStore'
 import { useUIStore } from '@/store/uiStore'
 import type { Agent, Machine, BackupJob } from '@/types'
 import StatusBadge from '@/components/StatusBadge'
-import Pagination, { usePagination } from '@/components/Pagination'
+import Pagination from '@/components/Pagination'
+import { usePagination } from '@/hooks/usePagination'
 import NewJobModal from '@/features/jobs/components/NewJobModal'
 import { formatRelative } from '@/utils/format'
 import { ChevronRight, Server, Loader2, Monitor, Archive } from 'lucide-react'
@@ -54,26 +55,26 @@ const AgentDetailPage = () => {
   return (
     <div className="h-full min-h-0 flex flex-col gap-4 overflow-y-auto pr-0.5">
       {/* Breadcrumb */}
-      <div className="flex items-center gap-2 text-[12px] text-[#434655]">
-        <button type="button" onClick={() => navigate('/agents')} className="hover:text-[#004ac6]">
+      <div className="flex items-center gap-2 text-[12px] text-on-surface-variant">
+        <button type="button" onClick={() => navigate('/agents')} className="hover:text-primary">
           Agents & Machines
         </button>
         <ChevronRight size={14} />
-        <span className="text-[#004ac6] font-medium">{agent.name}</span>
+        <span className="text-primary font-medium">{agent.name}</span>
       </div>
 
       {/* Header card */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 p-5 rounded-xl bg-[#ffffff] border border-[#e9edff] shadow-sm">
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 p-5 rounded-xl bg-surface-container-lowest border border-surface-variant shadow-sm">
         <div className="flex items-center gap-4">
-          <div className={`w-12 h-12 rounded-xl flex items-center justify-center ${agent.status === 'ONLINE' ? 'bg-[#c9e6ff]/40 text-[#006591]' : 'bg-[#dce2f7] text-[#737686]'}`}>
+          <div className={`w-12 h-12 rounded-xl flex items-center justify-center ${agent.status === 'ONLINE' ? 'bg-primary-container/40 text-on-primary-container' : 'bg-surface-variant text-outline'}`}>
             <Server size={24} />
           </div>
           <div>
-            <h1 className="text-[20px] font-semibold text-[#141b2b]">{agent.name}</h1>
+            <h1 className="text-[20px] font-semibold text-on-surface">{agent.name}</h1>
             <div className="flex items-center gap-2 mt-1">
               <StatusBadge status={agent.status} size="sm" />
-              <span className="font-mono text-[12px] text-[#737686]">v{agent.version || '—'}</span>
-              <span className="text-[12px] text-[#737686]">Last seen: {formatRelative(agent.last_seen_at)}</span>
+              <span className="font-mono text-[12px] text-outline">v{agent.version || '—'}</span>
+              <span className="text-[12px] text-outline">Last seen: {formatRelative(agent.last_seen_at)}</span>
             </div>
           </div>
         </div>
@@ -82,23 +83,23 @@ const AgentDetailPage = () => {
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Machines */}
         <div className="flex flex-col gap-3">
-          <h2 className="text-[13px] font-semibold uppercase tracking-wider text-[#434655] flex items-center gap-2">
+          <h2 className="text-[13px] font-semibold uppercase tracking-wider text-on-surface-variant flex items-center gap-2">
             <Monitor size={14} />
             Registered Machines ({machines.length})
           </h2>
           {machines.length === 0 ? (
-            <div className="p-5 rounded-xl bg-[#ffffff] border border-[#e9edff] text-center text-[13px] text-[#737686]">
+            <div className="p-5 rounded-xl bg-surface-container-lowest border border-surface-variant text-center text-[13px] text-outline">
               No machines registered for this agent yet.
             </div>
           ) : (
             <div className="flex flex-col gap-2">
               {pagedMachines.pageItems.map((m) => (
-                <div key={m.id} className="p-4 rounded-xl bg-[#ffffff] border border-[#e9edff] shadow-sm">
+                <div key={m.id} className="p-4 rounded-xl bg-surface-container-lowest border border-surface-variant shadow-sm">
                   <div className="flex items-center justify-between">
-                    <p className="text-[14px] font-semibold text-[#141b2b]">{m.hostname}</p>
-                    <span className="font-mono text-[11px] text-[#737686]">{m.ip_address}</span>
+                    <p className="text-[14px] font-semibold text-on-surface">{m.hostname}</p>
+                    <span className="font-mono text-[11px] text-outline">{m.ip_address}</span>
                   </div>
-                  <p className="text-[12px] text-[#737686] mt-0.5">{m.os || '—'}</p>
+                  <p className="text-[12px] text-outline mt-0.5">{m.os || '—'}</p>
                 </div>
               ))}
               <Pagination
@@ -114,14 +115,14 @@ const AgentDetailPage = () => {
 
         {/* Backup jobs */}
         <div className="flex flex-col gap-3">
-          <h2 className="text-[13px] font-semibold uppercase tracking-wider text-[#434655] flex items-center gap-2">
+          <h2 className="text-[13px] font-semibold uppercase tracking-wider text-on-surface-variant flex items-center gap-2">
             <Archive size={14} />
             Assigned Backup Jobs ({jobs.length})
           </h2>
           {jobs.length === 0 ? (
-            <div className="p-5 rounded-xl bg-[#ffffff] border border-[#e9edff] text-center text-[13px] text-[#737686]">
+            <div className="p-5 rounded-xl bg-surface-container-lowest border border-surface-variant text-center text-[13px] text-outline">
               No backup jobs assigned to this agent.{' '}
-              <button type="button" onClick={() => setShowNew(true)} className="text-[#004ac6] hover:underline">
+              <button type="button" onClick={() => setShowNew(true)} className="text-primary hover:underline">
                 Create one
               </button>
             </div>
@@ -132,11 +133,11 @@ const AgentDetailPage = () => {
                   key={job.id}
                   type="button"
                   onClick={() => navigate(`/jobs/${job.id}`)}
-                  className="flex items-center justify-between p-4 rounded-xl bg-[#ffffff] border border-[#e9edff] shadow-sm hover:shadow-md transition-all text-left"
+                  className="flex items-center justify-between p-4 rounded-xl bg-surface-container-lowest border border-surface-variant shadow-sm hover:shadow-md transition-all text-left"
                 >
                   <div>
-                    <p className="text-[14px] font-semibold text-[#141b2b]">{job.name}</p>
-                    <p className="text-[12px] text-[#737686] mt-0.5">
+                    <p className="text-[14px] font-semibold text-on-surface">{job.name}</p>
+                    <p className="text-[12px] text-outline mt-0.5">
                       {job.source_type.replace('_', ' ')} · {job.schedule?.cron_expr ?? 'No schedule'}
                     </p>
                   </div>
@@ -156,8 +157,8 @@ const AgentDetailPage = () => {
       </div>
 
       {/* Agent details */}
-      <div className="p-5 rounded-xl bg-[#ffffff] border border-[#e9edff] shadow-sm">
-        <h3 className="text-[12px] font-semibold uppercase tracking-wider text-[#434655] mb-3">Agent Details</h3>
+      <div className="p-5 rounded-xl bg-surface-container-lowest border border-surface-variant shadow-sm">
+        <h3 className="text-[12px] font-semibold uppercase tracking-wider text-on-surface-variant mb-3">Agent Details</h3>
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-[13px]">
           {[
             { label: 'Agent ID', value: agent.id, mono: true },
@@ -166,8 +167,8 @@ const AgentDetailPage = () => {
             { label: 'Registered', value: formatRelative(agent.created_at) },
           ].map((item) => (
             <div key={item.label}>
-              <p className="text-[11px] font-semibold uppercase tracking-wider text-[#737686] mb-0.5">{item.label}</p>
-              <p className={`text-[#141b2b] break-all ${item.mono ? 'font-mono text-[11px]' : 'font-medium'}`}>
+              <p className="text-[11px] font-semibold uppercase tracking-wider text-outline mb-0.5">{item.label}</p>
+              <p className={`text-on-surface break-all ${item.mono ? 'font-mono text-[11px]' : 'font-medium'}`}>
                 {item.value}
               </p>
             </div>

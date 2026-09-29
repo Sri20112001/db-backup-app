@@ -72,11 +72,11 @@ const FloatingDock = () => {
     : 'U'
 
   return (
-    <aside className="fixed left-4 top-1/2 -translate-y-1/2 w-14 bg-[#ffffff] border border-[#c3c6d7]/40 rounded-xl shadow-[0_4px_16px_rgba(20,27,43,0.06)] z-50 flex flex-col items-center py-3 gap-2">
+    <aside className="fixed left-4 top-1/2 -translate-y-1/2 w-14 bg-surface-container-lowest border border-outline-variant/40 rounded-xl shadow-[0_4px_16px_rgba(20,27,43,0.06)] z-50 flex flex-col items-center py-3 gap-2">
       {/* Brand Icon */}
       <div className="flex items-center justify-center p-1 mb-1">
-        <div className="w-8 h-8 rounded-lg bg-[#2563eb] flex items-center justify-center">
-          <Shield size={16} className="text-white" />
+        <div className="w-8 h-8 rounded-lg bg-primary flex items-center justify-center">
+          <Shield size={16} className="text-on-primary" />
         </div>
       </div>
 
@@ -91,14 +91,14 @@ const FloatingDock = () => {
             className={({ isActive }) =>
               `relative group flex items-center justify-center w-10 h-10 rounded-lg transition-colors ${
                 isActive
-                  ? 'bg-[#2563eb] text-white'
-                  : 'text-[#434655] hover:bg-[#e9edff] hover:text-[#141b2b]'
+                  ? 'bg-primary text-on-primary'
+                  : 'text-on-surface-variant hover:bg-surface-container-high hover:text-on-surface'
               }`
             }
           >
             <item.icon size={20} />
             {item.path === '/alerts' && unreadCount > 0 && (
-              <span className="absolute -top-1 -right-1 min-w-[18px] h-[18px] px-1 rounded-full bg-[#ba1a1a] text-white text-[10px] font-bold flex items-center justify-center shadow-sm">
+              <span className="absolute -top-1 -right-1 min-w-[18px] h-[18px] px-1 rounded-full bg-error text-on-primary text-[10px] font-bold flex items-center justify-center shadow-sm">
                 {unreadCount > 99 ? '99+' : unreadCount}
               </span>
             )}
@@ -110,15 +110,15 @@ const FloatingDock = () => {
       </nav>
 
       {/* Footer: Settings & Profile Popover */}
-      <div className="mt-auto pt-2 border-t border-[#c3c6d7]/40 w-full px-2 flex flex-col items-center gap-2">
+      <div className="mt-auto pt-2 border-t border-outline-variant/40 w-full px-2 flex flex-col items-center gap-2">
         <NavLink
           to="/settings"
           title="Settings"
           className={({ isActive }) =>
             `relative group flex items-center justify-center w-10 h-10 rounded-lg transition-colors ${
               isActive
-                ? 'bg-[#2563eb] text-white'
-                : 'text-[#434655] hover:bg-[#e9edff] hover:text-[#141b2b]'
+                ? 'bg-primary text-on-primary'
+                : 'text-on-surface-variant hover:bg-surface-container-high hover:text-on-surface'
             }`
           }
         >
@@ -134,8 +134,8 @@ const FloatingDock = () => {
             type="button"
             onClick={() => setMenuOpen((prev) => !prev)}
             aria-label="User account and organization menu"
-            className={`w-8 h-8 rounded-full bg-[#2563eb] text-white text-[11px] font-bold flex items-center justify-center transition-all focus:outline-none ${
-              menuOpen ? 'ring-2 ring-[#2563eb] ring-offset-2' : 'hover:ring-2 hover:ring-[#2563eb]/40'
+            className={`w-8 h-8 rounded-full bg-primary text-on-primary text-[11px] font-bold flex items-center justify-center transition-all focus:outline-none ${
+              menuOpen ? 'ring-2 ring-primary ring-offset-2' : 'hover:ring-2 hover:ring-primary/40'
             }`}
           >
             {initials}
@@ -143,24 +143,24 @@ const FloatingDock = () => {
 
           {/* Flyout panel */}
           {menuOpen && (
-            <div className="absolute left-12 bottom-0 w-52 bg-[#ffffff] border border-[#c3c6d7]/40 rounded-xl shadow-[0_8px_24px_rgba(20,27,43,0.12)] z-50 overflow-hidden animate-in fade-in zoom-in-95 duration-100">
+            <div className="absolute left-12 bottom-0 w-52 bg-surface-container-lowest border border-outline-variant/40 rounded-xl shadow-[0_8px_24px_rgba(20,27,43,0.12)] z-50 overflow-hidden animate-in fade-in zoom-in-95 duration-100">
               {/* Invisible hover bridge to prevent edge flickering */}
               <div className="absolute -left-3 top-0 w-3 h-full" />
 
               {/* Org Header */}
-              <div className="px-3 py-2 bg-[#f4f6fb] border-b border-[#c3c6d7]/30 flex items-center gap-2">
-                <Building2 size={13} className="text-[#434655] shrink-0" />
-                <span className="text-[12px] font-semibold text-[#141b2b] truncate">
+              <div className="px-3 py-2 bg-[#f4f6fb] border-b border-outline-variant/30 flex items-center gap-2">
+                <Building2 size={13} className="text-on-surface-variant shrink-0" />
+                <span className="text-[12px] font-semibold text-on-surface truncate">
                   {currentOrg?.name ?? 'Select Org'}
                 </span>
               </div>
 
               {/* User Details */}
-              <div className="px-3 py-2.5 border-b border-[#c3c6d7]/30">
-                <p className="text-[13px] font-medium text-[#141b2b] truncate">
+              <div className="px-3 py-2.5 border-b border-outline-variant/30">
+                <p className="text-[13px] font-medium text-on-surface truncate">
                   {user?.name ?? 'User'}
                 </p>
-                <p className="text-[11px] text-[#737686] truncate">
+                <p className="text-[11px] text-outline truncate">
                   {user?.email ?? ''}
                 </p>
               </div>
@@ -172,7 +172,7 @@ const FloatingDock = () => {
                   setMenuOpen(false)
                   handleLogout()
                 }}
-                className="w-full flex items-center gap-2 px-3 py-2 text-[13px] text-[#ba1a1a] hover:bg-[#ffdad6]/30 transition-colors"
+                className="w-full flex items-center gap-2 px-3 py-2 text-[13px] text-error hover:bg-error-container/30 transition-colors"
               >
                 <LogOut size={14} />
                 Sign out

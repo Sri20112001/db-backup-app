@@ -1,7 +1,6 @@
 import { useCallback, useEffect, useState } from 'react'
 import { Folder, FolderOpen, ArrowUp, HardDrive, Loader2, X } from 'lucide-react'
-
-const BROWSE_BASE = import.meta.env.VITE_AGENT_BROWSE_URL || 'http://127.0.0.1:7546'
+import { AGENT_BROWSE_BASE_URL as BROWSE_BASE } from '@/CONSTANTS'
 
 interface Entry {
   name: string
@@ -50,21 +49,21 @@ const FolderBrowser = ({ initialPath = '', onSelect, onClose }: Props) => {
 
   return (
     <div className="fixed inset-0 z-[200] flex items-center justify-center">
-      <div className="absolute inset-0 bg-[#141b2b]/30 backdrop-blur-[2px]" onClick={onClose} />
-      <div className="relative bg-[#ffffff] rounded-xl shadow-2xl w-full max-w-lg mx-4 border border-[#e9edff] overflow-hidden">
-        <div className="flex items-center justify-between px-5 py-3.5 border-b border-[#e9edff]">
-          <h2 className="text-[15px] font-semibold text-[#141b2b]">Choose folder on agent</h2>
+      <div className="absolute inset-0 bg-on-surface/30 backdrop-blur-[2px]" onClick={onClose} />
+      <div className="relative bg-surface-container-lowest rounded-xl shadow-2xl w-full max-w-lg mx-4 border border-surface-variant overflow-hidden">
+        <div className="flex items-center justify-between px-5 py-3.5 border-b border-surface-variant">
+          <h2 className="text-[15px] font-semibold text-on-surface">Choose folder on agent</h2>
           <button
             type="button"
             onClick={onClose}
-            className="p-1 rounded text-[#737686] hover:text-[#141b2b] hover:bg-[#f1f3ff]"
+            className="p-1 rounded text-outline hover:text-on-surface hover:bg-surface-container-low"
           >
             <X size={16} />
           </button>
         </div>
 
-        <div className="px-5 py-3 border-b border-[#e9edff] bg-[#f9f9ff]">
-          <p className="font-mono text-[12px] text-[#141b2b] break-all">{data?.cwd || '…'}</p>
+        <div className="px-5 py-3 border-b border-surface-variant bg-surface-container-low">
+          <p className="font-mono text-[12px] text-on-surface break-all">{data?.cwd || '…'}</p>
           {data && data.roots.length > 0 && (
             <div className="flex flex-wrap gap-1.5 mt-2">
               {data.roots.map((r) => (
@@ -74,8 +73,8 @@ const FolderBrowser = ({ initialPath = '', onSelect, onClose }: Props) => {
                   onClick={() => void load(r)}
                   className={`flex items-center gap-1 px-2 py-1 rounded text-[11px] font-medium transition-colors ${
                     data.cwd === r
-                      ? 'bg-[#2563eb] text-white'
-                      : 'bg-[#e9edff] text-[#434655] hover:bg-[#dce2f7]'
+                      ? 'bg-primary text-on-primary'
+                      : 'bg-surface-container-high text-on-surface-variant hover:bg-surface-variant'
                   }`}
                 >
                   <HardDrive size={12} />
@@ -88,20 +87,20 @@ const FolderBrowser = ({ initialPath = '', onSelect, onClose }: Props) => {
 
         <div className="h-64 overflow-y-auto px-2 py-2">
           {isLoading ? (
-            <div className="flex items-center justify-center h-full text-[#737686]">
+            <div className="flex items-center justify-center h-full text-outline">
               <Loader2 size={20} className="animate-spin" />
             </div>
           ) : error ? (
-            <p className="px-3 py-4 text-[13px] text-[#ba1a1a]">{error}</p>
+            <p className="px-3 py-4 text-[13px] text-error">{error}</p>
           ) : (
             <>
               {data?.parent && (
                 <button
                   type="button"
                   onClick={() => void load(data.parent)}
-                  className="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-[13px] text-[#434655] hover:bg-[#f1f3ff] transition-colors"
+                  className="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-[13px] text-on-surface-variant hover:bg-surface-container-low transition-colors"
                 >
-                  <ArrowUp size={16} className="text-[#737686]" />
+                  <ArrowUp size={16} className="text-outline" />
                   ..
                 </button>
               )}
@@ -112,25 +111,25 @@ const FolderBrowser = ({ initialPath = '', onSelect, onClose }: Props) => {
                   onDoubleClick={() => void load(e.path)}
                   onClick={() => void load(e.path)}
                   title="Click to open"
-                  className="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-[13px] text-[#141b2b] hover:bg-[#f1f3ff] transition-colors"
+                  className="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-[13px] text-on-surface hover:bg-surface-container-low transition-colors"
                 >
                   {data.cwd === e.path ? (
-                    <FolderOpen size={16} className="text-[#2563eb] shrink-0" />
+                    <FolderOpen size={16} className="text-primary shrink-0" />
                   ) : (
-                    <Folder size={16} className="text-[#737686] shrink-0" />
+                    <Folder size={16} className="text-outline shrink-0" />
                   )}
                   <span className="truncate">{e.name}</span>
                 </button>
               ))}
               {data && data.entries.length === 0 && !data.parent && (
-                <p className="px-3 py-4 text-[13px] text-[#737686]">No subfolders here.</p>
+                <p className="px-3 py-4 text-[13px] text-outline">No subfolders here.</p>
               )}
             </>
           )}
         </div>
 
-        <div className="flex items-center justify-between gap-3 px-5 py-3.5 border-t border-[#e9edff] bg-[#f9f9ff]">
-          <p className="text-[11px] text-[#737686] leading-snug">
+        <div className="flex items-center justify-between gap-3 px-5 py-3.5 border-t border-surface-variant bg-surface-container-low">
+          <p className="text-[11px] text-outline leading-snug">
             Browses the agent on this machine.
             <br />
             For remote agents, type the path manually.
@@ -139,7 +138,7 @@ const FolderBrowser = ({ initialPath = '', onSelect, onClose }: Props) => {
             <button
               type="button"
               onClick={onClose}
-              className="px-4 h-9 rounded-lg bg-[#ffffff] border border-[#e9edff] text-[#141b2b] text-[13px] font-medium hover:bg-[#f1f3ff] transition-colors"
+              className="px-4 h-9 rounded-lg bg-surface-container-lowest border border-surface-variant text-on-surface text-[13px] font-medium hover:bg-surface-container-low transition-colors"
             >
               Cancel
             </button>
@@ -147,7 +146,7 @@ const FolderBrowser = ({ initialPath = '', onSelect, onClose }: Props) => {
               type="button"
               disabled={!data?.cwd || !!error}
               onClick={() => data && onSelect(data.cwd)}
-              className="px-4 h-9 rounded-lg bg-[#2563eb] text-white text-[13px] font-medium hover:bg-[#1d4ed8] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              className="px-4 h-9 rounded-lg bg-primary text-on-primary text-[13px] font-medium hover:bg-primary-container transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
             >
               Select this folder
             </button>

@@ -1,5 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { authApi, orgApi } from './api'
+import { useAuthStore } from '../store/authStore'
+import { LOGIN_URL } from '../CONSTANTS'
 
 type FetchResponder = { status: number; body?: unknown }
 
@@ -18,7 +20,12 @@ function mockFetch(queue: FetchResponder[]) {
   return calls
 }
 
-function stubBrowser() {
+// API calls excluding the fire-and-forget /auth/logout from store.logout().
+function apiCalls(calls: string[]) {
+  return calls.filter((u) => !u.includes('/auth/logout'))
+}
+
+function stubBrowser(pathname = '/') {
   const store: Record<string, string> = {}
   vi.stubGlobal('localStorage', {
     getItem: (k: string) => store[k] ?? null,
@@ -26,10 +33,25 @@ function stubBrowser() {
     removeItem: (k: string) => { delete store[k] },
     clear: () => { for (const k of Object.keys(store)) delete store[k] },
   })
-  const location = { pathname: '/', href: '' }
+  const location = { pathname, href: '' }
   vi.stubGlobal('window', { location })
   return { store, location }
 }
+
+function seedAuth(access: string | null, refresh: string | null) {
+  useAuthStore.setState({
+    user: access ? { id: 'u1', email: 'a@x.io', name: 'A' } : null,
+    accessToken: access,
+    refreshToken: refresh,
+    currentOrg: null,
+  })
+}
+
+const authTokens = () => ({
+  accessToken: useAuthStore.getState().accessToken,
+  refreshToken: useAuthStore.getState().refreshToken,
+  user: useAuthStore.getState().user,
+})
 
 const flush = () => new Promise<void>((r) => setTimeout(r, 0))
 
@@ -37,19 +59,19 @@ describe('api auth retry', () => {
   beforeEach(() => {
     vi.unstubAllGlobals()
     stubBrowser()
+    seedAuth(null, null)
   })
 
   it('failed login surfaces the server error without attempting refresh', async () => {
     const calls = mockFetch([{ status: 401, body: { error: 'invalid credentials' } }])
     await expect(authApi.login('a@x.io', 'wrong')).rejects.toThrow('invalid credentials')
-    expect(calls).toHaveLength(1)
-    expect(calls[0]).toContain('/auth/login')
+    expect(apiCalls(calls)).toHaveLength(1)
+    expect(apiCalls(calls)[0]).toContain('/auth/login')
+    expect(authTokens().user).toBeNull()
   })
 
   it('expired access token refreshes once and retries the request', async () => {
-    const { store } = stubBrowser()
-    store['access_token'] = 'old-access'
-    store['refresh_token'] = 'good-refresh'
+    seedAuth('old-access', 'good-refresh')
     const calls = mockFetch([
       { status: 401, body: { error: 'invalid token' } },
       { status: 200, body: { access_token: 'new-access', refresh_token: 'new-refresh' } },
@@ -57,44 +79,66 @@ describe('api auth retry', () => {
     ])
     const orgs = await orgApi.list()
     expect(orgs).toHaveLength(1)
-    expect(calls.filter((u) => u.includes('/auth/refresh'))).toHaveLength(1)
-    expect(store['access_token']).toBe('new-access')
-    expect(store['refresh_token']).toBe('new-refresh')
+    expect(apiCalls(calls).filter((u) => u.includes('/auth/refresh'))).toHaveLength(1)
+    expect(authTokens().accessToken).toBe('new-access')
+    expect(authTokens().refreshToken).toBe('new-refresh')
   })
 
-  it('missing refresh token redirects quietly instead of throwing', async () => {
-    const { store, location } = stubBrowser()
-    store['access_token'] = 'stale-access'
+  it('missing refresh token logs out and redirects quietly instead of throwing', async () => {
+    seedAuth('stale-access', null)
+    const { location } = stubBrowser()
     const calls = mockFetch([{ status: 401, body: { error: 'invalid token' } }])
-    // Do NOT await: the request intentionally never settles after redirect.
+    // Do NOT await: the request intentionally never settles after logout.
     void orgApi.list().then(
       () => { throw new Error('should not resolve') },
       () => { throw new Error('should not reject') },
     )
     await flush()
     await flush()
-    expect(calls).toHaveLength(1)
-    expect(location.href).toBe('/login')
+    expect(apiCalls(calls)).toHaveLength(1)
+    expect(location.href).toBe(LOGIN_URL)
+    expect(authTokens().accessToken).toBeNull()
+    expect(authTokens().user).toBeNull()
   })
 
-  it('rejected refresh clears storage, redirects, and throws session expired', async () => {
-    const { store, location } = stubBrowser()
-    store['access_token'] = 'old-access'
-    store['refresh_token'] = 'dead-refresh'
+  it('rejected refresh logs out, redirects, and throws session expired', async () => {
+    seedAuth('old-access', 'dead-refresh')
+    const { location } = stubBrowser()
     mockFetch([
       { status: 401, body: { error: 'invalid token' } },
       { status: 401, body: { error: 'refresh token not found or expired' } },
     ])
     await expect(orgApi.list()).rejects.toThrow('session expired')
-    expect(store['access_token']).toBeUndefined()
-    expect(store['refresh_token']).toBeUndefined()
-    expect(location.href).toBe('/login')
+    expect(authTokens().accessToken).toBeNull()
+    expect(authTokens().refreshToken).toBeNull()
+    expect(location.href).toBe(LOGIN_URL)
+  })
+
+  it('retried request rejected again logs out and redirects quietly', async () => {
+    seedAuth('old-access', 'good-refresh')
+    const { location } = stubBrowser()
+    const calls = mockFetch([
+      { status: 401, body: { error: 'invalid token' } },
+      { status: 200, body: { access_token: 'new-access', refresh_token: 'new-refresh' } },
+      { status: 401, body: { error: 'invalid token' } },
+    ])
+    // Do NOT await: the request intentionally never settles after logout.
+    void orgApi.list().then(
+      () => { throw new Error('should not resolve') },
+      () => { throw new Error('should not reject') },
+    )
+    await flush()
+    await flush()
+    await flush()
+    expect(apiCalls(calls).filter((u) => u.includes('/auth/refresh'))).toHaveLength(1)
+    expect(location.href).toBe(LOGIN_URL)
+    expect(authTokens().accessToken).toBeNull()
+    expect(authTokens().user).toBeNull()
   })
 
   it('concurrent 401s share a single refresh call', async () => {
-    const { store } = stubBrowser()
-    store['access_token'] = 'old-access'
-    store['refresh_token'] = 'good-refresh'
+    seedAuth('old-access', 'good-refresh')
+    stubBrowser()
     const calls = mockFetch([
       { status: 401, body: {} },
       { status: 401, body: {} },
@@ -105,6 +149,6 @@ describe('api auth retry', () => {
     const [a, b] = await Promise.all([orgApi.list(), orgApi.list()])
     expect(a).toEqual([])
     expect(b).toEqual([])
-    expect(calls.filter((u) => u.includes('/auth/refresh'))).toHaveLength(1)
+    expect(apiCalls(calls).filter((u) => u.includes('/auth/refresh'))).toHaveLength(1)
   })
 })

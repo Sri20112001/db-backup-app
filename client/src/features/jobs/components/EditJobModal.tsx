@@ -88,14 +88,14 @@ const EditJobModal = ({ jobId, onClose, onSaved }: Props) => {
 
   return (
     <div className="fixed inset-0 z-[200] flex items-center justify-center">
-      <div className="absolute inset-0 bg-[#141b2b]/30 backdrop-blur-[2px]" onClick={onClose} />
-      <div className="relative bg-[#ffffff] rounded-xl shadow-2xl w-full max-w-2xl mx-4 border border-[#e9edff] max-h-[90vh] overflow-y-auto">
-        <div className="flex items-center justify-between px-6 py-4 border-b border-[#e9edff] sticky top-0 bg-[#ffffff] z-10 rounded-t-xl">
-          <h2 className="text-[16px] font-semibold text-[#141b2b]">Edit Backup Job</h2>
+      <div className="absolute inset-0 bg-on-surface/30 backdrop-blur-[2px]" onClick={onClose} />
+      <div className="relative bg-surface-container-lowest rounded-xl shadow-2xl w-full max-w-2xl mx-4 border border-surface-variant max-h-[90vh] overflow-y-auto">
+        <div className="flex items-center justify-between px-6 py-4 border-b border-surface-variant sticky top-0 bg-surface-container-lowest z-10 rounded-t-xl">
+          <h2 className="text-[16px] font-semibold text-on-surface">Edit Backup Job</h2>
           <button
             type="button"
             onClick={onClose}
-            className="p-1.5 rounded-lg text-[#434655] hover:bg-[#e9edff] transition-colors"
+            className="p-1.5 rounded-lg text-on-surface-variant hover:bg-surface-container-high transition-colors"
           >
             <X size={18} />
           </button>
@@ -113,7 +113,7 @@ const EditJobModal = ({ jobId, onClose, onSaved }: Props) => {
                 value={form.name}
                 onChange={(e) => update('name', e.target.value)}
                 required
-                className="w-full h-9 px-3 rounded-lg border border-[#e9edff] bg-[#f9f9ff] text-[14px] text-[#141b2b] focus:outline-none focus:ring-2 focus:ring-[#2563eb]/20 focus:border-[#2563eb] transition-all"
+                className="w-full h-9 px-3 rounded-lg border border-surface-variant bg-surface-container-low text-[14px] text-on-surface focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all"
               />
             </Field>
 
@@ -123,7 +123,7 @@ const EditJobModal = ({ jobId, onClose, onSaved }: Props) => {
                   type="text"
                   value={form.source_path}
                   onChange={(e) => update('source_path', e.target.value)}
-                  className="w-full h-9 px-3 rounded-lg border border-[#e9edff] bg-[#f9f9ff] font-mono text-[13px] text-[#141b2b] focus:outline-none focus:ring-2 focus:ring-[#2563eb]/20 focus:border-[#2563eb] transition-all"
+                  className="w-full h-9 px-3 rounded-lg border border-surface-variant bg-surface-container-low font-mono text-[13px] text-on-surface focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all"
                 />
               </Field>
             ) : (
@@ -132,7 +132,7 @@ const EditJobModal = ({ jobId, onClose, onSaved }: Props) => {
                   type="text"
                   value={form.source_database}
                   onChange={(e) => update('source_database', e.target.value)}
-                  className="w-full h-9 px-3 rounded-lg border border-[#e9edff] bg-[#f9f9ff] font-mono text-[13px] text-[#141b2b] focus:outline-none focus:ring-2 focus:ring-[#2563eb]/20 focus:border-[#2563eb] transition-all"
+                  className="w-full h-9 px-3 rounded-lg border border-surface-variant bg-surface-container-low font-mono text-[13px] text-on-surface focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all"
                 />
               </Field>
             )}
@@ -144,7 +144,7 @@ const EditJobModal = ({ jobId, onClose, onSaved }: Props) => {
                     value={form.include_patterns}
                     onChange={(e) => update('include_patterns', e.target.value)}
                     rows={3}
-                    className="w-full px-3 py-2 rounded-lg border border-[#e9edff] bg-[#f9f9ff] font-mono text-[12px] text-[#141b2b] focus:outline-none focus:ring-2 focus:ring-[#2563eb]/20 focus:border-[#2563eb] transition-all resize-none"
+                    className="w-full px-3 py-2 rounded-lg border border-surface-variant bg-surface-container-low font-mono text-[12px] text-on-surface focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all resize-none"
                   />
                 </Field>
                 <Field label="Exclude Patterns">
@@ -152,7 +152,7 @@ const EditJobModal = ({ jobId, onClose, onSaved }: Props) => {
                     value={form.exclude_patterns}
                     onChange={(e) => update('exclude_patterns', e.target.value)}
                     rows={3}
-                    className="w-full px-3 py-2 rounded-lg border border-[#e9edff] bg-[#f9f9ff] font-mono text-[12px] text-[#141b2b] focus:outline-none focus:ring-2 focus:ring-[#2563eb]/20 focus:border-[#2563eb] transition-all resize-none"
+                    className="w-full px-3 py-2 rounded-lg border border-surface-variant bg-surface-container-low font-mono text-[12px] text-on-surface focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all resize-none"
                   />
                 </Field>
               </div>
@@ -163,7 +163,7 @@ const EditJobModal = ({ jobId, onClose, onSaved }: Props) => {
                 <select
                   value={form.agent_id}
                   onChange={(e) => update('agent_id', e.target.value)}
-                  className="w-full h-9 px-3 rounded-lg border border-[#e9edff] bg-[#f9f9ff] text-[14px] text-[#141b2b] focus:outline-none focus:ring-2 focus:ring-[#2563eb]/20 focus:border-[#2563eb] transition-all"
+                  className="w-full h-9 px-3 rounded-lg border border-surface-variant bg-surface-container-low text-[14px] text-on-surface focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all"
                 >
                   {agents.map((a) => <option key={a.id} value={a.id}>{a.name} ({a.status})</option>)}
                 </select>
@@ -173,7 +173,7 @@ const EditJobModal = ({ jobId, onClose, onSaved }: Props) => {
                 <select
                   value={form.storage_target_id}
                   onChange={(e) => update('storage_target_id', e.target.value)}
-                  className="w-full h-9 px-3 rounded-lg border border-[#e9edff] bg-[#f9f9ff] text-[14px] text-[#141b2b] focus:outline-none focus:ring-2 focus:ring-[#2563eb]/20 focus:border-[#2563eb] transition-all"
+                  className="w-full h-9 px-3 rounded-lg border border-surface-variant bg-surface-container-low text-[14px] text-on-surface focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all"
                 >
                   {storageTargets.map((s) => <option key={s.id} value={s.id}>{s.name} ({s.type})</option>)}
                 </select>
@@ -186,14 +186,14 @@ const EditJobModal = ({ jobId, onClose, onSaved }: Props) => {
                   type="text"
                   value={form.cron_expr}
                   onChange={(e) => update('cron_expr', e.target.value)}
-                  className="w-full h-9 px-3 rounded-lg border border-[#e9edff] bg-[#f9f9ff] font-mono text-[13px] text-[#141b2b] focus:outline-none focus:ring-2 focus:ring-[#2563eb]/20 focus:border-[#2563eb] transition-all"
+                  className="w-full h-9 px-3 rounded-lg border border-surface-variant bg-surface-container-low font-mono text-[13px] text-on-surface focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all"
                 />
               </Field>
               <Field label="Timezone">
                 <select
                   value={form.timezone}
                   onChange={(e) => update('timezone', e.target.value)}
-                  className="w-full h-9 px-3 rounded-lg border border-[#e9edff] bg-[#f9f9ff] text-[14px] text-[#141b2b] focus:outline-none focus:ring-2 focus:ring-[#2563eb]/20 focus:border-[#2563eb] transition-all"
+                  className="w-full h-9 px-3 rounded-lg border border-surface-variant bg-surface-container-low text-[14px] text-on-surface focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all"
                 >
                   {['UTC', 'America/New_York', 'America/Chicago', 'America/Los_Angeles', 'Europe/London', 'Europe/Berlin', 'Asia/Tokyo'].map((tz) => (
                     <option key={tz} value={tz}>{tz}</option>
@@ -210,14 +210,14 @@ const EditJobModal = ({ jobId, onClose, onSaved }: Props) => {
                   onChange={(e) => update('retention_days', parseInt(e.target.value))}
                   min={1}
                   max={365}
-                  className="w-full h-9 px-3 rounded-lg border border-[#e9edff] bg-[#f9f9ff] text-[14px] text-[#141b2b] focus:outline-none focus:ring-2 focus:ring-[#2563eb]/20 focus:border-[#2563eb] transition-all"
+                  className="w-full h-9 px-3 rounded-lg border border-surface-variant bg-surface-container-low text-[14px] text-on-surface focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all"
                 />
               </Field>
               <Field label="Mode">
                 <select
                   value={form.mode}
                   onChange={(e) => update('mode', e.target.value)}
-                  className="w-full h-9 px-3 rounded-lg border border-[#e9edff] bg-[#f9f9ff] text-[14px] text-[#141b2b] focus:outline-none focus:ring-2 focus:ring-[#2563eb]/20 focus:border-[#2563eb] transition-all"
+                  className="w-full h-9 px-3 rounded-lg border border-surface-variant bg-surface-container-low text-[14px] text-on-surface focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all"
                 >
                   <option value="NORMAL">Normal</option>
                   <option value="COMPRESSED">Compressed</option>
@@ -228,7 +228,7 @@ const EditJobModal = ({ jobId, onClose, onSaved }: Props) => {
                   <select
                     value={form.export_format}
                     onChange={(e) => update('export_format', e.target.value)}
-                    className="w-full h-9 px-3 rounded-lg border border-[#e9edff] bg-[#f9f9ff] text-[14px] text-[#141b2b] focus:outline-none focus:ring-2 focus:ring-[#2563eb]/20 focus:border-[#2563eb] transition-all"
+                    className="w-full h-9 px-3 rounded-lg border border-surface-variant bg-surface-container-low text-[14px] text-on-surface focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all"
                   >
                     <option value="ARCHIVE">Archive</option>
                     <option value="JSON">JSON</option>
@@ -238,14 +238,14 @@ const EditJobModal = ({ jobId, onClose, onSaved }: Props) => {
               )}
             </div>
 
-            <div className="flex items-center justify-between p-4 rounded-xl border border-[#e9edff] bg-[#f9f9ff]">
+            <div className="flex items-center justify-between p-4 rounded-xl border border-surface-variant bg-surface-container-low">
               <div>
-                <p className="text-[14px] font-medium text-[#141b2b]">Encryption</p>
-                <p className="text-[12px] text-[#737686]">AES-256-GCM — data encrypted before leaving your machine</p>
+                <p className="text-[14px] font-medium text-on-surface">Encryption</p>
+                <p className="text-[12px] text-outline">AES-256-GCM — data encrypted before leaving your machine</p>
               </div>
               <label className="relative inline-flex items-center cursor-pointer">
                 <input type="checkbox" checked={form.encrypted} onChange={(e) => update('encrypted', e.target.checked)} className="sr-only peer" />
-                <div className="w-11 h-6 bg-[#dce2f7] peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-[#2563eb]" />
+                <div className="w-11 h-6 bg-surface-variant peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-surface-container-lowest after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-primary" />
               </label>
             </div>
 
@@ -253,14 +253,14 @@ const EditJobModal = ({ jobId, onClose, onSaved }: Props) => {
               <button
                 type="button"
                 onClick={onClose}
-                className="px-4 h-9 rounded-lg bg-[#ffffff] border border-[#e9edff] text-[#141b2b] text-[13px] font-medium hover:bg-[#f1f3ff] transition-colors"
+                className="px-4 h-9 rounded-lg bg-surface-container-lowest border border-surface-variant text-on-surface text-[13px] font-medium hover:bg-surface-container-low transition-colors"
               >
                 Cancel
               </button>
               <button
                 type="submit"
                 disabled={isSubmitting}
-                className="px-4 h-9 rounded-lg bg-[#2563eb] text-white text-[13px] font-medium hover:bg-[#1d4ed8] transition-colors disabled:opacity-60 flex items-center gap-2"
+                className="px-4 h-9 rounded-lg bg-primary text-on-primary text-[13px] font-medium hover:bg-primary-container transition-colors disabled:opacity-60 flex items-center gap-2"
               >
                 {isSubmitting && <Loader2 size={14} className="animate-spin" />}
                 {isSubmitting ? 'Saving...' : 'Save Changes'}
@@ -275,7 +275,7 @@ const EditJobModal = ({ jobId, onClose, onSaved }: Props) => {
 
 const Field = ({ label, children }: { label: string; children: React.ReactNode }) => (
   <div className="flex flex-col gap-1.5">
-    <label className="text-[13px] font-medium text-[#434655]">{label}</label>
+    <label className="text-[13px] font-medium text-on-surface-variant">{label}</label>
     {children}
   </div>
 )

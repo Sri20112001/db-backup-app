@@ -1,6 +1,7 @@
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
 import type { User, Organization } from '../types'
+import { API_BASE_URL as BASE } from '../CONSTANTS'
 
 interface AuthState {
   user: User | null
@@ -20,35 +21,30 @@ export const useAuthStore = create<AuthState>()(
       refreshToken: null,
       currentOrg: null,
       setAuth: (user, accessToken, refreshToken) => {
-        localStorage.setItem('access_token', accessToken)
-        localStorage.setItem('refresh_token', refreshToken)
         set({ user, accessToken, refreshToken })
       },
       setCurrentOrg: (org) => set({ currentOrg: org }),
       logout: () => {
-        const rt = get().refreshToken || localStorage.getItem('refresh_token')
+        const rt = get().refreshToken
         if (rt) {
           // Fire-and-forget: revoke server-side refresh token
-          fetch(`${import.meta.env.VITE_API_URL}/auth/logout`, {
+          fetch(`${BASE}/auth/logout`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ refresh_token: rt }),
           }).catch(() => {})
         }
-        localStorage.removeItem('access_token')
-        localStorage.removeItem('refresh_token')
         set({ user: null, accessToken: null, refreshToken: null, currentOrg: null })
       },
     }),
     {
       name: 'vaultguard-auth',
-      partialize: (s) => ({ user: s.user, currentOrg: s.currentOrg, refreshToken: s.refreshToken }),
-      onRehydrateStorage: () => (state) => {
-        // Sync persisted refresh token back to localStorage on page load
-        if (state?.refreshToken) {
-          localStorage.setItem('refresh_token', state.refreshToken)
-        }
-      },
+      partialize: (s) => ({
+        user: s.user,
+        currentOrg: s.currentOrg,
+        accessToken: s.accessToken,
+        refreshToken: s.refreshToken,
+      }),
     }
   )
 )

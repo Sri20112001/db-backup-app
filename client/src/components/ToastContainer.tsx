@@ -5,7 +5,7 @@ const borderColor = {
   success: 'border-[#006591]',
   error: 'border-[#ba1a1a]',
   warning: 'border-[#d97706]',
-  info: 'border-[#004ac6]',
+  info: 'border-primary',
 }
 
 const IconMap = {
@@ -16,10 +16,10 @@ const IconMap = {
 }
 
 const iconColor = {
-  success: 'text-[#006591]',
-  error: 'text-[#ba1a1a]',
+  success: 'text-on-primary-container',
+  error: 'text-error',
   warning: 'text-[#d97706]',
-  info: 'text-[#004ac6]',
+  info: 'text-primary',
 }
 
 const ToastContainer = () => {
@@ -34,14 +34,14 @@ const ToastContainer = () => {
         return (
           <div
             key={t.id}
-            className={`flex items-center gap-3 px-4 py-3 bg-[#ffffff] border border-[#e9edff] border-l-4 ${borderColor[t.type]} rounded-lg shadow-lg min-w-[280px] max-w-[380px]`}
+            className={`flex items-center gap-3 px-4 py-3 bg-surface-container-lowest border border-surface-variant border-l-4 ${borderColor[t.type]} rounded-lg shadow-lg min-w-[280px] max-w-[380px]`}
           >
             <Icon size={16} className={`shrink-0 ${iconColor[t.type]}`} />
-            <span className="text-[13px] text-[#141b2b] flex-1">{t.message}</span>
+            <span className="text-[13px] text-on-surface flex-1">{t.message}</span>
             <button
               type="button"
               onClick={() => removeToast(t.id)}
-              className="text-[#737686] hover:text-[#141b2b] transition-colors"
+              className="text-outline hover:text-on-surface transition-colors"
             >
               <X size={14} />
             </button>

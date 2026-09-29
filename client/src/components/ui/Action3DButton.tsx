@@ -13,12 +13,12 @@ const Action3DButton: React.FC<Action3DButtonProps> = ({ children, className = '
     <button
       className={`
         relative inline-flex items-center justify-center cursor-pointer outline-none align-middle
-        text-[13px] font-medium text-white
+        text-[13px] font-medium text-on-primary
         px-4 h-9 rounded-lg
-        bg-[#2563eb]
+        bg-primary
         [transform-style:preserve-3d]
         transition-[transform,background-color] duration-150 ease-out
-        hover:bg-[#1d4ed8] hover:[transform:translate(0,0.25em)]
+        hover:bg-primary-container hover:[transform:translate(0,0.25em)]
         active:bg-[#1d4ed8] active:[transform:translate(0,0.75em)]
         disabled:opacity-60 disabled:cursor-not-allowed disabled:pointer-events-none
         disabled:[transform:none]

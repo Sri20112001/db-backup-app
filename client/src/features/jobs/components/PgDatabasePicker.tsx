@@ -1,7 +1,6 @@
 import { useState } from 'react'
 import { DatabaseBackup, Loader2 } from 'lucide-react'
-
-const BROWSE_BASE = import.meta.env.VITE_AGENT_BROWSE_URL || 'http://127.0.0.1:7546'
+import { AGENT_BROWSE_BASE_URL as BROWSE_BASE } from '@/CONSTANTS'
 
 interface Props {
   value: string
@@ -52,13 +51,13 @@ const PgDatabasePicker = ({ value, onChange }: Props) => {
 
   const showSelect = dbs !== null && !manual
   const inputCls =
-    'w-full h-9 px-3 rounded-lg border border-[#e9edff] bg-[#f9f9ff] font-mono text-[13px] text-[#141b2b] focus:outline-none focus:ring-2 focus:ring-[#2563eb]/20 focus:border-[#2563eb] transition-all'
+    'w-full h-9 px-3 rounded-lg border border-surface-variant bg-surface-container-low font-mono text-[13px] text-on-surface focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all'
   const connCls =
-    'h-9 px-3 rounded-lg border border-[#e9edff] bg-[#f9f9ff] font-mono text-[13px] text-[#141b2b] focus:outline-none focus:ring-2 focus:ring-[#2563eb]/20 focus:border-[#2563eb] transition-all'
+    'h-9 px-3 rounded-lg border border-surface-variant bg-surface-container-low font-mono text-[13px] text-on-surface focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all'
 
   return (
     <div className="flex flex-col gap-2">
-      <label className="block text-[13px] font-medium text-[#434655]">Database Name *</label>
+      <label className="block text-[13px] font-medium text-on-surface-variant">Database Name *</label>
 
       <div className="grid grid-cols-2 gap-2">
         <input
@@ -100,7 +99,7 @@ const PgDatabasePicker = ({ value, onChange }: Props) => {
         type="button"
         onClick={() => void discover()}
         disabled={isLoading}
-        className="self-start flex items-center gap-1.5 text-[12px] font-medium text-[#004ac6] hover:underline disabled:opacity-50"
+        className="self-start flex items-center gap-1.5 text-[12px] font-medium text-primary hover:underline disabled:opacity-50"
       >
         {isLoading ? <Loader2 size={13} className="animate-spin" /> : <DatabaseBackup size={13} />}
         {dbs === null ? 'Detect databases' : 'Re-detect'}
@@ -140,14 +139,14 @@ const PgDatabasePicker = ({ value, onChange }: Props) => {
         <button
           type="button"
           onClick={() => setManual(false)}
-          className="self-start text-[12px] font-medium text-[#004ac6] hover:underline"
+          className="self-start text-[12px] font-medium text-primary hover:underline"
         >
           ← Back to detected list
         </button>
       )}
 
-      {error && <p className="text-[12px] text-[#737686]">{error}</p>}
-      <p className="text-[11px] text-[#737686]">
+      {error && <p className="text-[12px] text-outline">{error}</p>}
+      <p className="text-[11px] text-outline">
         Credentials go only to the agent on this machine for discovery — never stored.
       </p>
     </div>

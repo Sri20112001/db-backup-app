@@ -1,7 +1,6 @@
 import { useCallback, useEffect, useState } from 'react'
 import { Database, Loader2, RefreshCw } from 'lucide-react'
-
-const BROWSE_BASE = import.meta.env.VITE_AGENT_BROWSE_URL || 'http://127.0.0.1:7546'
+import { AGENT_BROWSE_BASE_URL as BROWSE_BASE } from '@/CONSTANTS'
 
 interface Props {
   value: string
@@ -49,17 +48,17 @@ const SqlDatabasePicker = ({ value, onChange }: Props) => {
 
   const showSelect = dbs !== null && !manual
   const inputCls =
-    'w-full h-9 px-3 rounded-lg border border-[#e9edff] bg-[#f9f9ff] font-mono text-[13px] text-[#141b2b] focus:outline-none focus:ring-2 focus:ring-[#2563eb]/20 focus:border-[#2563eb] transition-all'
+    'w-full h-9 px-3 rounded-lg border border-surface-variant bg-surface-container-low font-mono text-[13px] text-on-surface focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all'
 
   return (
     <div className="flex flex-col gap-2">
       <div className="flex items-center justify-between">
-        <label className="block text-[13px] font-medium text-[#434655]">Database Name *</label>
+        <label className="block text-[13px] font-medium text-on-surface-variant">Database Name *</label>
         <button
           type="button"
           onClick={() => void discover()}
           disabled={isLoading}
-          className="flex items-center gap-1.5 text-[12px] font-medium text-[#004ac6] hover:underline disabled:opacity-50"
+          className="flex items-center gap-1.5 text-[12px] font-medium text-primary hover:underline disabled:opacity-50"
         >
           {isLoading ? <Loader2 size={13} className="animate-spin" /> : <RefreshCw size={13} />}
           {dbs === null ? 'Detect databases' : 'Re-detect'}
@@ -70,7 +69,7 @@ const SqlDatabasePicker = ({ value, onChange }: Props) => {
         <div className="relative">
           <Database
             size={15}
-            className="absolute left-3 top-1/2 -translate-y-1/2 text-[#737686] pointer-events-none"
+            className="absolute left-3 top-1/2 -translate-y-1/2 text-outline pointer-events-none"
           />
           <select
             value={dbs.includes(value) ? value : value === '' ? '' : '__manual'}
@@ -106,17 +105,17 @@ const SqlDatabasePicker = ({ value, onChange }: Props) => {
         <button
           type="button"
           onClick={() => setManual(false)}
-          className="self-start text-[12px] font-medium text-[#004ac6] hover:underline"
+          className="self-start text-[12px] font-medium text-primary hover:underline"
         >
           ← Back to detected list
         </button>
       )}
 
       {isLoading && dbs === null && !error && (
-        <p className="text-[12px] text-[#737686]">Detecting databases on this machine…</p>
+        <p className="text-[12px] text-outline">Detecting databases on this machine…</p>
       )}
       {error && (
-        <p className="text-[12px] text-[#737686]">
+        <p className="text-[12px] text-outline">
           {error} You can still type the name manually — required for remote agents.
         </p>
       )}

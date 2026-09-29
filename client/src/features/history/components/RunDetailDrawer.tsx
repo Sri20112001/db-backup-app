@@ -78,15 +78,15 @@ const RunDetailDrawer = ({ runId }: { runId: string }) => {
 
   return (
     <div className="fixed inset-0 z-[100] flex justify-end">
-      <div className="absolute inset-0 bg-[#141b2b]/30 backdrop-blur-[2px]" onClick={closeRunDetail} />
-      <div className="relative w-full max-w-[520px] bg-[#ffffff] h-full overflow-y-auto shadow-2xl border-l border-[#e9edff] flex flex-col">
+      <div className="absolute inset-0 bg-on-surface/30 backdrop-blur-[2px]" onClick={closeRunDetail} />
+      <div className="relative w-full max-w-[520px] bg-surface-container-lowest h-full overflow-y-auto shadow-2xl border-l border-surface-variant flex flex-col">
         {/* Header */}
-        <div className="flex items-center justify-between p-5 border-b border-[#e9edff] sticky top-0 bg-[#ffffff] z-10">
+        <div className="flex items-center justify-between p-5 border-b border-surface-variant sticky top-0 bg-surface-container-lowest z-10">
           <div className="flex items-center gap-3">
-            <h2 className="text-[16px] font-semibold text-[#141b2b]">Run Details</h2>
+            <h2 className="text-[16px] font-semibold text-on-surface">Run Details</h2>
             {run && <StatusBadge status={run.status} />}
           </div>
-          <button type="button" onClick={closeRunDetail} className="p-1.5 rounded-lg text-[#434655] hover:bg-[#e9edff] transition-colors">
+          <button type="button" onClick={closeRunDetail} className="p-1.5 rounded-lg text-on-surface-variant hover:bg-surface-container-high transition-colors">
             <X size={18} />
           </button>
         </div>
@@ -108,17 +108,17 @@ const RunDetailDrawer = ({ runId }: { runId: string }) => {
                   <div key={s} className="flex items-center flex-1">
                     <div className="flex flex-col items-center flex-1">
                       <div className={`w-6 h-6 rounded-full flex items-center justify-center text-[11px] font-bold transition-colors ${
-                        done ? 'bg-[#006591] text-white' :
-                        active && (failed || cancelled) ? 'bg-[#ba1a1a] text-white' :
-                        active ? 'bg-[#2563eb] text-white' :
-                        'bg-[#e9edff] text-[#737686]'
+                        done ? 'bg-primary text-on-primary' :
+                        active && (failed || cancelled) ? 'bg-error text-on-primary' :
+                        active ? 'bg-primary text-on-primary' :
+                        'bg-surface-container-high text-outline'
                       }`}>
                         {done ? <Check size={12} /> : i + 1}
                       </div>
-                      <span className="text-[10px] text-[#737686] mt-1 text-center leading-tight">{s}</span>
+                      <span className="text-[10px] text-outline mt-1 text-center leading-tight">{s}</span>
                     </div>
                     {i < STATUSES.length - 1 && (
-                      <div className={`h-0.5 flex-1 mx-1 ${done ? 'bg-[#006591]' : 'bg-[#e9edff]'}`} />
+                      <div className={`h-0.5 flex-1 mx-1 ${done ? 'bg-primary' : 'bg-surface-container-high'}`} />
                     )}
                   </div>
                 )
@@ -133,16 +133,16 @@ const RunDetailDrawer = ({ runId }: { runId: string }) => {
                 { label: 'Uploaded', value: formatBytes(run.bytes_uploaded) },
                 { label: 'Duration', value: formatDuration(run.duration_seconds) },
               ].map((m) => (
-                <div key={m.label} className="p-3 rounded-lg bg-[#f1f3ff] border border-[#e9edff]">
-                  <p className="text-[11px] text-[#737686] uppercase tracking-wider font-semibold">{m.label}</p>
-                  <p className="text-[16px] font-bold text-[#141b2b] mt-0.5">{m.value}</p>
+                <div key={m.label} className="p-3 rounded-lg bg-surface-container-low border border-surface-variant">
+                  <p className="text-[11px] text-outline uppercase tracking-wider font-semibold">{m.label}</p>
+                  <p className="text-[16px] font-bold text-on-surface mt-0.5">{m.value}</p>
                 </div>
               ))}
             </div>
 
             {/* Details */}
             <div className="flex flex-col gap-2">
-              <h3 className="text-[12px] font-semibold uppercase tracking-wider text-[#434655]">Details</h3>
+              <h3 className="text-[12px] font-semibold uppercase tracking-wider text-on-surface-variant">Details</h3>
               <div className="flex flex-col gap-1.5 text-[13px]">
                 {[
                   { label: 'Job', value: run.backup_job?.name },
@@ -153,8 +153,8 @@ const RunDetailDrawer = ({ runId }: { runId: string }) => {
                   { label: 'Checksum', value: run.checksum, mono: true },
                 ].map((d) => d.value ? (
                   <div key={d.label} className="flex items-start gap-3">
-                    <span className="text-[#737686] w-28 shrink-0">{d.label}</span>
-                    <span className={`text-[#141b2b] break-all ${d.mono ? 'font-mono text-[11px]' : ''}`}>
+                    <span className="text-outline w-28 shrink-0">{d.label}</span>
+                    <span className={`text-on-surface break-all ${d.mono ? 'font-mono text-[11px]' : ''}`}>
                       {d.value}
                     </span>
                   </div>
@@ -164,26 +164,26 @@ const RunDetailDrawer = ({ runId }: { runId: string }) => {
 
             {/* Error */}
             {run.error_message && (
-              <div className="p-3 rounded-lg bg-[#ffdad6] border border-[#fca5a5]">
-                <p className="text-[12px] font-semibold text-[#93000a] mb-1">Error</p>
-                <p className="font-mono text-[12px] text-[#ba1a1a]">{run.error_message}</p>
+              <div className="p-3 rounded-lg bg-error-container border border-error">
+                <p className="text-[12px] font-semibold text-on-error-container mb-1">Error</p>
+                <p className="font-mono text-[12px] text-error">{run.error_message}</p>
               </div>
             )}
 
             {/* Artifacts */}
             {artifacts.length > 0 && (
               <div className="flex flex-col gap-2">
-                <h3 className="text-[12px] font-semibold uppercase tracking-wider text-[#434655]">
+                <h3 className="text-[12px] font-semibold uppercase tracking-wider text-on-surface-variant">
                   Artifacts ({artifacts.length})
                 </h3>
                 <div className="flex flex-col gap-1.5">
                   {artifacts.map((a) => (
-                    <div key={a.id} className="flex items-center justify-between p-2.5 rounded-lg bg-[#f1f3ff] border border-[#e9edff]">
+                    <div key={a.id} className="flex items-center justify-between p-2.5 rounded-lg bg-surface-container-low border border-surface-variant">
                       <div className="min-w-0">
-                        <p className="text-[13px] font-medium text-[#141b2b] truncate">{a.name}</p>
-                        <p className="font-mono text-[11px] text-[#737686]">{truncate(a.checksum, 8)}</p>
+                        <p className="text-[13px] font-medium text-on-surface truncate">{a.name}</p>
+                        <p className="font-mono text-[11px] text-outline">{truncate(a.checksum, 8)}</p>
                       </div>
-                      <span className="text-[12px] font-mono text-[#434655] shrink-0 ml-3">{formatBytes(a.size)}</span>
+                      <span className="text-[12px] font-mono text-on-surface-variant shrink-0 ml-3">{formatBytes(a.size)}</span>
                     </div>
                   ))}
                 </div>
@@ -193,19 +193,19 @@ const RunDetailDrawer = ({ runId }: { runId: string }) => {
             {/* Live log */}
             {(liveLines.length > 0 || run.status === 'RUNNING' || run.status === 'UPLOADING') && (
               <div className="flex flex-col gap-2">
-                <h3 className="text-[12px] font-semibold uppercase tracking-wider text-[#434655] flex items-center gap-1.5">
+                <h3 className="text-[12px] font-semibold uppercase tracking-wider text-on-surface-variant flex items-center gap-1.5">
                   <Terminal size={13} />
                   Live Log
                   {(run.status === 'RUNNING' || run.status === 'UPLOADING') && (
                     <span className="relative flex h-2 w-2">
-                      <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-[#006591] opacity-75" />
-                      <span className="relative inline-flex rounded-full h-2 w-2 bg-[#006591]" />
+                      <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-primary opacity-75" />
+                      <span className="relative inline-flex rounded-full h-2 w-2 bg-primary" />
                     </span>
                   )}
                 </h3>
-                <div className="max-h-40 overflow-y-auto rounded-lg bg-[#141b2b] p-3 font-mono text-[11px] leading-relaxed text-[#dbe1ff]">
+                <div className="max-h-40 overflow-y-auto rounded-lg bg-on-surface p-3 font-mono text-[11px] leading-relaxed text-[#dbe1ff]">
                   {liveLines.length === 0 ? (
-                    <span className="text-[#737686]">Waiting for agent output…</span>
+                    <span className="text-outline">Waiting for agent output…</span>
                   ) : (
                     liveLines.map((line, i) => <div key={i} className="break-all">{line}</div>)
                   )}
@@ -218,7 +218,7 @@ const RunDetailDrawer = ({ runId }: { runId: string }) => {
               <button
                 type="button"
                 onClick={handleCancel}
-                className="w-full h-9 rounded-lg bg-[#ffffff] border border-[#fca5a5] text-[#ba1a1a] text-[13px] font-medium hover:bg-[#ffdad6] transition-colors"
+                className="w-full h-9 rounded-lg bg-surface-container-lowest border border-error text-error text-[13px] font-medium hover:bg-error-container transition-colors"
               >
                 Cancel Backup
               </button>
@@ -231,18 +231,18 @@ const RunDetailDrawer = ({ runId }: { runId: string }) => {
                   type="button"
                   onClick={handleVerify}
                   disabled={isVerifying}
-                  className="w-full h-9 rounded-lg bg-[#ffffff] border border-[#e9edff] text-[#141b2b] text-[13px] font-medium hover:bg-[#f1f3ff] transition-colors disabled:opacity-60 flex items-center justify-center gap-2"
+                  className="w-full h-9 rounded-lg bg-surface-container-lowest border border-surface-variant text-on-surface text-[13px] font-medium hover:bg-surface-container-low transition-colors disabled:opacity-60 flex items-center justify-center gap-2"
                 >
-                  {isVerifying ? <Loader2 size={14} className="animate-spin" /> : <ShieldCheck size={14} className="text-[#006591]" />}
+                  {isVerifying ? <Loader2 size={14} className="animate-spin" /> : <ShieldCheck size={14} className="text-on-primary-container" />}
                   {isVerifying ? 'Verifying…' : 'Verify Checksum'}
                 </button>
                 {verifyResult === 'ok' && (
-                  <p className="text-[12px] text-[#006591] flex items-center gap-1.5">
+                  <p className="text-[12px] text-on-primary-container flex items-center gap-1.5">
                     <Check size={13} /> Stored file matches the recorded checksum.
                   </p>
                 )}
                 {verifyResult === 'mismatch' && (
-                  <p className="text-[12px] text-[#ba1a1a]">
+                  <p className="text-[12px] text-error">
                     Checksum mismatch — an alert was raised. Treat this recovery point as suspect.
                   </p>
                 )}

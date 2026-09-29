@@ -10,7 +10,7 @@ interface Props {
 }
 
 const inputCls =
-  'w-full h-9 px-3 rounded-lg border border-[#e9edff] bg-[#f9f9ff] text-[14px] text-[#141b2b] placeholder:text-[#737686] focus:outline-none focus:ring-2 focus:ring-[#2563eb]/20 focus:border-[#2563eb] transition-all'
+  'w-full h-9 px-3 rounded-lg border border-surface-variant bg-surface-container-low text-[14px] text-on-surface placeholder:text-outline focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all'
 
 const CreateOrgForm = ({ onCreated, autoFocus = false }: Props) => {
   const { setCurrentOrg } = useAuthStore()
@@ -51,11 +51,11 @@ const CreateOrgForm = ({ onCreated, autoFocus = false }: Props) => {
         maxLength={100}
         className={inputCls}
       />
-      {error && <p className="text-[12px] text-[#ba1a1a]">{error}</p>}
+      {error && <p className="text-[12px] text-error">{error}</p>}
       <button
         type="submit"
         disabled={isLoading || !name.trim()}
-        className="w-full h-9 rounded-lg bg-[#2563eb] text-white text-[13px] font-medium hover:bg-[#1d4ed8] transition-colors disabled:opacity-60 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+        className="w-full h-9 rounded-lg bg-primary text-on-primary text-[13px] font-medium hover:bg-primary-container transition-colors disabled:opacity-60 disabled:cursor-not-allowed flex items-center justify-center gap-2"
       >
         {isLoading ? <Loader2 size={14} className="animate-spin" /> : <Plus size={14} />}
         {isLoading ? 'Creating...' : 'Create organization'}

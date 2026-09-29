@@ -34,32 +34,32 @@ const LoginPage = () => {
   };
 
   return (
-    <div className="min-h-screen bg-[#f9f9ff] flex items-center justify-center px-4">
-      <div className="w-full max-w-[420px] bg-[#ffffff] rounded-xl border border-[#e9edff] shadow-[0_4px_24px_rgba(20,27,43,0.08)] p-8">
+    <div className="min-h-screen bg-surface-container-low flex items-center justify-center px-4">
+      <div className="w-full max-w-[420px] bg-surface-container-lowest rounded-xl border border-surface-variant shadow-[0_4px_24px_rgba(20,27,43,0.08)] p-8">
         {/* Logo */}
         <div className="flex items-center gap-3 mb-8">
-          <div className="w-10 h-10 rounded-xl bg-[#2563eb] flex items-center justify-center">
-            <Shield size={20} className="text-white" />
+          <div className="w-10 h-10 rounded-xl bg-primary flex items-center justify-center">
+            <Shield size={20} className="text-on-primary" />
           </div>
           <div>
-            <h1 className="text-[20px] font-semibold text-[#141b2b] tracking-tight">
+            <h1 className="text-[20px] font-semibold text-on-surface tracking-tight">
               VaultGuard
             </h1>
-            <p className="text-[12px] text-[#737686]">
+            <p className="text-[12px] text-outline">
               Backup & Recovery Platform
             </p>
           </div>
         </div>
 
-        <h2 className="text-[18px] font-semibold text-[#141b2b] mb-1">
+        <h2 className="text-[18px] font-semibold text-on-surface mb-1">
           Sign in
         </h2>
-        <p className="text-[13px] text-[#737686] mb-6">
+        <p className="text-[13px] text-outline mb-6">
           Protecting your business data
         </p>
 
         {error && (
-          <div className="mb-4 px-3 py-2.5 rounded-lg bg-[#ffdad6] border border-[#fca5a5] text-[#93000a] text-[13px]">
+          <div className="mb-4 px-3 py-2.5 rounded-lg bg-error-container border border-error text-on-error-container text-[13px]">
             {error}
           </div>
         )}
@@ -67,7 +67,7 @@ const LoginPage = () => {
         <form onSubmit={handleSubmit} className="flex flex-col gap-4">
           <div>
             <label
-              className="block text-[13px] font-medium text-[#434655] mb-1.5"
+              className="block text-[13px] font-medium text-on-surface-variant mb-1.5"
               htmlFor="email"
             >
               Email address
@@ -79,13 +79,13 @@ const LoginPage = () => {
               onChange={(e) => setEmail(e.target.value)}
               required
               placeholder="admin@company.com"
-              className="w-full h-9 px-3 rounded-lg border border-[#e9edff] bg-[#f9f9ff] text-[14px] text-[#141b2b] placeholder:text-[#737686] focus:outline-none focus:ring-2 focus:ring-[#2563eb]/20 focus:border-[#2563eb] transition-all"
+              className="w-full h-9 px-3 rounded-lg border border-surface-variant bg-surface-container-low text-[14px] text-on-surface placeholder:text-outline focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all"
             />
           </div>
 
           <div>
             <label
-              className="block text-[13px] font-medium text-[#434655] mb-1.5"
+              className="block text-[13px] font-medium text-on-surface-variant mb-1.5"
               htmlFor="password"
             >
               Password
@@ -98,12 +98,12 @@ const LoginPage = () => {
                 onChange={(e) => setPassword(e.target.value)}
                 required
                 placeholder="••••••••"
-                className="w-full h-9 px-3 pr-10 rounded-lg border border-[#e9edff] bg-[#f9f9ff] text-[14px] text-[#141b2b] placeholder:text-[#737686] focus:outline-none focus:ring-2 focus:ring-[#2563eb]/20 focus:border-[#2563eb] transition-all"
+                className="w-full h-9 px-3 pr-10 rounded-lg border border-surface-variant bg-surface-container-low text-[14px] text-on-surface placeholder:text-outline focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all"
               />
               <button
                 type="button"
                 onClick={() => setShowPassword(!showPassword)}
-                className="absolute right-2.5 top-1/2 -translate-y-1/2 text-[#737686] hover:text-[#141b2b]"
+                className="absolute right-2.5 top-1/2 -translate-y-1/2 text-outline hover:text-on-surface"
               >
                 {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
               </button>
@@ -113,18 +113,18 @@ const LoginPage = () => {
           <button
             type="submit"
             disabled={isLoading}
-            className="w-full h-10 rounded-lg bg-[#2563eb] text-white text-[13px] font-medium hover:bg-[#1d4ed8] active:bg-[#1e40af] transition-colors disabled:opacity-60 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+            className="w-full h-10 rounded-lg bg-primary text-on-primary text-[13px] font-medium hover:bg-primary-container active:bg-[#1e40af] transition-colors disabled:opacity-60 disabled:cursor-not-allowed flex items-center justify-center gap-2"
           >
             {isLoading && <Loader2 size={14} className="animate-spin" />}
             {isLoading ? "Signing in..." : "Sign in"}
           </button>
         </form>
 
-        <p className="mt-6 text-center text-[13px] text-[#737686]">
+        <p className="mt-6 text-center text-[13px] text-outline">
           Don't have an account?{" "}
           <Link
             to="/register"
-            className="text-[#004ac6] hover:underline font-medium"
+            className="text-primary hover:underline font-medium"
           >
             Register
           </Link>

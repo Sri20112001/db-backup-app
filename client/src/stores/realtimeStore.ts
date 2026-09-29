@@ -46,6 +46,9 @@ interface RealtimeState {
   // Alert pushed from the socket, consumed once by the provider into a toast.
   pendingToast: ToastMsg | null
   consumeToast: () => void
+  // Local mutation (e.g. mark-all-read) that alert consumers should
+  // refetch on. Bumps alertTick without raising a toast.
+  notifyAlertsChanged: () => void
   // Live log lines per run id (capped).
   logs: Record<string, string[]>
   // Latest presence payload (agent id/name/status + seq).
@@ -88,6 +91,7 @@ export const useRealtimeStore = create<RealtimeState>()((set, get) => ({
   alertTick: 0,
   pendingToast: null,
   consumeToast: () => set({ pendingToast: null }),
+  notifyAlertsChanged: () => set((s) => ({ alertTick: s.alertTick + 1 })),
   logs: {},
   presence: null,
   _seq: 0,

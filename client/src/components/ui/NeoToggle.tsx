@@ -48,7 +48,7 @@ const NeoToggle: React.FC<NeoToggleProps> = ({ checked, onChange, id = 'neo-togg
           <div className="absolute inset-0 rounded-full border border-black/5 bg-[var(--toggle-off-color)] shadow-[0_2px_10px_rgba(0,0,0,0.1)] transition-all duration-500 ease-out peer-checked:bg-[var(--toggle-on-color)] peer-checked:border-[rgba(37,99,235,0.3)] peer-checked:shadow-[0_0_15px_rgba(37,99,235,0.5)]" />
           <div className="absolute inset-[5px] rounded-full bg-[linear-gradient(135deg,rgba(255,255,255,0.5),transparent)] transition-all duration-500 ease-out overflow-hidden flex items-center justify-center">
             <div className="relative w-[10px] h-[10px] transition-all duration-500 ease-out">
-              <div className="absolute top-1/2 left-1/2 w-[10px] h-[2px] bg-white -translate-x-1/2 -translate-y-1/2 transition-all duration-500 ease-out peer-checked:h-[8px] peer-checked:w-[8px] peer-checked:rounded-full peer-checked:bg-transparent peer-checked:border peer-checked:border-white" />
+              <div className="absolute top-1/2 left-1/2 w-[10px] h-[2px] bg-surface-container-lowest -translate-x-1/2 -translate-y-1/2 transition-all duration-500 ease-out peer-checked:h-[8px] peer-checked:w-[8px] peer-checked:rounded-full peer-checked:bg-transparent peer-checked:border peer-checked:border-white" />
               <div className="absolute inset-0 rounded-full border border-white scale-0 opacity-0 transition-all duration-500 ease-out peer-checked:scale-125 peer-checked:opacity-30 peer-checked:animate-ping" />
             </div>
           </div>
