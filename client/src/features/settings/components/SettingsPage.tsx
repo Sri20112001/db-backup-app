@@ -155,7 +155,7 @@ const SettingsPage = () => {
             <table className="w-full text-left border-collapse">
               <thead className="sticky top-0 z-10">
                 <tr className="bg-surface-container-low text-[12px] font-semibold uppercase tracking-wider text-on-surface-variant">
-                  {['Member', 'Email', 'Role', 'Actions'].map((h) => (
+                  {['Member', 'Username', 'Role', 'Actions'].map((h) => (
                     <th key={h} className="py-2.5 px-4">{h}</th>
                   ))}
                 </tr>
@@ -227,7 +227,7 @@ const SettingsPage = () => {
               <div className="relative bg-surface-container-lowest rounded-xl shadow-2xl p-6 w-full max-w-md mx-4 border border-surface-variant">
                 <h2 className="text-[16px] font-semibold text-on-surface mb-4">Add Team Member</h2>
                 <form onSubmit={handleInvite} className="flex flex-col gap-4">
-                  <div><label className="block text-[13px] font-medium text-on-surface-variant mb-1.5">Email *</label><input type="email" value={inviteForm.email} onChange={(e) => setInviteForm((f) => ({ ...f, email: e.target.value }))} required className={inputCls} /></div>
+                  <div><label className="block text-[13px] font-medium text-on-surface-variant mb-1.5">Username *</label><input type="text" value={inviteForm.email} onChange={(e) => setInviteForm((f) => ({ ...f, email: e.target.value }))} required className={inputCls} /></div>
                   <div><label className="block text-[13px] font-medium text-on-surface-variant mb-1.5">Name</label><input type="text" value={inviteForm.name} onChange={(e) => setInviteForm((f) => ({ ...f, name: e.target.value }))} className={inputCls} /></div>
                   <div><label className="block text-[13px] font-medium text-on-surface-variant mb-1.5">Initial Password *</label><input type="password" value={inviteForm.password} onChange={(e) => setInviteForm((f) => ({ ...f, password: e.target.value }))} required minLength={8} className={inputCls} /></div>
                   <div>

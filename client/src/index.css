@@ -2,50 +2,53 @@
 
 @theme {
   /* ========================================================
-     LIGHT THEME — ICE / SAPPHIRE
+     LIGHT THEME
+     Clean White / Cool Gray / Teal
      ======================================================== */
 
   /* Surfaces */
-  --color-surface: #f5f7fc;
-  --color-surface-dim: #e7ebf3;
+  --color-surface: #f7f8fa;
+  --color-surface-dim: #eceff2;
   --color-surface-bright: #ffffff;
 
   --color-surface-container-lowest: #ffffff;
-  --color-surface-container-low: #f1f4f9;
-  --color-surface-container: #e9edf4;
-  --color-surface-container-high: #e1e6ef;
-  --color-surface-container-highest: #d7dee9;
+  --color-surface-container-low: #f9fafb;
+  --color-surface-container: #f1f3f5;
+  --color-surface-container-high: #e7eaee;
+  --color-surface-container-highest: #dfe3e8;
 
   /* Text */
-  --color-on-surface: #172033;
-  --color-on-surface-variant: #526078;
+  --color-on-surface: #171a1f;
+  --color-on-surface-variant: #606873;
 
   /* Inverse */
-  --color-inverse-surface: #172033;
-  --color-inverse-on-surface: #f5f7fc;
+  --color-inverse-surface: #20242a;
+  --color-inverse-on-surface: #f7f8fa;
 
   /* Borders */
-  --color-outline: #718096;
-  --color-outline-variant: #c8d0dd;
+  --color-outline: #7b8490;
+  --color-outline-variant: #d1d6dc;
 
 
   /* ========================================================
-     LIGHT PRIMARY — ROYAL BLUE
+     PRIMARY
+     Muted Deep Teal
      ======================================================== */
 
-  --color-surface-tint: #2563eb;
+  --color-surface-tint: #0f766e;
 
-  --color-primary: #2563eb;
+  --color-primary: #0f766e;
   --color-on-primary: #ffffff;
 
-  --color-primary-container: #dbeafe;
-  --color-on-primary-container: #1e3a8a;
+  --color-primary-container: #ccfbf1;
+  --color-on-primary-container: #134e4a;
 
-  --color-inverse-primary: #93c5fd;
+  --color-inverse-primary: #5eead4;
 
 
   /* ========================================================
-     LIGHT SECONDARY — BLUE SLATE
+     SECONDARY
+     Slate
      ======================================================== */
 
   --color-secondary: #475569;
@@ -56,80 +59,96 @@
 
 
   /* ========================================================
-     LIGHT TERTIARY — INDIGO
+     TERTIARY
+     Muted Blue
      ======================================================== */
 
-  --color-tertiary: #4f46e5;
+  --color-tertiary: #2563eb;
   --color-on-tertiary: #ffffff;
 
-  --color-tertiary-container: #e0e7ff;
-  --color-on-tertiary-container: #312e81;
+  --color-tertiary-container: #dbeafe;
+  --color-on-tertiary-container: #1e3a8a;
 
 
   /* ========================================================
-     LIGHT ERROR
+     ERROR
      ======================================================== */
 
-  --color-error: #dc2626;
+  --color-error: #c2413b;
   --color-on-error: #ffffff;
 
   --color-error-container: #fee2e2;
-  --color-on-error-container: #991b1b;
+  --color-on-error-container: #7f1d1d;
 
 
   /* ========================================================
-     LIGHT STATUS
+     SUCCESS
      ======================================================== */
 
-  --color-success: #16a34a;
+  --color-success: #15803d;
   --color-success-container: #dcfce7;
-  --color-on-success-container: #166534;
-
-  --color-warning: #d97706;
-  --color-warning-container: #fef3c7;
-  --color-on-warning-container: #92400e;
-
-  --color-info: #0284c7;
-  --color-info-container: #e0f2fe;
-  --color-on-info-container: #075985;
-
-  --color-inactive: #64748b;
-  --color-inactive-container: #f1f5f9;
-  --color-on-inactive-container: #475569;
+  --color-on-success-container: #14532d;
 
 
   /* ========================================================
-     LIGHT FIXED TOKENS
+     WARNING
      ======================================================== */
 
-  --color-primary-fixed: #dbeafe;
-  --color-primary-fixed-dim: #93c5fd;
-  --color-on-primary-fixed: #172554;
-  --color-on-primary-fixed-variant: #1d4ed8;
+  --color-warning: #b45309;
+  --color-warning-container: #fef3c7;
+  --color-on-warning-container: #78350f;
+
+
+  /* ========================================================
+     INFO
+     ======================================================== */
+
+  --color-info: #0369a1;
+  --color-info-container: #e0f2fe;
+  --color-on-info-container: #0c4a6e;
+
+
+  /* ========================================================
+     INACTIVE
+     ======================================================== */
+
+  --color-inactive: #6b7280;
+  --color-inactive-container: #f3f4f6;
+  --color-on-inactive-container: #374151;
+
+
+  /* ========================================================
+     FIXED
+     ======================================================== */
+
+  --color-primary-fixed: #ccfbf1;
+  --color-primary-fixed-dim: #99f6e4;
+  --color-on-primary-fixed: #042f2e;
+  --color-on-primary-fixed-variant: #115e59;
 
   --color-secondary-fixed: #e2e8f0;
   --color-secondary-fixed-dim: #cbd5e1;
   --color-on-secondary-fixed: #0f172a;
   --color-on-secondary-fixed-variant: #334155;
 
-  --color-tertiary-fixed: #e0e7ff;
-  --color-tertiary-fixed-dim: #c7d2fe;
-  --color-on-tertiary-fixed: #1e1b4b;
-  --color-on-tertiary-fixed-variant: #3730a3;
+  --color-tertiary-fixed: #dbeafe;
+  --color-tertiary-fixed-dim: #bfdbfe;
+  --color-on-tertiary-fixed: #172554;
+  --color-on-tertiary-fixed-variant: #1d4ed8;
 
 
   /* ========================================================
-     LIGHT BACKGROUND
+     BACKGROUND
      ======================================================== */
 
-  --color-background: #f5f7fc;
-  --color-on-background: #172033;
+  --color-background: #f7f8fa;
+  --color-on-background: #171a1f;
 
-  --color-surface-variant: #d7dee9;
+  --color-surface-variant: #dfe3e8;
 
 
   /* ========================================================
-     SHARED TYPOGRAPHY
+     TYPOGRAPHY
      ======================================================== */
 
   --font-sans: Inter, system-ui, sans-serif;
@@ -137,7 +156,7 @@
 
 
   /* ========================================================
-     SHARED RADIUS
+     RADIUS
      ======================================================== */
 
   --radius-sm: 0.125rem;
@@ -187,144 +206,159 @@
 
 /* ========================================================
    DARK THEME
-   COMPLETELY INDEPENDENT FROM LIGHT THEME
+   Graphite / Charcoal / Muted Teal
+   COMPLETELY INDEPENDENT
    ======================================================== */
 
 .dark {
 
   /* ======================================================
-     DARK SURFACES
-     Midnight / Graphite Blue
+     SURFACES
      ====================================================== */
 
-  --color-surface: #0b0d12;
-  --color-surface-dim: #07090d;
-  --color-surface-bright: #1b1f28;
+  --color-surface: #101214;
+  --color-surface-dim: #0b0d0f;
+  --color-surface-bright: #24282c;
 
-  --color-surface-container-lowest: #050609;
-  --color-surface-container-low: #0f1218;
-  --color-surface-container: #151922;
-  --color-surface-container-high: #1b202b;
-  --color-surface-container-highest: #232936;
+  --color-surface-container-lowest: #080a0c;
+  --color-surface-container-low: #131619;
+  --color-surface-container: #191c20;
+  --color-surface-container-high: #202428;
+  --color-surface-container-highest: #292e33;
 
 
   /* ======================================================
-     DARK TEXT
+     TEXT
      ====================================================== */
 
-  --color-on-surface: #f3f4f6;
-  --color-on-surface-variant: #a7afbd;
+  --color-on-surface: #e8eaed;
+  --color-on-surface-variant: #a6adb5;
 
-  --color-inverse-surface: #f3f4f6;
-  --color-inverse-on-surface: #0b0d12;
+  --color-inverse-surface: #e8eaed;
+  --color-inverse-on-surface: #101214;
 
 
   /* ======================================================
-     DARK BORDERS
+     BORDERS
      ====================================================== */
 
-  --color-outline: #6b7280;
-  --color-outline-variant: #303641;
+  --color-outline: #6f7780;
+  --color-outline-variant: #343a40;
 
 
   /* ======================================================
-     DARK PRIMARY
-     ELECTRIC BLUE
+     PRIMARY
+     Muted Teal — NOT neon
      ====================================================== */
 
-  --color-surface-tint: #5b8cff;
+  --color-surface-tint: #2dd4bf;
 
-  --color-primary: #5b8cff;
-  --color-on-primary: #07152f;
+  --color-primary: #2dd4bf;
+  --color-on-primary: #062b28;
 
-  --color-primary-container: #2457c5;
-  --color-on-primary-container: #e0eaff;
+  --color-primary-container: #115e59;
+  --color-on-primary-container: #ccfbf1;
 
-  --color-inverse-primary: #356ee8;
+  --color-inverse-primary: #0f766e;
 
 
   /* ======================================================
-     DARK SECONDARY
-     COOL CYAN-BLUE
+     SECONDARY
+     Cool Gray
      ====================================================== */
 
-  --color-secondary: #67b7e8;
-  --color-on-secondary: #071925;
+  --color-secondary: #a3adb8;
+  --color-on-secondary: #171a1d;
 
-  --color-secondary-container: #16435e;
-  --color-on-secondary-container: #c8eaff;
+  --color-secondary-container: #30363c;
+  --color-on-secondary-container: #e1e5e9;
 
 
   /* ======================================================
-     DARK TERTIARY
-     PURPLE / INDIGO
+     TERTIARY
+     Soft Blue
      ====================================================== */
 
-  --color-tertiary: #9b91ff;
-  --color-on-tertiary: #171340;
+  --color-tertiary: #7aa7d9;
+  --color-on-tertiary: #0b1b2d;
 
-  --color-tertiary-container: #45409a;
-  --color-on-tertiary-container: #e7e4ff;
+  --color-tertiary-container: #27496d;
+  --color-on-tertiary-container: #d9eaff;
 
 
   /* ======================================================
-     DARK ERROR
+     ERROR
      ====================================================== */
 
-  --color-error: #ff7168;
-  --color-on-error: #330806;
+  --color-error: #f07167;
+  --color-on-error: #35100d;
 
-  --color-error-container: #8f211b;
-  --color-on-error-container: #ffd9d6;
+  --color-error-container: #7f2923;
+  --color-on-error-container: #ffd9d5;
 
 
   /* ======================================================
-     DARK STATUS
+     SUCCESS
      ====================================================== */
 
-  --color-success: #3ddc84;
-  --color-success-container: rgba(61, 220, 132, 0.13);
-  --color-on-success-container: #7df0aa;
-
-  --color-warning: #f5b942;
-  --color-warning-container: rgba(245, 185, 66, 0.13);
-  --color-on-warning-container: #ffd978;
-
-  --color-info: #38bdf8;
-  --color-info-container: rgba(56, 189, 248, 0.13);
-  --color-on-info-container: #7dd3fc;
-
-  --color-inactive: #687386;
-  --color-inactive-container: rgba(104, 115, 134, 0.12);
-  --color-on-inactive-container: #9aa5b5;
+  --color-success: #4ade80;
+  --color-success-container: rgba(74, 222, 128, 0.10);
+  --color-on-success-container: #86efac;
 
 
   /* ======================================================
-     DARK FIXED TOKENS
+     WARNING
      ====================================================== */
 
-  --color-primary-fixed: #dce7ff;
-  --color-primary-fixed-dim: #9dbaff;
-  --color-on-primary-fixed: #091a3a;
-  --color-on-primary-fixed-variant: #2457c5;
-
-  --color-secondary-fixed: #c8eaff;
-  --color-secondary-fixed-dim: #91c9eb;
-  --color-on-secondary-fixed: #071925;
-  --color-on-secondary-fixed-variant: #16435e;
-
-  --color-tertiary-fixed: #e7e4ff;
-  --color-tertiary-fixed-dim: #c1bbff;
-  --color-on-tertiary-fixed: #171340;
-  --color-on-tertiary-fixed-variant: #45409a;
+  --color-warning: #f2b84b;
+  --color-warning-container: rgba(242, 184, 75, 0.10);
+  --color-on-warning-container: #f6cf78;
 
 
   /* ======================================================
-     DARK BACKGROUND
+     INFO
      ====================================================== */
 
-  --color-background: #0b0d12;
-  --color-on-background: #f3f4f6;
+  --color-info: #60b5d8;
+  --color-info-container: rgba(96, 181, 216, 0.10);
+  --color-on-info-container: #8bd1eb;
 
-  --color-surface-variant: #232936;
+
+  /* ======================================================
+     INACTIVE
+     ====================================================== */
+
+  --color-inactive: #707780;
+  --color-inactive-container: rgba(112, 119, 128, 0.10);
+  --color-on-inactive-container: #aab0b7;
+
+
+  /* ======================================================
+     FIXED
+     ====================================================== */
+
+  --color-primary-fixed: #ccfbf1;
+  --color-primary-fixed-dim: #99f6e4;
+  --color-on-primary-fixed: #042f2e;
+  --color-on-primary-fixed-variant: #115e59;
+
+  --color-secondary-fixed: #e1e5e9;
+  --color-secondary-fixed-dim: #c4cbd2;
+  --color-on-secondary-fixed: #171a1d;
+  --color-on-secondary-fixed-variant: #3f474f;
+
+  --color-tertiary-fixed: #d9eaff;
+  --color-tertiary-fixed-dim: #a9c9e9;
+  --color-on-tertiary-fixed: #0b1b2d;
+  --color-on-tertiary-fixed-variant: #27496d;
+
+
+  /* ======================================================
+     BACKGROUND
+     ====================================================== */
+
+  --color-background: #101214;
+  --color-on-background: #e8eaed;
+
+  --color-surface-variant: #292e33;
 }

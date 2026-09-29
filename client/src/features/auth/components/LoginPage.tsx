@@ -71,11 +71,11 @@ const LoginPage = () => {
               className="block text-[13px] font-medium text-on-surface-variant mb-1.5"
               htmlFor="email"
             >
-              Email address
+              Username or Email address
             </label>
             <input
               id="email"
-              type="email"
+              type="text"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               required

@@ -26,9 +26,8 @@ func (h *UserHandler) ListMembers(c *gin.Context) {
 	c.JSON(http.StatusOK, asArray(members))
 }
 
-// CreateMember creates a user (if not exists) and adds them to the org.
 type createMemberRequest struct {
-	Email    string             `json:"email" binding:"required,email"`
+	Email    string             `json:"email" binding:"required"`
 	Name     string             `json:"name"`
 	Password string             `json:"password" binding:"required,min=8"`
 	Role     models.MemberRole  `json:"role" binding:"required"`
