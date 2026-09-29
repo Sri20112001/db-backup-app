@@ -106,9 +106,12 @@ func (h *Hub) upgraderFor() websocket.Upgrader {
 }
 
 func wsOriginAllowed(origin, allowlist string) bool {
+	if strings.TrimSpace(allowlist) == "*" {
+		return true
+	}
 	norm := strings.TrimSuffix(strings.TrimSpace(origin), "/")
 	for _, p := range strings.Split(allowlist, ",") {
-		if v := strings.TrimSpace(strings.TrimSuffix(p, "/")); v != "" && norm == v {
+		if v := strings.TrimSpace(strings.TrimSuffix(p, "/")); v != "" && (norm == v || v == "*") {
 			return true
 		}
 	}

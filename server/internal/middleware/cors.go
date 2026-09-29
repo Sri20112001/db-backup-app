@@ -24,7 +24,7 @@ func parseOrigins(s string) []string {
 func originAllowed(origin string, allowed []string) bool {
 	norm := strings.TrimSuffix(strings.TrimSpace(origin), "/")
 	for _, a := range allowed {
-		if norm == a {
+		if a == "*" || norm == a {
 			return true
 		}
 	}
