@@ -5,7 +5,7 @@ import ToastContainer from './ToastContainer'
 import RealtimeProvider from './RealtimeProvider'
 
 const AppLayout = () => (
-  <div className="h-screen overflow-hidden bg-surface-container-low">
+  <div className="h-screen overflow-hidden bg-transparent">
     <FloatingDock />
     <RealtimeProvider />
     <main className="h-full w-full pl-24 pr-8 py-6 flex flex-col min-h-0">

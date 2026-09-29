@@ -2,16 +2,16 @@
 
 @theme {
   /* ========================================================
-     SURFACES: VaultGuard Light Theme
+     LIGHT SURFACES (Soft Blue Mist / Glare-Free Ice Base)
      ======================================================== */
-  --color-surface: #f9f9ff;
-  --color-surface-dim: #d3daef;
-  --color-surface-bright: #f9f9ff;
-  --color-surface-container-lowest: #ffffff;
-  --color-surface-container-low: #f1f3ff;
-  --color-surface-container: #e9edff;
-  --color-surface-container-high: #e1e8fd;
-  --color-surface-container-highest: #dce2f7;
+  --color-surface: #edf1fa;
+  --color-surface-dim: #d4dced;
+  --color-surface-bright: #f2f5fc;
+  --color-surface-container-lowest: #e2e8f5;
+  --color-surface-container-low: #e8eef8;
+  --color-surface-container: #dfe6f3;
+  --color-surface-container-high: #d6e0ee;
+  --color-surface-container-highest: #ccd7e7;
   --color-on-surface: #141b2b;
   --color-on-surface-variant: #434655;
   --color-inverse-surface: #293040;
@@ -19,21 +19,21 @@
   --color-outline: #737686;
   --color-outline-variant: #c3c6d7;
 
-  /* Primary Accent: Blue */
-  --color-surface-tint: #0053db;
+  /* Primary: VaultGuard Ultramarine Blue (~230°) */
+  --color-surface-tint: #004ac6;
   --color-primary: #004ac6;
   --color-on-primary: #ffffff;
   --color-primary-container: #2563eb;
   --color-on-primary-container: #eeefff;
   --color-inverse-primary: #b4c5ff;
 
-  /* Secondary Accent: Teal/Blue */
+  /* Secondary: Deep Steel Blue (~210°) */
   --color-secondary: #006591;
   --color-on-secondary: #ffffff;
-  --color-secondary-container: #39b8fd;
-  --color-on-secondary-container: #004666;
+  --color-secondary-container: #0284c7;
+  --color-on-secondary-container: #f0f9ff;
 
-  /* Tertiary Accent: Indigo */
+  /* Tertiary: Deep Iris Indigo (~250°) */
   --color-tertiary: #3e3fcc;
   --color-on-tertiary: #ffffff;
   --color-tertiary-container: #585be6;
@@ -60,9 +60,9 @@
   --color-on-tertiary-fixed-variant: #2f2ebe;
 
   /* Backgrounds */
-  --color-background: #f9f9ff;
+  --color-background: #edf1fa;
   --color-on-background: #141b2b;
-  --color-surface-variant: #dce2f7;
+  --color-surface-variant: #ccd7e7;
 
   /* Typography */
   --font-sans: Inter, system-ui, sans-serif;
@@ -85,6 +85,11 @@
   }
   body {
     background-color: var(--color-surface);
+    background-image: url('/background.png');
+    background-size: cover;
+    background-position: center;
+    background-repeat: no-repeat;
+    background-attachment: fixed;
     color: var(--color-on-surface);
     font-family: var(--font-sans);
     font-size: 14px;
@@ -99,46 +104,54 @@
   .font-mono { font-family: var(--font-mono); }
 }
 
-/* Obsidian Telemetry Dark Mode */
+/* ========================================================
+   DARK MODE: 1-to-1 Mathematical Inverse (Exact Same Hues)
+   ======================================================== */
 .dark {
-  --color-surface: #f9f9ff;
-  --color-surface-dim: #d3daef;
-  --color-surface-bright: #f9f9ff;
-  --color-surface-container-lowest: #ffffff;
-  --color-surface-container-low: #f1f3ff;
-  --color-surface-container: #e9edff;
-  --color-surface-container-high: #e1e8fd;
-  --color-surface-container-highest: #dce2f7;
-  --color-on-surface: #141b2b;
-  --color-on-surface-variant: #434655;
-  --color-inverse-surface: #293040;
-  --color-inverse-on-surface: #edf0ff;
-  --color-outline: #737686;
-  --color-outline-variant: #c3c6d7;
+  /* Surfaces: Darkened from the exact same 230° blue-gray family */
+  --color-surface: #0f1422;
+  --color-surface-dim: #0a0d17;
+  --color-surface-bright: #1c2338;
+  --color-surface-container-lowest: #080b13;
+  --color-surface-container-low: #131929;
+  --color-surface-container: #171f33;
+  --color-surface-container-high: #1d273f;
+  --color-surface-container-highest: #263352;
+  --color-on-surface: #e9edff;
+  --color-on-surface-variant: #c3c6d7;
+  --color-inverse-surface: #e9edff;
+  --color-inverse-on-surface: #0f1422;
+  --color-outline: #8d90a1;
+  --color-outline-variant: #303749;
 
-  --color-surface-tint: #0053db;
-  --color-primary: #004ac6;
-  --color-on-primary: #ffffff;
-  --color-primary-container: #2563eb;
+  /* Primary: Exactly uses your light theme's inverse-primary token (#b4c5ff) */
+  --color-surface-tint: #b4c5ff;
+  --color-primary: #b4c5ff;
+  --color-on-primary: #002670;
+  --color-primary-container: #004ac6;
   --color-on-primary-container: #eeefff;
-  --color-inverse-primary: #b4c5ff;
+  --color-inverse-primary: #004ac6;
 
-  --color-secondary: #006591;
-  --color-on-secondary: #ffffff;
-  --color-secondary-container: #39b8fd;
-  --color-on-secondary-container: #004666;
+  /* Secondary: Softened Steel Blue (Matches #006591 family) */
+  --color-secondary: #89ceff;
+  --color-on-secondary: #00344d;
+  --color-secondary-container: #004c6e;
+  --color-on-secondary-container: #c9e6ff;
 
-  --color-tertiary: #3e3fcc;
-  --color-on-tertiary: #ffffff;
-  --color-tertiary-container: #585be6;
-  --color-on-tertiary-container: #f1eeff;
+  /* Tertiary: Softened Violet-Iris (Matches #3e3fcc family) */
+  --color-tertiary: #c0c1ff;
+  --color-on-tertiary: #191494;
+  --color-tertiary-container: #2f2ebe;
+  --color-on-tertiary-container: #e1e0ff;
 
-  --color-error: #ba1a1a;
-  --color-on-error: #ffffff;
-  --color-error-container: #ffdad6;
-  --color-on-error-container: #93000a;
+  /* Semantic Crimson */
+  --color-error: #ffb4ab;
+  --color-on-error: #690005;
+  --color-error-container: #93000a;
+  --color-on-error-container: #ffdad6;
 
-  --color-background: #f9f9ff;
-  --color-on-background: #141b2b;
-  --color-surface-variant: #dce2f7;
+  /* Backgrounds */
+  --color-background: #0f1422;
+  --color-on-background: #e9edff;
+  --color-surface-variant: #263352;
 }

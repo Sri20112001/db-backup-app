@@ -37,7 +37,7 @@ const SetupPage = () => {
   }
 
   return (
-    <div className="min-h-screen bg-surface-container-low flex items-center justify-center px-4">
+    <div className="min-h-screen bg-transparent flex items-center justify-center px-4">
       <div className="w-full max-w-[420px] bg-surface-container-lowest rounded-xl border border-surface-variant shadow-[0_4px_24px_rgba(20,27,43,0.08)] p-8">
         <div className="flex items-center gap-3 mb-8">
           <div className="w-10 h-10 rounded-xl bg-surface-container-highest flex items-center justify-center border border-outline-variant/30 shadow-inner">
