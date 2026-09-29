@@ -3,7 +3,8 @@ import { Link, useNavigate } from "react-router-dom";
 import { authApi, orgApi } from "@/services/api";
 import { useAuthStore } from "@/store/authStore";
 import { useUIStore } from "@/store/uiStore";
-import { Shield, Eye, EyeOff, Loader2 } from "lucide-react";
+import { Eye, EyeOff, Loader2 } from "lucide-react";
+import { Logo } from "@/components/ui/Logo";
 
 const LoginPage = () => {
   const navigate = useNavigate();
@@ -38,8 +39,8 @@ const LoginPage = () => {
       <div className="w-full max-w-[420px] bg-surface-container-lowest rounded-xl border border-surface-variant shadow-[0_4px_24px_rgba(20,27,43,0.08)] p-8">
         {/* Logo */}
         <div className="flex items-center gap-3 mb-8">
-          <div className="w-10 h-10 rounded-xl bg-primary flex items-center justify-center">
-            <Shield size={20} className="text-on-primary" />
+          <div className="w-10 h-10 rounded-xl bg-surface-container-highest flex items-center justify-center border border-outline-variant/30 shadow-inner">
+            <Logo className="w-6 h-6" />
           </div>
           <div>
             <h1 className="text-[20px] font-semibold text-on-surface tracking-tight">

@@ -1,74 +1,73 @@
 @import "tailwindcss";
 
 @theme {
-  /* Neutral Slate / Crisp White Surfaces (zero blue cast) */
-  --color-surface: #f8faf9;
-  --color-surface-dim: #d5dbd8;
-  --color-surface-bright: #f8faf9;
-  --color-surface-container-lowest: #ffffff;
-  --color-surface-container-low: #eff3f1;
-  --color-surface-container: #e6ebe8;
-  --color-surface-container-high: #dde3e0;
-  --color-surface-container-highest: #d2d9d5;
-  --color-on-surface: #141c18;
-  --color-on-surface-variant: #3e4943;
-  --color-inverse-surface: #26322c;
-  --color-inverse-on-surface: #edf3ef;
-  --color-outline: #6d7a73;
-  --color-outline-variant: #bcc7c1;
+  /* ========================================================
+     SURFACES: Obsidian Telemetry Light Mode (Technically Dark-ish but base)
+     ======================================================== */
+  --color-surface: #0b1326;
+  --color-surface-dim: #0b1326;
+  --color-surface-bright: #31394d;
+  --color-surface-container-lowest: #060e20;
+  --color-surface-container-low: #131b2e;
+  --color-surface-container: #171f33;
+  --color-surface-container-high: #222a3d;
+  --color-surface-container-highest: #2d3449;
+  --color-on-surface: #dae2fd;
+  --color-on-surface-variant: #bbcabf;
+  --color-inverse-surface: #dae2fd;
+  --color-inverse-on-surface: #283044;
+  --color-outline: #86948a;
+  --color-outline-variant: #3c4a42;
 
-  /* Primary: Deep Forest / Emerald Green */
-  --color-surface-tint: #047857;
-  --color-primary: #065f46;
-  --color-on-primary: #ffffff;
-  --color-primary-container: #059669;
-  --color-on-primary-container: #f0fdf4;
-  --color-inverse-primary: #6ee7b7;
+  /* Primary Accent: Luminous Emerald */
+  --color-surface-tint: #4edea3;
+  --color-primary: #4edea3;
+  --color-on-primary: #003824;
+  --color-primary-container: #10b981;
+  --color-on-primary-container: #00422b;
+  --color-inverse-primary: #006c49;
 
-  /* Secondary: Deep Spruce Teal */
-  --color-secondary: #0f766e;
-  --color-on-secondary: #ffffff;
-  --color-secondary-container: #14b8a6;
-  --color-on-secondary-container: #042f2e;
+  /* Secondary Accent: Electric Cyan */
+  --color-secondary: #4cd7f6;
+  --color-on-secondary: #003640;
+  --color-secondary-container: #03b5d3;
+  --color-on-secondary-container: #00424e;
 
-  /* Tertiary: Warm Amber / Bronze */
-  --color-tertiary: #b45309;
-  --color-on-tertiary: #ffffff;
-  --color-tertiary-container: #d97706;
-  --color-on-tertiary-container: #fffbeb;
+  /* Tertiary Accent: Amber */
+  --color-tertiary: #ffb95f;
+  --color-on-tertiary: #472a00;
+  --color-tertiary-container: #e29100;
+  --color-on-tertiary-container: #523200;
 
-  /* Error / Status */
-  --color-error: #ba1a1a;
-  --color-on-error: #ffffff;
-  --color-error-container: #ffdad6;
-  --color-on-error-container: #93000a;
+  /* Semantic Crimson */
+  --color-error: #ffb4ab;
+  --color-on-error: #690005;
+  --color-error-container: #93000a;
+  --color-on-error-container: #ffdad6;
 
-  /* Primary Fixed Variants */
-  --color-primary-fixed: #d1fae5;
-  --color-primary-fixed-dim: #a7f3d0;
-  --color-on-primary-fixed: #022c22;
-  --color-on-primary-fixed-variant: #064e3b;
+  /* Fixed Variants */
+  --color-primary-fixed: #6ffbbe;
+  --color-primary-fixed-dim: #4edea3;
+  --color-on-primary-fixed: #002113;
+  --color-on-primary-fixed-variant: #005236;
+  --color-secondary-fixed: #acedff;
+  --color-secondary-fixed-dim: #4cd7f6;
+  --color-on-secondary-fixed: #001f26;
+  --color-on-secondary-fixed-variant: #004e5c;
+  --color-tertiary-fixed: #ffddb8;
+  --color-tertiary-fixed-dim: #ffb95f;
+  --color-on-tertiary-fixed: #2a1700;
+  --color-on-tertiary-fixed-variant: #653e00;
 
-  /* Secondary Fixed Variants */
-  --color-secondary-fixed: #ccfbf1;
-  --color-secondary-fixed-dim: #99f6e4;
-  --color-on-secondary-fixed: #042f2e;
-  --color-on-secondary-fixed-variant: #115e59;
-
-  /* Tertiary Fixed Variants */
-  --color-tertiary-fixed: #fef3c7;
-  --color-tertiary-fixed-dim: #fde68a;
-  --color-on-tertiary-fixed: #451a03;
-  --color-on-tertiary-fixed-variant: #78350f;
-
-  /* Background & Base Variants */
-  --color-background: #f8faf9;
-  --color-on-background: #141c18;
-  --color-surface-variant: #d2d9d5;
+  /* Backgrounds */
+  --color-background: #0b1326;
+  --color-on-background: #dae2fd;
+  --color-surface-variant: #2d3449;
 
   /* Typography */
   --font-sans: Inter, system-ui, sans-serif;
   --font-mono: "JetBrains Mono", "Fira Code", monospace;
+  --font-display: Geist, system-ui, sans-serif;
 
   /* Border radius */
   --radius-sm: 0.125rem;
@@ -101,51 +100,46 @@
   .font-mono { font-family: var(--font-mono); }
 }
 
-/* Dark Mode Theme Overrides */
+/* Obsidian Telemetry Dark Mode */
 .dark {
-  --color-surface: #111418;
-  --color-surface-dim: #0d121c;
-  --color-surface-bright: #1f2924;
-  --color-surface-container-lowest: #0d121c;
-  --color-surface-container-low: #141c18;
-  --color-surface-container: #1b241f;
-  --color-surface-container-high: #26322c;
-  --color-surface-container-highest: #33403a;
-  --color-on-surface: #e2e8e4;
-  --color-on-surface-variant: #bcc7c1;
-  --color-inverse-surface: #e2e8e4;
-  --color-inverse-on-surface: #141c18;
-  --color-outline: #8b9892;
-  --color-outline-variant: #3e4943;
-  
-  /* Primary: Light Emerald for Dark Mode */
-  --color-surface-tint: #6ee7b7;
-  --color-primary: #6ee7b7;
-  --color-on-primary: #022c22;
-  --color-primary-container: #064e3b;
-  --color-on-primary-container: #d1fae5;
-  --color-inverse-primary: #059669;
+  --color-surface: #0b1326;
+  --color-surface-dim: #0b1326;
+  --color-surface-bright: #31394d;
+  --color-surface-container-lowest: #060e20;
+  --color-surface-container-low: #131b2e;
+  --color-surface-container: #171f33;
+  --color-surface-container-high: #222a3d;
+  --color-surface-container-highest: #2d3449;
+  --color-on-surface: #dae2fd;
+  --color-on-surface-variant: #bbcabf;
+  --color-inverse-surface: #dae2fd;
+  --color-inverse-on-surface: #283044;
+  --color-outline: #86948a;
+  --color-outline-variant: #3c4a42;
 
-  /* Secondary */
-  --color-secondary: #5eead4;
-  --color-on-secondary: #042f2e;
-  --color-secondary-container: #115e59;
-  --color-on-secondary-container: #ccfbf1;
+  --color-surface-tint: #4edea3;
+  --color-primary: #4edea3;
+  --color-on-primary: #003824;
+  --color-primary-container: #10b981;
+  --color-on-primary-container: #00422b;
+  --color-inverse-primary: #006c49;
 
-  /* Tertiary */
-  --color-tertiary: #fcd34d;
-  --color-on-tertiary: #451a03;
-  --color-tertiary-container: #78350f;
-  --color-on-tertiary-container: #fef3c7;
+  --color-secondary: #4cd7f6;
+  --color-on-secondary: #003640;
+  --color-secondary-container: #03b5d3;
+  --color-on-secondary-container: #00424e;
 
-  /* Error */
+  --color-tertiary: #ffb95f;
+  --color-on-tertiary: #472a00;
+  --color-tertiary-container: #e29100;
+  --color-on-tertiary-container: #523200;
+
   --color-error: #ffb4ab;
   --color-on-error: #690005;
   --color-error-container: #93000a;
   --color-on-error-container: #ffdad6;
 
-  /* Background & Base */
-  --color-background: #111418;
-  --color-on-background: #e2e8e4;
-  --color-surface-variant: #26322c;
+  --color-background: #0b1326;
+  --color-on-background: #dae2fd;
+  --color-surface-variant: #2d3449;
 }

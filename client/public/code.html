@@ -1,0 +1,34 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 120" fill="none">
+  <defs>
+    <linearGradient id="vg-core-grad" x1="15" y1="15" x2="105" y2="105" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#00F2FE"/>
+      <stop offset="45%" stop-color="#4FACFE"/>
+      <stop offset="100%" stop-color="#7000FF"/>
+    </linearGradient>
+    <linearGradient id="vg-neon-beam" x1="60" y1="10" x2="60" y2="110" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#00F5D4"/>
+      <stop offset="50%" stop-color="#7B2CBF"/>
+      <stop offset="100%" stop-color="#F72585"/>
+    </linearGradient>
+    <radialGradient id="vg-ambient" cx="60" cy="60" r="50" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#00F2FE" stop-opacity="0.35"/>
+      <stop offset="100%" stop-color="#0B0F19" stop-opacity="0"/>
+    </radialGradient>
+    <filter id="vg-glow" x="0" y="0" width="120" height="120" filterUnits="userSpaceOnUse">
+      <feGaussianBlur stdDeviation="5" result="blur"/>
+      <feComposite in="SourceGraphic" in2="blur" operator="over"/>
+    </filter>
+  </defs>
+  <circle cx="60" cy="60" r="48" fill="url(#vg-ambient)"/>
+  <!-- Quantum Data Ribbon 1 (Isometric Hyper-ring) -->
+  <path d="M60 16 C82 16 102 32 102 60 C102 88 82 104 60 104 C44 104 28 92 20 74 C28 78 40 80 52 80 C78 80 92 68 92 52 C92 36 78 26 60 26 C42 26 28 36 28 52 C28 58 31 63 36 67 C31 63 26 56 26 48 C26 30 42 16 60 16Z" fill="url(#vg-core-grad)" filter="url(#vg-glow)"/>
+  <!-- Intersecting Energy Core Polygon Ring -->
+  <polygon points="60,24 88,40 88,80 60,96 32,80 32,40" stroke="url(#vg-neon-beam)" stroke-width="3" stroke-dasharray="8 4" stroke-linejoin="round" fill="none"/>
+  <!-- Floating Central Quantum Singularity / Vault Anchor -->
+  <circle cx="60" cy="60" r="14" fill="#060913" stroke="url(#vg-core-grad)" stroke-width="3"/>
+  <circle cx="60" cy="60" r="6" fill="#00F5D4"/>
+  <!-- Dynamic Orbital Nodes -->
+  <circle cx="88" cy="40" r="4" fill="#00F2FE"/>
+  <circle cx="32" cy="80" r="4" fill="#F72585"/>
+  <circle cx="60" cy="96" r="3.5" fill="#7000FF"/>
+</svg>

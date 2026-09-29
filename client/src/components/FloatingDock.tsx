@@ -8,6 +8,7 @@ import {
   Shield, Archive, History, RotateCcw, Server,
   Database, Bell, Settings, LogOut, Building2, Sun, Moon
 } from 'lucide-react'
+import { Logo } from './ui/Logo'
 
 const navItems = [
   { path: '/', icon: Shield, label: 'Command Center', exact: true },
@@ -76,8 +77,8 @@ const FloatingDock = () => {
     <aside className="fixed left-4 top-1/2 -translate-y-1/2 w-14 bg-surface-container-lowest border border-outline-variant/40 rounded-xl shadow-[0_4px_16px_rgba(20,27,43,0.06)] z-50 flex flex-col items-center py-3 gap-2">
       {/* Brand Icon */}
       <div className="flex items-center justify-center p-1 mb-1">
-        <div className="w-8 h-8 rounded-lg bg-primary flex items-center justify-center">
-          <Shield size={16} className="text-on-primary" />
+        <div className="w-8 h-8 rounded-lg bg-surface-container-highest flex items-center justify-center border border-outline-variant/30 shadow-inner">
+          <Logo className="w-6 h-6" />
         </div>
       </div>
 
