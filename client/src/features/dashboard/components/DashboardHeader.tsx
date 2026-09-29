@@ -1,5 +1,6 @@
 import { Plus } from 'lucide-react'
 import type { DashboardOverview } from '@/types'
+import Action3DButton from '@/components/ui/Action3DButton'
 
 interface DashboardHeaderProps {
   overview: DashboardOverview | null
@@ -26,14 +27,10 @@ const DashboardHeader = ({ overview, onNewJob }: DashboardHeaderProps) => (
           </span>
         </div>
       )}
-      <button
-        type="button"
-        onClick={onNewJob}
-        className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg bg-primary text-on-primary text-[13px] font-medium hover:bg-primary-container transition-colors shadow-sm whitespace-nowrap"
-      >
+      <Action3DButton onClick={onNewJob}>
         <Plus size={15} />
         New Backup Job
-      </button>
+      </Action3DButton>
     </div>
   </div>
 )

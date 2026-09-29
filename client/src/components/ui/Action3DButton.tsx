@@ -4,41 +4,37 @@ interface Action3DButtonProps extends React.ButtonHTMLAttributes<HTMLButtonEleme
   children: React.ReactNode;
 }
 
-// Uiverse-style 3D press button in application colors (no styled-components).
-// The raised look comes from a ::before plate (edge color + white base layer)
-// sitting 0.75em below the face; hover/active translate the face down into
-// it. Sizes/typography stay overridable via className (! utilities win).
+// Updated button style: a highly polished, glowing/tactile button 
+// that perfectly matches the Physical Workbench / Cyberdeck Night themes.
 const Action3DButton: React.FC<Action3DButtonProps> = ({ children, className = '', ...props }) => {
   return (
     <button
       className={`
         relative inline-flex items-center justify-center cursor-pointer outline-none align-middle
-        text-[13px] font-medium text-on-primary
+        text-[13px] font-semibold text-white dark:text-[#251a10]
         px-4 h-9 rounded-lg
         bg-primary
-        [transform-style:preserve-3d]
-        transition-[transform,background-color] duration-150 ease-out
-        hover:bg-primary-container hover:[transform:translate(0,0.25em)]
-        active:bg-[#1d4ed8] active:[transform:translate(0,0.75em)]
-        disabled:opacity-60 disabled:cursor-not-allowed disabled:pointer-events-none
-        disabled:[transform:none]
+        overflow-hidden
+        transition-all duration-300 ease-out
+        hover:scale-[1.02] hover:-translate-y-0.5
+        active:scale-[0.98] active:translate-y-0
+        disabled:opacity-50 disabled:cursor-not-allowed disabled:pointer-events-none disabled:transform-none
+        
+        shadow-[0_4px_12px_rgba(234,88,12,0.25)]
+        hover:shadow-[0_8px_20px_rgba(234,88,12,0.4)]
+        dark:shadow-[0_0_15px_rgba(245,158,11,0.3)]
+        dark:hover:shadow-[0_0_25px_rgba(245,158,11,0.5)]
 
         before:content-[''] before:absolute before:inset-0
-        before:rounded-[inherit]
-        before:bg-[#1d4ed8]
-        before:[box-shadow:0_0_0_2px_#1d4ed8,0_0.625em_0_0_#ffffff]
-        before:[transform:translate3d(0,0.75em,-1em)]
-        before:transition-all before:duration-150 before:ease-out
-        hover:before:[box-shadow:0_0_0_2px_#1d4ed8,0_0.5em_0_0_#ffffff]
-        hover:before:[transform:translate3d(0,0.5em,-1em)]
-        active:before:[box-shadow:0_0_0_2px_#1d4ed8,0_0_#ffffff]
-        active:before:[transform:translate3d(0,0,-1em)]
+        before:rounded-lg
+        before:bg-gradient-to-b before:from-white/20 before:to-transparent
+        before:pointer-events-none
 
         ${className}
       `}
       {...props}
     >
-      <span className="flex items-center gap-2 [transform:translateZ(1px)]">{children}</span>
+      <span className="relative z-10 flex items-center gap-2 drop-shadow-sm">{children}</span>
     </button>
   );
 };

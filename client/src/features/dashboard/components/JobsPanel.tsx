@@ -77,10 +77,11 @@ const JobsPanel = ({ health, isLoading, onRunNow, onNewJob, onSelectJob, onViewA
             <button
               type="button"
               onClick={(e) => { e.stopPropagation(); onRunNow(job.job_id, job.job_name) }}
-              className="p-1.5 rounded-lg text-on-surface-variant hover:bg-surface-container-high hover:text-on-surface transition-colors shrink-0"
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-primary/10 text-primary hover:bg-primary hover:text-on-primary transition-all duration-200 shrink-0 text-[12px] font-medium"
               title="Run now (with pre-flight check)"
             >
-              <Play size={14} />
+              <Play size={12} className="fill-current" />
+              Run
             </button>
           </div>
         ))

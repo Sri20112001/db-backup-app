@@ -63,10 +63,10 @@ const AttentionPanel = ({ failedJobs, anomalies, onRunNow, onSelectJob, onReview
               <button
                 type="button"
                 onClick={() => onRunNow(job.job_id, job.job_name)}
-                className="flex items-center gap-1 px-2 py-1 rounded-lg text-[12px] font-medium text-on-primary-container hover:bg-primary-container/40 transition-colors"
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-primary/10 text-primary hover:bg-primary hover:text-on-primary transition-all duration-200 shrink-0 text-[12px] font-medium"
                 title="Run now (with pre-flight check)"
               >
-                <Play size={12} />
+                <Play size={12} className="fill-current" />
                 Retry
               </button>
               <button
