@@ -18,6 +18,9 @@ func Connect(dsn string) (*gorm.DB, error) {
 	return db, nil
 }
 
+// Migrate runs GORM AutoMigrate. Reserved for tests and throwaway dev
+// databases — production boots through versioned MigrateUp (migrate.go)
+// so schema changes stay reviewable, ordered, and reversible.
 func Migrate(db *gorm.DB) error {
 	log.Info().Msg("running database migrations")
 	return db.AutoMigrate(
@@ -33,6 +36,7 @@ func Migrate(db *gorm.DB) error {
 		&models.BackupArtifact{},
 		&models.BackupChunk{},
 		&models.RestoreJob{},
+		&models.BackupSizeBaseline{},
 		&models.Alert{},
 		&models.AuditLog{},
 		&models.RefreshToken{},

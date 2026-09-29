@@ -7,6 +7,7 @@ import (
 	"github.com/backup-saas/server/internal/models"
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
+	"github.com/robfig/cron/v3"
 	"gorm.io/gorm"
 )
 
@@ -46,17 +47,92 @@ func (h *DashboardHandler) Overview(c *gin.Context) {
 		Limit(10).
 		Find(&recentRuns)
 
+	// SLA summary: count jobs that missed their SLA window in the last 24h.
+	slaBreaches := h.countSLABreaches(orgID, since)
+
+	// Size anomalies: runs whose uploaded size deviates >50% from the job baseline.
+	anomalies := h.detectSizeAnomalies(orgID)
+
 	c.JSON(http.StatusOK, gin.H{
-		"total_jobs":       totalJobs,
-		"enabled_jobs":     enabledJobs,
-		"agents_online":    agentsOnline,
-		"agents_offline":   agentsOffline,
-		"successful_runs":  successfulRuns,
-		"failed_runs":      failedRuns,
-		"total_bytes":      totalBytes,
-		"recent_runs":      asArray(recentRuns),
+		"total_jobs":      totalJobs,
+		"enabled_jobs":    enabledJobs,
+		"agents_online":   agentsOnline,
+		"agents_offline":  agentsOffline,
+		"successful_runs": successfulRuns,
+		"failed_runs":     failedRuns,
+		"total_bytes":     totalBytes,
+		"recent_runs":     asArray(recentRuns),
+		"sla_breaches_24h": slaBreaches,
+		"size_anomalies":  anomalies,
 	})
 }
+
+// countSLABreaches returns the number of completed runs in the window that
+// exceeded their job's SLATargetMinutes (start-to-completion duration).
+func (h *DashboardHandler) countSLABreaches(orgID uuid.UUID, since time.Time) int {
+	var jobs []models.BackupJob
+	h.db.Where("organization_id = ? AND sla_target_minutes > 0", orgID).Find(&jobs)
+	breaches := 0
+	for _, job := range jobs {
+		var runs []models.BackupRun
+		h.db.Where("backup_job_id = ? AND status = ? AND completed_at > ?", job.ID, models.RunCompleted, since).Find(&runs)
+		for _, r := range runs {
+			if r.DurationSeconds > int64(job.SLATargetMinutes)*60 {
+				breaches++
+			}
+		}
+	}
+	return breaches
+}
+
+// sizeAnomalyDTO describes a single backup run whose size is anomalous.
+type sizeAnomalyDTO struct {
+	JobID      uuid.UUID `json:"job_id"`
+	JobName    string    `json:"job_name"`
+	RunID      uuid.UUID `json:"run_id"`
+	ActualBytes int64    `json:"actual_bytes"`
+	AvgBytes   int64     `json:"avg_bytes"`
+	PctChange  int       `json:"pct_change"` // negative = smaller than baseline
+}
+
+// detectSizeAnomalies returns runs from the last 7 days whose size deviates
+// more than 50% from the rolling average stored in BackupSizeBaseline.
+func (h *DashboardHandler) detectSizeAnomalies(orgID uuid.UUID) []sizeAnomalyDTO {
+	var baselines []models.BackupSizeBaseline
+	h.db.Joins("JOIN backup_jobs ON backup_jobs.id = backup_size_baselines.backup_job_id").
+		Where("backup_jobs.organization_id = ? AND backup_size_baselines.avg_bytes > 0 AND backup_size_baselines.sample_count >= 3", orgID).
+		Find(&baselines)
+
+	result := []sizeAnomalyDTO{}
+	since := time.Now().Add(-7 * 24 * time.Hour)
+	for _, b := range baselines {
+		var runs []models.BackupRun
+		h.db.Preload("BackupJob").
+			Where("backup_job_id = ? AND status = ? AND completed_at > ?", b.BackupJobID, models.RunCompleted, since).
+			Find(&runs)
+		for _, r := range runs {
+			if b.AvgBytes == 0 {
+				continue
+			}
+			pct := int((r.BytesUploaded - b.AvgBytes) * 100 / b.AvgBytes)
+			if pct < -50 || pct > 200 {
+				result = append(result, sizeAnomalyDTO{
+					JobID:       b.BackupJobID,
+					JobName:     r.BackupJob.Name,
+					RunID:       r.ID,
+					ActualBytes: r.BytesUploaded,
+					AvgBytes:    b.AvgBytes,
+					PctChange:   pct,
+				})
+			}
+		}
+	}
+	return result
+}
+
+var cronParser = cron.NewParser(
+	cron.Minute | cron.Hour | cron.Dom | cron.Month | cron.Dow | cron.Descriptor,
+)
 
 func (h *DashboardHandler) BackupHealth(c *gin.Context) {
 	orgID := c.MustGet("org_id").(uuid.UUID)
@@ -65,12 +141,27 @@ func (h *DashboardHandler) BackupHealth(c *gin.Context) {
 	h.db.Preload("Schedule").Where("organization_id = ? AND enabled = true", orgID).Find(&jobs)
 
 	type jobHealth struct {
-		JobID           uuid.UUID  `json:"job_id"`
-		JobName         string     `json:"job_name"`
-		Status          string     `json:"status"`
-		LastSuccessAt   *time.Time `json:"last_success_at"`
-		LastFailureAt   *time.Time `json:"last_failure_at"`
-		RecoveryPoints  int64      `json:"recovery_points"`
+		JobID            uuid.UUID  `json:"job_id"`
+		JobName          string     `json:"job_name"`
+		Status           string     `json:"status"`
+		LastSuccessAt    *time.Time `json:"last_success_at"`
+		LastFailureAt    *time.Time `json:"last_failure_at"`
+		RecoveryPoints   int64      `json:"recovery_points"`
+		NextRunAt        *time.Time `json:"next_run_at"`
+		// SLA fields
+		SLATargetMinutes int        `json:"sla_target_minutes"`
+		LastDurationSecs int64      `json:"last_duration_seconds"`
+		SLAStatus        string     `json:"sla_status"` // OK | BREACH | UNKNOWN
+		// RPO fields
+		RPOTargetMinutes int        `json:"rpo_target_minutes"`
+		ActualRPOMinutes int        `json:"actual_rpo_minutes"` // minutes since last success
+		RPOStatus        string     `json:"rpo_status"`         // OK | BREACH | UNKNOWN
+		// RTO fields
+		RTOTargetMinutes  int       `json:"rto_target_minutes"`
+		LastRestoreSecs   int64     `json:"last_restore_seconds"`
+		RTOStatus         string    `json:"rto_status"` // OK | BREACH | UNKNOWN | NO_DATA
+		// Size anomaly
+		SizeAnomalyPct *int        `json:"size_anomaly_pct,omitempty"`
 	}
 
 	result := make([]jobHealth, 0, len(jobs))
@@ -85,6 +176,7 @@ func (h *DashboardHandler) BackupHealth(c *gin.Context) {
 		h.db.Model(&models.BackupRun{}).
 			Where("backup_job_id = ? AND status = ?", job.ID, models.RunCompleted).Count(&count)
 
+		// Overall health status
 		status := "HEALTHY"
 		if lastSuccess.ID == uuid.Nil {
 			status = "UNKNOWN"
@@ -94,11 +186,94 @@ func (h *DashboardHandler) BackupHealth(c *gin.Context) {
 			status = "WARNING"
 		}
 
+		// Next scheduled run
+		var nextRun *time.Time
+		if job.Schedule != nil && job.Schedule.CronExpr != "" {
+			if sched, err := cronParser.Parse(job.Schedule.CronExpr); err == nil {
+				loc := time.UTC
+				if job.Schedule.Timezone != "" {
+					if l, err := time.LoadLocation(job.Schedule.Timezone); err == nil {
+						loc = l
+					}
+				}
+				t := sched.Next(time.Now().In(loc))
+				nextRun = &t
+			}
+		}
+
+		// SLA tracking
+		slaStatus := "UNKNOWN"
+		if job.SLATargetMinutes > 0 && lastSuccess.ID != uuid.Nil {
+			if lastSuccess.DurationSeconds > int64(job.SLATargetMinutes)*60 {
+				slaStatus = "BREACH"
+			} else {
+				slaStatus = "OK"
+			}
+		}
+
+		// RPO tracking: minutes since last successful backup
+		actualRPO := 0
+		rpoStatus := "UNKNOWN"
+		if lastSuccess.CompletedAt != nil {
+			actualRPO = int(time.Since(*lastSuccess.CompletedAt).Minutes())
+			if job.RPOTargetMinutes > 0 {
+				if actualRPO > job.RPOTargetMinutes {
+					rpoStatus = "BREACH"
+				} else {
+					rpoStatus = "OK"
+				}
+			}
+		}
+
+		// RTO tracking: last restore duration for this job's runs
+		rtoStatus := "NO_DATA"
+		var lastRestoreSecs int64
+		var lastRestore models.RestoreJob
+		h.db.Joins("JOIN backup_runs ON backup_runs.id = restore_jobs.backup_run_id").
+			Where("backup_runs.backup_job_id = ? AND restore_jobs.status = ?", job.ID, models.RestoreCompleted).
+			Order("restore_jobs.completed_at DESC").
+			First(&lastRestore)
+		if lastRestore.ID != uuid.Nil {
+			lastRestoreSecs = lastRestore.DurationSeconds
+			if job.RTOTargetMinutes > 0 {
+				if lastRestoreSecs > int64(job.RTOTargetMinutes)*60 {
+					rtoStatus = "BREACH"
+				} else {
+					rtoStatus = "OK"
+				}
+			} else {
+				rtoStatus = "UNKNOWN"
+			}
+		}
+
+		// Size anomaly for this job
+		var sizeAnomalyPct *int
+		var baseline models.BackupSizeBaseline
+		if h.db.Where("backup_job_id = ? AND sample_count >= 3 AND avg_bytes > 0", job.ID).First(&baseline).Error == nil {
+			if lastSuccess.ID != uuid.Nil && baseline.AvgBytes > 0 {
+				pct := int((lastSuccess.BytesUploaded - baseline.AvgBytes) * 100 / baseline.AvgBytes)
+				if pct < -50 || pct > 200 {
+					sizeAnomalyPct = &pct
+				}
+			}
+		}
+
 		jh := jobHealth{
-			JobID:          job.ID,
-			JobName:        job.Name,
-			Status:         status,
-			RecoveryPoints: count,
+			JobID:            job.ID,
+			JobName:          job.Name,
+			Status:           status,
+			RecoveryPoints:   count,
+			NextRunAt:        nextRun,
+			SLATargetMinutes: job.SLATargetMinutes,
+			LastDurationSecs: lastSuccess.DurationSeconds,
+			SLAStatus:        slaStatus,
+			RPOTargetMinutes: job.RPOTargetMinutes,
+			ActualRPOMinutes: actualRPO,
+			RPOStatus:        rpoStatus,
+			RTOTargetMinutes: job.RTOTargetMinutes,
+			LastRestoreSecs:  lastRestoreSecs,
+			RTOStatus:        rtoStatus,
+			SizeAnomalyPct:   sizeAnomalyPct,
 		}
 		if lastSuccess.CompletedAt != nil {
 			jh.LastSuccessAt = lastSuccess.CompletedAt

@@ -38,6 +38,8 @@ func NewRouter(db *gorm.DB, cfg *config.Config, grpcSrv *grpcserver.Server, hub 
 	dashH    := handlers.NewDashboardHandler(db)
 	userH    := handlers.NewUserHandler(db)
 
+	preflightH := handlers.NewPreflightHandler(db)
+
 	api := r.Group("/vaultguard/api")
 	api.GET("/health", func(c *gin.Context) {
 		sqlDB, err := db.DB()
@@ -61,23 +63,23 @@ func NewRouter(db *gorm.DB, cfg *config.Config, grpcSrv *grpcserver.Server, hub 
 	auth.POST("/refresh", authH.Refresh)
 	auth.POST("/logout", authH.Logout)
 
-	// Agent self-registration (agent token, not JWT)
+	// Agent self-registration (one-time key, no agent token yet)
 	api.POST("/agents/register", agentH.Register)
 
-	// Agent-authenticated endpoints (agent token, not JWT)
-	// These sit outside the JWT authed group intentionally
-	api.PUT("/backup-runs/:id/status", runH.UpdateStatus)
-	api.POST("/backup-runs/:id/artifacts", runH.RegisterArtifact)
-	api.POST("/artifacts/:artifact_id/chunks", runH.RegisterChunk)
-	api.PUT("/restores/:id/status", restoreH.UpdateStatus)
-
-	// Agent work polling (agent token, not JWT): discover + claim runs/restores
+	// All agent-authenticated endpoints share one middleware group so
+	// protection is structural — a new handler added here is automatically
+	// covered without needing its own inline auth check.
 	workH := handlers.NewAgentWorkHandler(db, encKey)
-	agentPoll := api.Group("/agent")
-	agentPoll.GET("/runs", workH.PendingRuns)
-	agentPoll.POST("/runs/:id/claim", workH.ClaimRun)
-	agentPoll.GET("/restores", workH.PendingRestores)
-	agentPoll.POST("/restores/:id/claim", workH.ClaimRestore)
+	agentRoutes := api.Group("")
+	agentRoutes.Use(middleware.AgentAuth(db))
+	agentRoutes.PUT("/backup-runs/:id/status", runH.UpdateStatus)
+	agentRoutes.POST("/backup-runs/:id/artifacts", runH.RegisterArtifact)
+	agentRoutes.POST("/artifacts/:artifact_id/chunks", runH.RegisterChunk)
+	agentRoutes.PUT("/restores/:id/status", restoreH.UpdateStatus)
+	agentRoutes.GET("/agent/runs", workH.PendingRuns)
+	agentRoutes.POST("/agent/runs/:id/claim", workH.ClaimRun)
+	agentRoutes.GET("/agent/restores", workH.PendingRestores)
+	agentRoutes.POST("/agent/restores/:id/claim", workH.ClaimRestore)
 
 	// JWT-authenticated routes
 	authed := api.Group("")
@@ -125,6 +127,7 @@ func NewRouter(db *gorm.DB, cfg *config.Config, grpcSrv *grpcserver.Server, hub 
 	org.POST("/backup-jobs/:id/run", middleware.RequireRole(models.RoleOwner, models.RoleAdmin, models.RoleOperator), jobH.RunNow)
 	org.POST("/backup-jobs/:id/enable", middleware.RequireRole(models.RoleOwner, models.RoleAdmin), jobH.Enable)
 	org.POST("/backup-jobs/:id/disable", middleware.RequireRole(models.RoleOwner, models.RoleAdmin), jobH.Disable)
+	org.GET("/backup-jobs/:id/preflight", middleware.RequireRole(models.RoleOwner, models.RoleAdmin, models.RoleOperator), preflightH.Preflight)
 
 	// Backup runs
 	org.GET("/backup-runs", runH.List)
@@ -140,6 +143,7 @@ func NewRouter(db *gorm.DB, cfg *config.Config, grpcSrv *grpcserver.Server, hub 
 
 	// Alerts
 	org.GET("/alerts", alertH.List)
+	org.PUT("/alerts/read-all", alertH.MarkAllRead)
 	org.PUT("/alerts/:id/read", alertH.MarkRead)
 
 	// Dashboard

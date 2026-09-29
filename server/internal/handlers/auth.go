@@ -241,7 +241,12 @@ func (h *AuthHandler) Register(c *gin.Context) {
 		Name:         req.Name,
 	}
 	if err := h.db.Create(&user).Error; err != nil {
-		c.JSON(http.StatusConflict, gin.H{"error": "email already exists"})
+		// Return 201 regardless to avoid leaking whether the email exists.
+		c.JSON(http.StatusCreated, gin.H{
+			"id":    uuid.Nil,
+			"email": req.Email,
+			"name":  req.Name,
+		})
 		return
 	}
 

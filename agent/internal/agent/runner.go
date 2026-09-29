@@ -123,6 +123,16 @@ func (r *Runner) executeBackup(ctx context.Context, runID string, job *JobConfig
 		return
 	}
 
+	// Apply a per-job timeout so a hung dump/upload never blocks the agent
+	// indefinitely. Configurable via AGENT_JOB_TIMEOUT (default 6h).
+	timeout := r.cfg.JobTimeout
+	if timeout <= 0 {
+		timeout = 6 * time.Hour
+	}
+	jobCtx, cancel := context.WithTimeout(ctx, timeout)
+	defer cancel()
+	ctx = jobCtx
+
 	if job.SourceType != "FILESYSTEM" && job.SourceType != "POSTGRES" && job.SourceType != "MONGODB" && !isMssqlSource(job.SourceType) {
 		r.failRun( runID, fmt.Sprintf("source type %s is not supported by agent v%s (supported: FILESYSTEM, POSTGRES, MONGODB, MSSQL_SERVER)", job.SourceType, Version), nil)
 		return

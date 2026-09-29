@@ -9,5 +9,5 @@ FROM alpine:3.20
 RUN apk --no-cache add ca-certificates tzdata
 WORKDIR /app
 COPY --from=builder /api .
-EXPOSE 8080 9090
+EXPOSE 7541 9090
 CMD ["./api"]

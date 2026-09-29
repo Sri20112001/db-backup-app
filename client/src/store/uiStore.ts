@@ -15,6 +15,9 @@ interface UIState {
   runDetailId: string | null
   openRunDetail: (id: string) => void
   closeRunDetail: () => void
+  theme: 'light' | 'dark'
+  toggleTheme: () => void
+  initTheme: () => void
 }
 
 export const useUIStore = create<UIState>((set) => ({
@@ -28,4 +31,20 @@ export const useUIStore = create<UIState>((set) => ({
   runDetailId: null,
   openRunDetail: (id) => set({ runDetailId: id }),
   closeRunDetail: () => set({ runDetailId: null }),
+  theme: 'light',
+  toggleTheme: () => set((s) => {
+    const newTheme = s.theme === 'light' ? 'dark' : 'light'
+    localStorage.setItem('vg_theme', newTheme)
+    if (newTheme === 'dark') document.documentElement.classList.add('dark')
+    else document.documentElement.classList.remove('dark')
+    return { theme: newTheme }
+  }),
+  initTheme: () => set(() => {
+    const saved = localStorage.getItem('vg_theme') as 'light' | 'dark' | null
+    const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches
+    const theme = saved || (prefersDark ? 'dark' : 'light')
+    if (theme === 'dark') document.documentElement.classList.add('dark')
+    else document.documentElement.classList.remove('dark')
+    return { theme }
+  }),
 }))

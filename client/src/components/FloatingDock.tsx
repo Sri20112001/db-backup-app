@@ -1,11 +1,12 @@
 import { useState, useRef, useEffect } from 'react'
 import { NavLink, useNavigate, useLocation } from 'react-router-dom'
 import { useAuthStore } from '../store/authStore'
+import { useUIStore } from '../store/uiStore'
 import { alertApi } from '../services/api'
 import { useRealtimeStore } from '../stores/realtimeStore'
 import {
   Shield, Archive, History, RotateCcw, Server,
-  Database, Bell, Settings, LogOut, Building2,
+  Database, Bell, Settings, LogOut, Building2, Sun, Moon
 } from 'lucide-react'
 
 const navItems = [
@@ -111,6 +112,17 @@ const FloatingDock = () => {
 
       {/* Footer: Settings & Profile Popover */}
       <div className="mt-auto pt-2 border-t border-outline-variant/40 w-full px-2 flex flex-col items-center gap-2">
+        <button
+          type="button"
+          onClick={() => useUIStore.getState().toggleTheme()}
+          className="relative group flex items-center justify-center w-10 h-10 rounded-lg text-on-surface-variant hover:bg-surface-container-high hover:text-on-surface transition-colors focus:outline-none"
+        >
+          {useUIStore((s) => s.theme) === 'dark' ? <Sun size={20} /> : <Moon size={20} />}
+          <span className="absolute left-14 px-2 py-1 bg-[#293040] text-[#edf0ff] text-[12px] font-medium rounded shadow-md opacity-0 pointer-events-none group-hover:opacity-100 transition-opacity z-50 whitespace-nowrap">
+            Toggle Theme
+          </span>
+        </button>
+
         <NavLink
           to="/settings"
           title="Settings"

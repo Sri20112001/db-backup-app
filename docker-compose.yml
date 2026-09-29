@@ -1,11 +1,21 @@
-version: '3.8'
+# VaultGuard — single canonical compose file (also used by Jenkins).
+#
+# Secrets are REQUIRED: export them in your shell or put them in a `.env`
+# file next to this file (see `.env.example` — never commit real values).
+# Docker Compose reads that `.env` file automatically for interpolation.
+# There are intentionally no default secrets: the stack refuses to start
+# without real ones.
+#
+#   Frontend → http://localhost:7540/vaultguard/
+#   Backend  → http://localhost:7541/vaultguard/api/health
+#   gRPC     → localhost:9090 (agents inside the compose network use server:9090)
 
 services:
   postgres:
     image: postgres:15-alpine
     environment:
       POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-sri20112001}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in your shell or .env file}
       POSTGRES_DB: db_backup
     volumes:
       - postgres_data:/var/lib/postgresql/data
@@ -25,10 +35,10 @@ services:
     environment:
       - PORT=7541
       - GRPC_PORT=9090
-      - DATABASE_URL=host=postgres user=postgres password=${POSTGRES_PASSWORD:-sri20112001} dbname=db_backup port=5432 sslmode=disable
-      - JWT_SECRET=${JWT_SECRET:-5475835c358ac73d7b2b2f78e8e1dca0ff1b10db3190b316d2b93316b7aec453}
-      - JWT_REFRESH_SECRET=${JWT_REFRESH_SECRET:-9b69edad3df56eab8eaaec502bdcabe808bbdd4789bc5b9168513e991012046e}
-      - ENCRYPTION_KEY=${ENCRYPTION_KEY:-8505500dcac701e2b4ace80fac292fd54e7b610ebc80392dce32f5ef99c41580}
+      - DATABASE_URL=host=postgres user=postgres password=${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in your shell or .env file} dbname=db_backup port=5432 sslmode=disable
+      - JWT_SECRET=${JWT_SECRET:?Set JWT_SECRET in your shell or .env file}
+      - JWT_REFRESH_SECRET=${JWT_REFRESH_SECRET:?Set JWT_REFRESH_SECRET in your shell or .env file}
+      - ENCRYPTION_KEY=${ENCRYPTION_KEY:?Set ENCRYPTION_KEY in your shell or .env file}
       - CORS_ORIGIN=http://localhost:7540
     depends_on:
       postgres:
@@ -43,7 +53,7 @@ services:
       - AGENT_PG_HOST=postgres
       - AGENT_PG_PORT=5432
       - AGENT_PG_USER=postgres
-      - AGENT_PG_PASSWORD=${POSTGRES_PASSWORD:-sri20112001}
+      - AGENT_PG_PASSWORD=${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in your shell or .env file}
     depends_on:
       - server
 

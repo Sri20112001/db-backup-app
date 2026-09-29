@@ -25,7 +25,11 @@ func main() {
 		log.Fatal().Err(err).Msg("failed to connect to database")
 	}
 
-	if err := db.Migrate(database); err != nil {
+	// Versioned migrations (embedded SQL). If a previous run died mid-migration
+	// the version row is left dirty and the server refuses to guess — clear it
+	// with the migrate CLI (`… force <version>`) after confirming which half
+	// of that version actually applied.
+	if err := db.MigrateUp(cfg.DatabaseURL); err != nil {
 		log.Fatal().Err(err).Msg("failed to run migrations")
 	}
 
@@ -53,7 +57,7 @@ func main() {
 	}()
 
 	// Realtime event bus for dashboard/agent sockets.
-	realtime.DefaultHub = realtime.NewHub(database, cfg.JWTSecret)
+	realtime.DefaultHub = realtime.NewHub(database, cfg.JWTSecret, cfg.CORSOrigin)
 
 	router := api.NewRouter(database, cfg, grpcSrv, realtime.DefaultHub)
 

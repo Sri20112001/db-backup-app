@@ -28,22 +28,25 @@ func NewBackupJobHandler(db *gorm.DB, grpc CommandDispatcher) *BackupJobHandler 
 }
 
 type createJobRequest struct {
-	AgentID         string                  `json:"agent_id" binding:"required"`
-	StorageTargetID string                  `json:"storage_target_id" binding:"required"`
-	Name            string                  `json:"name" binding:"required"`
-	SourceType      models.BackupSourceType `json:"source_type" binding:"required"`
-	SourcePath      string                  `json:"source_path"`
-	SourceDatabase  string                  `json:"source_database"`
-	IncludePatterns string                  `json:"include_patterns"`
-	ExcludePatterns string                  `json:"exclude_patterns"`
-	Mode            models.BackupMode       `json:"mode"`
-	Encrypted       bool                    `json:"encrypted"`
-	RetentionDays   int                     `json:"retention_days"`
+	AgentID          string                  `json:"agent_id" binding:"required"`
+	StorageTargetID  string                  `json:"storage_target_id" binding:"required"`
+	Name             string                  `json:"name" binding:"required"`
+	SourceType       models.BackupSourceType `json:"source_type" binding:"required"`
+	SourcePath       string                  `json:"source_path"`
+	SourceDatabase   string                  `json:"source_database"`
+	IncludePatterns  string                  `json:"include_patterns"`
+	ExcludePatterns  string                  `json:"exclude_patterns"`
+	Mode             models.BackupMode       `json:"mode"`
+	Encrypted        bool                    `json:"encrypted"`
+	RetentionDays    int                     `json:"retention_days"`
 	// ExportFormat is only meaningful for MONGODB jobs; anything else is
 	// rejected. Empty defaults to ARCHIVE.
-	ExportFormat    string                  `json:"export_format"`
-	CronExpr        string                  `json:"cron_expr"`
-	Timezone        string                  `json:"timezone"`
+	ExportFormat     string                  `json:"export_format"`
+	CronExpr         string                  `json:"cron_expr"`
+	Timezone         string                  `json:"timezone"`
+	SLATargetMinutes int                     `json:"sla_target_minutes"`
+	RPOTargetMinutes int                     `json:"rpo_target_minutes"`
+	RTOTargetMinutes int                     `json:"rto_target_minutes"`
 }
 
 // normalizeExportFormat validates the MongoDB export shape. Empty defaults
@@ -108,21 +111,24 @@ func (h *BackupJobHandler) Create(c *gin.Context) {
 	}
 
 	job := models.BackupJob{
-		Base:            models.Base{ID: uuid.New()},
-		OrganizationID:  orgID,
-		AgentID:         agentID,
-		StorageTargetID: storageID,
-		Name:            req.Name,
-		SourceType:      req.SourceType,
-		SourcePath:      req.SourcePath,
-		SourceDatabase:  req.SourceDatabase,
-		IncludePatterns: req.IncludePatterns,
-		ExcludePatterns: req.ExcludePatterns,
-		Mode:            mode,
-		Encrypted:       req.Encrypted,
-		RetentionDays:   retDays,
-		ExportFormat:    exportFormat,
-		Enabled:         true,
+		Base:             models.Base{ID: uuid.New()},
+		OrganizationID:   orgID,
+		AgentID:          agentID,
+		StorageTargetID:  storageID,
+		Name:             req.Name,
+		SourceType:       req.SourceType,
+		SourcePath:       req.SourcePath,
+		SourceDatabase:   req.SourceDatabase,
+		IncludePatterns:  req.IncludePatterns,
+		ExcludePatterns:  req.ExcludePatterns,
+		Mode:             mode,
+		Encrypted:        req.Encrypted,
+		RetentionDays:    retDays,
+		ExportFormat:     exportFormat,
+		Enabled:          true,
+		SLATargetMinutes: req.SLATargetMinutes,
+		RPOTargetMinutes: req.RPOTargetMinutes,
+		RTOTargetMinutes: req.RTOTargetMinutes,
 	}
 	if err := h.db.Create(&job).Error; err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "create failed"})
@@ -189,15 +195,18 @@ func (h *BackupJobHandler) Update(c *gin.Context) {
 	}
 
 	h.db.Model(&job).Updates(map[string]interface{}{
-		"name":             req.Name,
-		"source_path":      req.SourcePath,
-		"source_database":  req.SourceDatabase,
-		"include_patterns": req.IncludePatterns,
-		"exclude_patterns": req.ExcludePatterns,
-		"mode":             req.Mode,
-		"encrypted":        req.Encrypted,
-		"retention_days":   req.RetentionDays,
-		"export_format":    exportFormat,
+		"name":               req.Name,
+		"source_path":        req.SourcePath,
+		"source_database":    req.SourceDatabase,
+		"include_patterns":   req.IncludePatterns,
+		"exclude_patterns":   req.ExcludePatterns,
+		"mode":               req.Mode,
+		"encrypted":          req.Encrypted,
+		"retention_days":     req.RetentionDays,
+		"export_format":      exportFormat,
+		"sla_target_minutes": req.SLATargetMinutes,
+		"rpo_target_minutes": req.RPOTargetMinutes,
+		"rto_target_minutes": req.RTOTargetMinutes,
 	})
 
 	if req.CronExpr != "" {

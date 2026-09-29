@@ -42,6 +42,32 @@ pipeline {
       }
     }
 
+    stage('Test (server)') {
+      steps {
+        sh '''
+          set -e
+          # go vet + unit tests. DB-backed integration tests self-skip
+          # without DATABASE_URL (see server/internal/testutil).
+          docker run --rm \
+            -v "$WORKSPACE/server:/src" -w /src \
+            golang:1.25-alpine \
+            sh -c "go vet ./... && go test ./..."
+        '''
+      }
+    }
+
+    stage('Test (client)') {
+      steps {
+        sh '''
+          set -e
+          docker run --rm \
+            -v "$WORKSPACE/client:/app" -w /app \
+            node:20-alpine \
+            sh -c "npm ci --no-audit --no-fund && npm run lint && npm run test"
+        '''
+      }
+    }
+
     stage('Build') {
       steps {
         sh '''

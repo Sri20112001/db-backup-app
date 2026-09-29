@@ -94,7 +94,7 @@ func (h *StorageHandler) Delete(c *gin.Context) {
 // encrypt uses AES-256-GCM. Returns base64-encoded ciphertext.
 func encrypt(key []byte, plaintext string) (string, error) {
 	if len(key) == 0 {
-		return plaintext, nil // no-op if key not configured
+		return "", errors.New("encryption key not configured")
 	}
 	block, err := aes.NewCipher(key)
 	if err != nil {
@@ -114,7 +114,7 @@ func encrypt(key []byte, plaintext string) (string, error) {
 
 func decrypt(key []byte, ciphertext string) (string, error) {
 	if len(key) == 0 {
-		return ciphertext, nil
+		return "", errors.New("encryption key not configured")
 	}
 	data, err := base64.StdEncoding.DecodeString(ciphertext)
 	if err != nil {

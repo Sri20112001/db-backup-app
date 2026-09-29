@@ -6,6 +6,7 @@ import (
 
 	"github.com/backup-saas/server/internal/models"
 	"github.com/backup-saas/server/internal/realtime"
+	"github.com/robfig/cron/v3"
 	"github.com/rs/zerolog/log"
 	"gorm.io/gorm"
 )
@@ -38,6 +39,7 @@ func (h *HealthMonitor) run() {
 			h.checkAgents()
 			h.checkMissedBackups()
 			h.enforceRetention()
+			h.updateSizeBaselines()
 		case <-h.stop:
 			return
 		}
@@ -202,20 +204,62 @@ func (h *HealthMonitor) deleteRunFiles(run models.BackupRun) {
 	}
 }
 
-// missedWindow returns a sensible alert window based on the cron expression.
-// It uses simple prefix matching for common patterns; defaults to 25h.
-func missedWindow(cron string) time.Duration {
-	// Common cron patterns: "@hourly", "@daily", "*/N * * * *" (every N minutes)
-	switch cron {
-	case "@hourly":
-		return 2 * time.Hour
-	case "@daily", "0 0 * * *", "@midnight":
-		return 25 * time.Hour
-	case "@weekly":
-		return 8 * 24 * time.Hour
-	case "@monthly":
-		return 32 * 24 * time.Hour
+// updateSizeBaselines recomputes the rolling average backup size for each job
+// using the last 10 completed runs. This feeds the size anomaly detector in
+// the dashboard handler.
+func (h *HealthMonitor) updateSizeBaselines() {
+	var jobs []models.BackupJob
+	h.db.Find(&jobs)
+	for _, job := range jobs {
+		var sizes []int64
+		h.db.Model(&models.BackupRun{}).
+			Where("backup_job_id = ? AND status = ? AND bytes_uploaded > 0", job.ID, models.RunCompleted).
+			Order("completed_at DESC").Limit(10).
+			Pluck("bytes_uploaded", &sizes)
+		if len(sizes) < 3 {
+			continue // not enough data for a meaningful baseline
+		}
+		var sum int64
+		for _, s := range sizes {
+			sum += s
+		}
+		avg := sum / int64(len(sizes))
+		now := time.Now()
+		var baseline models.BackupSizeBaseline
+		if h.db.Where("backup_job_id = ?", job.ID).First(&baseline).Error != nil {
+			h.db.Create(&models.BackupSizeBaseline{
+				BackupJobID:   job.ID,
+				AvgBytes:      avg,
+				SampleCount:   len(sizes),
+				LastUpdatedAt: now,
+			})
+		} else {
+			h.db.Model(&baseline).Updates(map[string]interface{}{
+				"avg_bytes":       avg,
+				"sample_count":    len(sizes),
+				"last_updated_at": now,
+			})
+		}
 	}
-	// Default: 25 hours covers most daily jobs
-	return 25 * time.Hour
+}
+
+// missedWindow computes 2x the actual cron interval so the alert fires after
+// one missed window regardless of the schedule. Falls back to 25h if the
+// expression cannot be parsed.
+func missedWindow(expr string) time.Duration {
+	parser := cron.NewParser(
+		cron.Minute | cron.Hour | cron.Dom | cron.Month | cron.Dow | cron.Descriptor,
+	)
+	sched, err := parser.Parse(expr)
+	if err != nil {
+		return 25 * time.Hour
+	}
+	now := time.Now()
+	next1 := sched.Next(now)
+	next2 := sched.Next(next1)
+	interval := next2.Sub(next1)
+	if interval <= 0 {
+		return 25 * time.Hour
+	}
+	return 2 * interval
 }

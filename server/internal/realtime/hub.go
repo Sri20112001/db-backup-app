@@ -14,6 +14,7 @@ package realtime
 import (
 	"encoding/json"
 	"net/http"
+	"strings"
 	"sync"
 	"time"
 
@@ -66,30 +67,58 @@ type peer struct {
 }
 
 type Hub struct {
-	db        *gorm.DB
-	jwtSecret string
+	db          *gorm.DB
+	jwtSecret   string
+	allowOrigin string
 
 	mu         sync.RWMutex
 	orgPeers   map[string]map[*peer]struct{}
 	agentPeers map[string]*peer
 }
 
-func NewHub(db *gorm.DB, jwtSecret string) *Hub {
+func NewHub(db *gorm.DB, jwtSecret, allowOrigin string) *Hub {
 	return &Hub{
-		db:         db,
-		jwtSecret:  jwtSecret,
-		orgPeers:   make(map[string]map[*peer]struct{}),
-		agentPeers: make(map[string]*peer),
+		db:          db,
+		jwtSecret:   jwtSecret,
+		allowOrigin: allowOrigin,
+		orgPeers:    make(map[string]map[*peer]struct{}),
+		agentPeers:  make(map[string]*peer),
 	}
 }
 
-var upgrader = websocket.Upgrader{
-	ReadBufferSize:  4096,
-	WriteBufferSize: 4096,
-	// Same permissive posture as the REST CORS policy: any local dashboard
-	// origin (dev :7540, nginx, tauri, …) may open a socket. Auth still
-	// gates every subscription.
-	CheckOrigin: func(r *http.Request) bool { return true },
+// upgraderFor returns a WebSocket upgrader that accepts the configured
+// dashboard origin(s), preventing Cross-Site WebSocket Hijacking.
+// CORS_ORIGIN may be comma-separated; loopback origins are always allowed
+// so localhost vs 127.0.0.1 vs LAN-host dev servers all work.
+func (h *Hub) upgraderFor() websocket.Upgrader {
+	return websocket.Upgrader{
+		ReadBufferSize:  4096,
+		WriteBufferSize: 4096,
+		CheckOrigin: func(r *http.Request) bool {
+			origin := r.Header.Get("Origin")
+			// Agents connect server-to-server with no Origin header.
+			if origin == "" {
+				return true
+			}
+			return wsOriginAllowed(origin, h.allowOrigin)
+		},
+	}
+}
+
+func wsOriginAllowed(origin, allowlist string) bool {
+	norm := strings.TrimSuffix(strings.TrimSpace(origin), "/")
+	for _, p := range strings.Split(allowlist, ",") {
+		if v := strings.TrimSpace(strings.TrimSuffix(p, "/")); v != "" && norm == v {
+			return true
+		}
+	}
+	lower := strings.ToLower(norm)
+	for _, host := range []string{"localhost", "127.0.0.1", "[::1]"} {
+		if strings.HasPrefix(lower, "http://"+host) || strings.HasPrefix(lower, "https://"+host) {
+			return true
+		}
+	}
+	return false
 }
 
 // Publish sends ev to every dashboard subscribed to orgID. Nil-hub safe.
@@ -195,6 +224,7 @@ func (h *Hub) authAgent(r *http.Request) (uuid.UUID, bool) {
 }
 
 func (h *Hub) upgrade(w http.ResponseWriter, r *http.Request) (*websocket.Conn, bool) {
+	upgrader := h.upgraderFor()
 	conn, err := upgrader.Upgrade(w, r, nil)
 	if err != nil {
 		log.Debug().Err(err).Msg("realtime: upgrade failed")

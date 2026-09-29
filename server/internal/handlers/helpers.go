@@ -1,9 +1,19 @@
 package handlers
 
 import (
+	"strings"
+
 	"github.com/backup-saas/server/internal/models"
 	"github.com/backup-saas/server/internal/realtime"
 )
+
+// escapeLike escapes the LIKE wildcards in free-text search input so users
+// can't (accidentally or deliberately) widen a match with % or _.
+func escapeLike(s string) string {
+	s = strings.ReplaceAll(s, `\`, `\\`)
+	s = strings.ReplaceAll(s, `%`, `\%`)
+	return strings.ReplaceAll(s, `_`, `\_`)
+}
 
 // asArray normalizes a nil slice to an empty one so JSON encodes [] instead
 // of null. The frontend types every list as an array (e.g. Agent[]) and

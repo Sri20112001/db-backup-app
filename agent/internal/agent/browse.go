@@ -31,15 +31,28 @@ type BrowseResponse struct {
 // address (default 127.0.0.1:7546). It intentionally binds loopback only:
 // the dashboard running on the same machine uses it for the folder picker.
 // Remote browsers cannot reach it; for remote agents type the path manually.
-func StartBrowseServer(addr string) {
+// browseToken is a shared secret the dashboard must send as X-Browse-Token;
+// an empty token disables authentication (dev/test only).
+func StartBrowseServer(addr, browseToken, origin string) {
 	if addr == "" {
 		addr = "127.0.0.1:7546"
 	}
+	browseOrigin = origin
+	auth := func(next http.HandlerFunc) http.HandlerFunc {
+		return func(w http.ResponseWriter, r *http.Request) {
+			if browseToken != "" && r.Header.Get("X-Browse-Token") != browseToken {
+				w.WriteHeader(http.StatusUnauthorized)
+				w.Write([]byte(`{"error":"unauthorized"}`))
+				return
+			}
+			next(w, r)
+		}
+	}
 	mux := http.NewServeMux()
-	mux.HandleFunc("/browse", handleBrowse)
-	mux.HandleFunc("/databases", handleDatabases)
-	mux.HandleFunc("/pg-databases", handlePgDatabases)
-	mux.HandleFunc("/mongo-databases", handleMongoDatabases)
+	mux.HandleFunc("/browse", auth(handleBrowse))
+	mux.HandleFunc("/databases", auth(handleDatabases))
+	mux.HandleFunc("/pg-databases", auth(handlePgDatabases))
+	mux.HandleFunc("/mongo-databases", auth(handleMongoDatabases))
 	mux.HandleFunc("/health", func(w http.ResponseWriter, _ *http.Request) {
 		w.Write([]byte(`{"status":"ok"}`))
 	})
@@ -65,10 +78,16 @@ func driveRoots() []string {
 	return roots
 }
 
+// browseOrigin is set by StartBrowseServer and used by handlers to restrict CORS.
+var browseOrigin string
+
 func handleBrowse(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
-	// Allow the dashboard (any local origin/port) to call this endpoint.
-	w.Header().Set("Access-Control-Allow-Origin", "*")
+	if browseOrigin != "" {
+		w.Header().Set("Access-Control-Allow-Origin", browseOrigin)
+	} else {
+		w.Header().Set("Access-Control-Allow-Origin", "*")
+	}
 
 	reqPath := strings.TrimSpace(r.URL.Query().Get("path"))
 	var dir string

@@ -8,6 +8,8 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/joho/godotenv"
 )
 
 // Version is reported to the server on registration.
@@ -64,6 +66,12 @@ type Config struct {
 	// BrowseAddr is the loopback address of the folder browser used by
 	// the dashboard picker. Empty disables it.
 	BrowseAddr string
+	// BrowseToken is a shared secret the dashboard must send as X-Browse-Token
+	// on every browse/database-discovery request. Empty disables auth (dev only).
+	BrowseToken string
+	// DashboardOrigin is the allowed CORS origin for the browse server,
+	// e.g. http://localhost:7540. Empty falls back to * (dev only).
+	DashboardOrigin string
 	// PG configures local PostgreSQL access for POSTGRES backup jobs.
 	PG PgConfig
 	// MSSQL configures SQL Server access for MSSQL_SERVER backup jobs.
@@ -73,6 +81,9 @@ type Config struct {
 	// TLSSkipVerify accepts self-signed/lab certificates. Default false:
 	// production agents must trust the server CA instead.
 	TLSSkipVerify bool
+	// JobTimeout is the maximum duration for a single backup job execution.
+	// A hung pg_dump or network stall will be killed after this. Default 6h.
+	JobTimeout time.Duration
 }
 
 type state struct {
@@ -88,6 +99,10 @@ func defaultHostname() string {
 }
 
 func LoadConfig() Config {
+	// Dev convenience: pick up `agent.env` (CWD = agent/) for plain `go run`
+	// without a process manager. Real environment variables always win.
+	_ = godotenv.Load("agent.env")
+
 	poll := 30 * time.Second
 	if v := os.Getenv("AGENT_POLL_INTERVAL"); v != "" {
 		if d, err := time.ParseDuration(v); err == nil && d >= 5*time.Second {
@@ -144,6 +159,8 @@ func LoadConfig() Config {
 		Hostname:        hostname,
 		PollInterval:    poll,
 		BrowseAddr:      browseAddr,
+		BrowseToken:     os.Getenv("AGENT_BROWSE_TOKEN"),
+		DashboardOrigin: firstNonEmpty(os.Getenv("AGENT_DASHBOARD_ORIGIN"), "http://localhost:7540"),
 		PG: PgConfig{
 			Host:     firstNonEmpty(os.Getenv("AGENT_PG_HOST"), "localhost"),
 			Port:     pgPort,
@@ -160,6 +177,7 @@ func LoadConfig() Config {
 			URI: firstNonEmpty(os.Getenv("AGENT_MONGO_URI"), "mongodb://localhost:27017"),
 		},
 		TLSSkipVerify: strings.EqualFold(os.Getenv("AGENT_TLS_SKIP_VERIFY"), "true"),
+		JobTimeout:    jobTimeout(),
 	}
 }
 
@@ -170,6 +188,15 @@ func firstNonEmpty(vals ...string) string {
 		}
 	}
 	return ""
+}
+
+func jobTimeout() time.Duration {
+	if v := os.Getenv("AGENT_JOB_TIMEOUT"); v != "" {
+		if d, err := time.ParseDuration(v); err == nil && d > 0 {
+			return d
+		}
+	}
+	return 6 * time.Hour
 }
 
 func loadState(path string) (*state, error) {

@@ -155,11 +155,18 @@ type BackupJob struct {
 	// mongodump-compatible binary), JSON (one EJSON doc per line), or CSV
 	// (flattened, header row; values restore as strings). Ignored by other
 	// source types.
-	ExportFormat string           `gorm:"default:'ARCHIVE'" json:"export_format"`
+	ExportFormat    string           `gorm:"default:'ARCHIVE'" json:"export_format"`
 	Mode            BackupMode       `gorm:"not null;default:'NORMAL'" json:"mode"`
 	Encrypted       bool             `gorm:"default:false" json:"encrypted"`
 	RetentionDays   int              `gorm:"default:30" json:"retention_days"`
 	Enabled         bool             `gorm:"default:true" json:"enabled"`
+	// SLA / RPO / RTO targets (0 = not configured).
+	// SLATargetMinutes: max minutes between schedule fire and backup completion.
+	// RPOTargetMinutes: max acceptable data-loss window (drives missed-backup alerting).
+	// RTOTargetMinutes: max acceptable restore time (tracked against RestoreJob.DurationSeconds).
+	SLATargetMinutes int             `gorm:"default:0" json:"sla_target_minutes"`
+	RPOTargetMinutes int             `gorm:"default:0" json:"rpo_target_minutes"`
+	RTOTargetMinutes int             `gorm:"default:0" json:"rto_target_minutes"`
 	Schedule        *BackupSchedule  `gorm:"foreignKey:BackupJobID" json:"schedule,omitempty"`
 	Agent           Agent            `gorm:"foreignKey:AgentID" json:"agent,omitempty"`
 	StorageTarget   StorageTarget    `gorm:"foreignKey:StorageTargetID" json:"storage_target,omitempty"`
@@ -207,6 +214,8 @@ type BackupRun struct {
 	DurationSeconds int64           `json:"duration_seconds"`
 	SourceType      string          `json:"source_type"`
 	ErrorMessage    string          `json:"error_message,omitempty"`
+	// FailureCategory classifies the error for structured alerting and UI display.
+	FailureCategory string          `gorm:"default:''" json:"failure_category,omitempty"`
 	StoragePath     string          `json:"storage_path"`
 	Checksum        string          `json:"checksum"`
 	// DataKeyEncrypted holds the per-backup AES-256 data key, envelope-
@@ -275,8 +284,21 @@ type RestoreJob struct {
 	TargetDatabase    string        `json:"target_database"`
 	StartedAt         *time.Time    `json:"started_at"`
 	CompletedAt       *time.Time    `json:"completed_at"`
+	DurationSeconds   int64         `json:"duration_seconds"`
 	ErrorMessage      string        `json:"error_message,omitempty"`
 	BackupRun         BackupRun     `gorm:"foreignKey:BackupRunID" json:"backup_run,omitempty"`
+}
+
+// --- BackupSizeBaseline ---
+// Tracks rolling average backup size per job for anomaly detection.
+// Updated by the health monitor after each completed run.
+
+type BackupSizeBaseline struct {
+	Base
+	BackupJobID   uuid.UUID `gorm:"type:uuid;not null;uniqueIndex" json:"backup_job_id"`
+	AvgBytes      int64     `gorm:"not null;default:0" json:"avg_bytes"`
+	SampleCount   int       `gorm:"not null;default:0" json:"sample_count"`
+	LastUpdatedAt time.Time `json:"last_updated_at"`
 }
 
 // --- Alert ---

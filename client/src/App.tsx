@@ -1,5 +1,7 @@
+import { useEffect } from 'react'
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
 import { useAuthStore } from './store/authStore'
+import { useUIStore } from './store/uiStore'
 import AppLayout from './components/AppLayout'
 import LoginPage from './features/auth/components/LoginPage'
 import RegisterPage from './features/auth/components/RegisterPage'
@@ -29,7 +31,12 @@ const RequireOrg = ({ children }: { children: React.ReactNode }) => {
   return <>{children}</>
 }
 
-const App = () => (
+const App = () => {
+  useEffect(() => {
+    useUIStore.getState().initTheme()
+  }, [])
+
+  return (
   <BrowserRouter basename="/vaultguard">
     <Routes>
       <Route path="/login" element={<LoginPage />} />
@@ -64,6 +71,7 @@ const App = () => (
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
   </BrowserRouter>
-)
+  )
+}
 
 export default App

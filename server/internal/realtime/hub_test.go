@@ -13,7 +13,7 @@ import (
 
 func testHub() *Hub {
 	// db is nil: only auth-failure paths are exercised (no queries reached).
-	return NewHub(nil, "test-jwt-secret-32-bytes-long!!")
+	return NewHub(nil, "test-jwt-secret-32-bytes-long!!", "http://localhost:7540")
 }
 
 func TestAuthUserRejectsAnonymous(t *testing.T) {

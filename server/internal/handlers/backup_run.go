@@ -7,6 +7,7 @@ import (
 	"io"
 	"net/http"
 	"os"
+	"path/filepath"
 	"strconv"
 	"strings"
 	"time"
@@ -17,7 +18,6 @@ import (
 	pb "github.com/backup-saas/server/proto/agentpb"
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
-	"golang.org/x/crypto/bcrypt"
 	"gorm.io/gorm"
 )
 
@@ -45,16 +45,41 @@ func (h *BackupRunHandler) List(c *gin.Context) {
 	}
 	offset := (page - 1) * limit
 
-	query := h.db.Where("organization_id = ?", orgID).Order("created_at DESC")
+	query := h.db.Where("backup_runs.organization_id = ?", orgID)
 	if jobID := c.Query("job_id"); jobID != "" {
-		query = query.Where("backup_job_id = ?", jobID)
+		query = query.Where("backup_runs.backup_job_id = ?", jobID)
 	}
 	if status := c.Query("status"); status != "" {
-		query = query.Where("status = ?", status)
+		query = query.Where("backup_runs.status = ?", status)
+	}
+	// Parent job table: LEFT JOIN so search/sort by job name never drops
+	// orphan rows, and preloaded job names stay consistent with ordering.
+	query = query.Joins("LEFT JOIN backup_jobs ON backup_jobs.id = backup_runs.backup_job_id")
+	// Free-text search across the parent job name.
+	if q := strings.TrimSpace(c.Query("search")); q != "" {
+		query = query.Where("backup_jobs.name ILIKE ?", "%"+escapeLike(q)+"%")
 	}
 
 	var total int64
 	query.Model(&models.BackupRun{}).Count(&total)
+
+	// Sorting: allowlisted columns only — raw input is never interpolated.
+	sortCol := map[string]string{
+		"job":      "backup_jobs.name",
+		"started":  "backup_runs.started_at",
+		"duration": "backup_runs.duration_seconds",
+		"uploaded": "backup_runs.bytes_uploaded",
+		"created":  "backup_runs.created_at",
+	}[c.Query("sort")]
+	if sortCol == "" {
+		sortCol = "backup_runs.created_at"
+	}
+	order := "DESC"
+	if strings.EqualFold(c.Query("order"), "asc") {
+		order = "ASC"
+	}
+	// Secondary key keeps pagination stable for ties (e.g. equal durations).
+	query = query.Order(sortCol + " " + order).Order("backup_runs.created_at DESC")
 
 	var runs []models.BackupRun
 	query.Preload("BackupJob").Limit(limit).Offset(offset).Find(&runs)
@@ -142,37 +167,10 @@ func (h *BackupRunHandler) Cancel(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"status": models.RunCancelled})
 }
 
-// authenticateAgent fetches the agent by ID (from X-Agent-ID header) then verifies
-// the bearer token with bcrypt — O(1) DB lookup + one bcrypt compare.
-func (h *BackupRunHandler) authenticateAgent(c *gin.Context) (*models.Agent, bool) {
-	raw := extractBearerToken(c)
-	if raw == "" {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "missing agent token"})
-		return nil, false
-	}
-	agentID, err := uuid.Parse(c.GetHeader("X-Agent-ID"))
-	if err != nil {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "missing or invalid X-Agent-ID header"})
-		return nil, false
-	}
-	var agent models.Agent
-	if err := h.db.Where("id = ?", agentID).First(&agent).Error; err != nil {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "invalid agent token"})
-		return nil, false
-	}
-	if bcrypt.CompareHashAndPassword([]byte(agent.TokenHash), []byte(raw)) != nil {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "invalid agent token"})
-		return nil, false
-	}
-	return &agent, true
-}
-
 // UpdateStatus is called by the agent to update run progress/status.
+// Auth is handled by AgentAuth middleware; agent is read from context.
 func (h *BackupRunHandler) UpdateStatus(c *gin.Context) {
-	agent, ok := h.authenticateAgent(c)
-	if !ok {
-		return
-	}
+	agent := c.MustGet("agent").(*models.Agent)
 
 	runID, err := uuid.Parse(c.Param("id"))
 	if err != nil {
@@ -221,6 +219,19 @@ func (h *BackupRunHandler) UpdateStatus(c *gin.Context) {
 		return
 	}
 
+	// Validate reported storage_path is within the configured storage target directory.
+	if req.StoragePath != "" {
+		var target models.StorageTarget
+		if err := h.db.Where("id = ?", run.StorageTargetID).First(&target).Error; err == nil && target.Path != "" {
+			clean := filepath.Clean(req.StoragePath)
+			base := filepath.Clean(target.Path)
+			if !strings.HasPrefix(clean, base+string(filepath.Separator)) && clean != base {
+				c.JSON(http.StatusBadRequest, gin.H{"error": "storage_path is outside the configured storage target directory"})
+				return
+			}
+		}
+	}
+
 	updates := map[string]interface{}{
 		"status":           req.Status,
 		"bytes_read":       req.BytesRead,
@@ -246,7 +257,21 @@ func (h *BackupRunHandler) UpdateStatus(c *gin.Context) {
 		updates["data_key_encrypted"] = wrapped
 	}
 
-	h.db.Model(&run).Updates(updates)
+	// Atomic state transition: only update if the current DB status still
+	// matches what we read above, preventing a race between two concurrent
+	// status reports from the same agent.
+	res := h.db.Model(&models.BackupRun{}).
+		Where("id = ? AND status = ?", run.ID, run.Status).
+		Updates(updates)
+	if res.Error != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "update failed"})
+		return
+	}
+	if res.RowsAffected == 0 {
+		c.JSON(http.StatusConflict, gin.H{"error": "run status changed concurrently, please retry"})
+		return
+	}
+
 	// Re-read: a Cancel may have landed concurrently with this report.
 	var fresh models.BackupRun
 	h.db.Select("cancel_requested").Where("id = ?", run.ID).First(&fresh)
@@ -260,6 +285,10 @@ func (h *BackupRunHandler) UpdateStatus(c *gin.Context) {
 		if err := h.db.Where("id = ?", run.BackupJobID).First(&job).Error; err == nil {
 			jobName = job.Name
 		}
+		// Classify the failure so the UI can show a structured error category.
+		category := classifyFailure(req.ErrorMessage)
+		h.db.Model(&models.BackupRun{}).Where("id = ?", run.ID).Update("failure_category", category)
+
 		agentID := agent.ID
 		jobID := run.BackupJobID
 		alert := models.Alert{
@@ -355,11 +384,9 @@ func sha256File(path string) (string, error) {
 }
 
 // RegisterArtifact lets the agent record a backup artifact for a run.
+// Auth is handled by AgentAuth middleware; agent is read from context.
 func (h *BackupRunHandler) RegisterArtifact(c *gin.Context) {
-	agent, ok := h.authenticateAgent(c)
-	if !ok {
-		return
-	}
+	agent := c.MustGet("agent").(*models.Agent)
 
 	runID, err := uuid.Parse(c.Param("id"))
 	if err != nil {
@@ -398,11 +425,9 @@ func (h *BackupRunHandler) RegisterArtifact(c *gin.Context) {
 }
 
 // RegisterChunk is idempotent: re-uploading chunk index N for the same artifact updates it.
+// Auth is handled by AgentAuth middleware; agent is read from context.
 func (h *BackupRunHandler) RegisterChunk(c *gin.Context) {
-	agent, ok := h.authenticateAgent(c)
-	if !ok {
-		return
-	}
+	agent := c.MustGet("agent").(*models.Agent)
 
 	artifactID, err := uuid.Parse(c.Param("artifact_id"))
 	if err != nil {
@@ -486,4 +511,42 @@ func extractBearerToken(c *gin.Context) string {
 		return h[7:]
 	}
 	return ""
+}
+
+// classifyFailure maps a free-text error message to a structured category
+// so the dashboard can display actionable error types instead of raw strings.
+func classifyFailure(msg string) string {
+	m := strings.ToLower(msg)
+	switch {
+	case strings.Contains(m, "authentication") || strings.Contains(m, "password") ||
+		strings.Contains(m, "permission denied") || strings.Contains(m, "access denied") ||
+		strings.Contains(m, "invalid credentials"):
+		return "AUTH_ERROR"
+	case strings.Contains(m, "no space left") || strings.Contains(m, "disk full") ||
+		strings.Contains(m, "not enough space"):
+		return "DISK_FULL"
+	case strings.Contains(m, "connection refused") || strings.Contains(m, "no such host") ||
+		strings.Contains(m, "network") || strings.Contains(m, "dial tcp") ||
+		strings.Contains(m, "i/o timeout"):
+		return "NETWORK_ERROR"
+	case strings.Contains(m, "s3") || strings.Contains(m, "bucket") ||
+		strings.Contains(m, "storage") || strings.Contains(m, "upload"):
+		return "STORAGE_ERROR"
+	case strings.Contains(m, "timeout") || strings.Contains(m, "deadline exceeded") ||
+		strings.Contains(m, "context deadline"):
+		return "TIMEOUT"
+	case strings.Contains(m, "encrypt") || strings.Contains(m, "decrypt") ||
+		strings.Contains(m, "data key"):
+		return "ENCRYPTION_ERROR"
+	case strings.Contains(m, "cancelled") || strings.Contains(m, "canceled"):
+		return "CANCELLED"
+	case strings.Contains(m, "source") || strings.Contains(m, "pg_dump") ||
+		strings.Contains(m, "mongodump") || strings.Contains(m, "backup database"):
+		return "SOURCE_ERROR"
+	case strings.Contains(m, "verification") || strings.Contains(m, "checksum") ||
+		strings.Contains(m, "hash mismatch"):
+		return "VERIFICATION_ERROR"
+	default:
+		return "UNKNOWN"
+	}
 }

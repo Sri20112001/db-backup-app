@@ -9,7 +9,6 @@ import (
 	pb "github.com/backup-saas/server/proto/agentpb"
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
-	"golang.org/x/crypto/bcrypt"
 	"gorm.io/gorm"
 )
 
@@ -28,6 +27,9 @@ type createRestoreRequest struct {
 	AgentID         string `json:"agent_id" binding:"required"`
 	DestinationPath string `json:"destination_path"`
 	TargetDatabase  string `json:"target_database"`
+	// Confirmed must be true; forces the caller to explicitly acknowledge
+	// that this operation will overwrite data at the destination.
+	Confirmed bool `json:"confirmed" binding:"required"`
 }
 
 func (h *RestoreHandler) List(c *gin.Context) {
@@ -42,6 +44,11 @@ func (h *RestoreHandler) Create(c *gin.Context) {
 	var req createRestoreRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	if !req.Confirmed {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "confirmed must be true to proceed with restore"})
 		return
 	}
 
@@ -106,26 +113,9 @@ func (h *RestoreHandler) Get(c *gin.Context) {
 }
 
 // UpdateStatus is called by the agent to update restore job progress.
+// Auth is handled by AgentAuth middleware; agent is read from context.
 func (h *RestoreHandler) UpdateStatus(c *gin.Context) {
-	raw := extractBearerToken(c)
-	if raw == "" {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "missing agent token"})
-		return
-	}
-	agentID, err := uuid.Parse(c.GetHeader("X-Agent-ID"))
-	if err != nil {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "missing or invalid X-Agent-ID header"})
-		return
-	}
-	var agent models.Agent
-	if err := h.db.Where("id = ?", agentID).First(&agent).Error; err != nil {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "invalid agent token"})
-		return
-	}
-	if bcrypt.CompareHashAndPassword([]byte(agent.TokenHash), []byte(raw)) != nil {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "invalid agent token"})
-		return
-	}
+	agent := c.MustGet("agent").(*models.Agent)
 
 	id, err := uuid.Parse(c.Param("id"))
 	if err != nil {
@@ -142,13 +132,26 @@ func (h *RestoreHandler) UpdateStatus(c *gin.Context) {
 		return
 	}
 
+	var job models.RestoreJob
+	if err := h.db.Where("id = ? AND agent_id = ?", id, agent.ID).First(&job).Error; err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "not found"})
+		return
+	}
+
 	updates := map[string]interface{}{"status": req.Status}
 	if req.ErrorMessage != "" {
 		updates["error_message"] = req.ErrorMessage
 	}
+	if req.Status == models.RestoreRunning && job.StartedAt == nil {
+		now := time.Now()
+		updates["started_at"] = &now
+	}
 	if req.Status == models.RestoreCompleted || req.Status == models.RestoreFailed {
 		now := time.Now()
 		updates["completed_at"] = &now
+		if job.StartedAt != nil {
+			updates["duration_seconds"] = int64(now.Sub(*job.StartedAt).Seconds())
+		}
 	}
 
 	h.db.Model(&models.RestoreJob{}).

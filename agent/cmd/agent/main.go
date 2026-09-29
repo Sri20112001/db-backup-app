@@ -47,7 +47,7 @@ func main() {
 	cfg := agent.LoadConfig()
 
 	if cfg.BrowseAddr != "" {
-		agent.StartBrowseServer(cfg.BrowseAddr)
+		agent.StartBrowseServer(cfg.BrowseAddr, cfg.BrowseToken, cfg.DashboardOrigin)
 	}
 
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)

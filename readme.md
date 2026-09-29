@@ -82,9 +82,10 @@ Before you start, you'll need these free pieces of software on your computer:
 - **Node.js** (for the visual dashboard): [Download Node.js here](https://nodejs.org/)
 - **PostgreSQL** (the server's own database — your backups can target anything, but VaultGuard itself needs Postgres running locally)
 
-Both the server and the agent read their settings from `.env` files, which are picked up automatically:
-- `server/.env` must define `DATABASE_URL`, `JWT_SECRET`, `JWT_REFRESH_SECRET`, and `ENCRYPTION_KEY`.
-- `agent/agent.env` must define `AGENT_SERVER` (e.g. `http://localhost:7541/vaultguard/api`), plus any database credentials the agent needs (`AGENT_PG_PASSWORD`, `AGENT_MSSQL_*`, `AGENT_MONGO_URI`).
+Both the server and the agent read their settings from `.env` files, which are picked up automatically (even under plain `go run`):
+- Copy `server/.env.example` → `server/.env`. It must define `DATABASE_URL`, `JWT_SECRET`, `JWT_REFRESH_SECRET`, and `ENCRYPTION_KEY`.
+- Copy `agent/agent.env.example` → `agent/agent.env`. It must define `AGENT_SERVER` (e.g. `http://localhost:7541/vaultguard/api`), plus any database credentials the agent needs (`AGENT_PG_PASSWORD`, `AGENT_MSSQL_*`, `AGENT_MONGO_URI`).
+- For `docker compose up`, copy `.env.example` → `.env` at the repo root instead (the compose file refuses to start without real secrets — see `docker-compose.yml`).
 
 ### 2. Start the Backend Server (The Brain)
 The server handles the central database, scheduling, and tracking.
@@ -129,7 +130,9 @@ Now, let's start the screens you actually click on.
    ```
 
 ### 5. Open the App!
-Once both the Server and Dashboard are running, the command prompt will give you a website address (usually something like `http://localhost:7540` or `http://localhost:5173`). 
+Once the dashboard is running, open it at:
+- **Local dev:** `http://localhost:7540/vaultguard/` (Vite proxies `/vaultguard/api` to the Go server on `:7541`)
+- **Docker:** `http://localhost:7540/vaultguard/` (nginx serves the app and proxies the API)
 - Open your favorite web browser (like Chrome, Edge, or Safari).
 - Type that address into the top bar.
 - Welcome to VaultGuard! You can now start creating your backup jobs.

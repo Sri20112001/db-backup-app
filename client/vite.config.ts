@@ -17,6 +17,16 @@ export default defineConfig({
   },
   server: {
     port: 7540,
-    host: true
+    host: true,
+    proxy: {
+      // Dev-time reverse proxy so the relative VITE_API_URL (/vaultguard/api)
+      // reaches the Go server at http://localhost:7541 without CORS issues.
+      // Mirrors the nginx.conf proxy used in docker.
+      '/vaultguard/api': {
+        target: 'http://localhost:7541',
+        changeOrigin: true,
+        ws: true,
+      },
+    },
   }
 })
