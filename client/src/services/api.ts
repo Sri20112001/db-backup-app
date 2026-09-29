@@ -121,9 +121,9 @@ export const orgApi = {
 // Members
 export const memberApi = {
   list: (orgId: string) => request<OrganizationMember[]>(`/organizations/${orgId}/members`),
-  invite: (orgId: string, email: string, name: string, role: string) =>
+  invite: (orgId: string, email: string, name: string, role: string, password?: string) =>
     request(`/organizations/${orgId}/members`, {
-      method: 'POST', body: JSON.stringify({ email, name, role }),
+      method: 'POST', body: JSON.stringify({ email, name, role, password }),
     }),
   updateRole: (orgId: string, userId: string, role: string) =>
     request(`/organizations/${orgId}/members/${userId}/role`, {

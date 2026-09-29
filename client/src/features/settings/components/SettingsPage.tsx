@@ -24,7 +24,7 @@ const SettingsPage = () => {
   const pagedMembers = usePagination(members, 8, currentOrg?.id ?? '')
   const [isLoading, setIsLoading] = useState(false)
   const [showInvite, setShowInvite] = useState(false)
-  const [inviteForm, setInviteForm] = useState({ email: '', name: '', role: 'VIEWER' as MemberRole })
+  const [inviteForm, setInviteForm] = useState({ email: '', name: '', password: '', role: 'VIEWER' as MemberRole })
   const [isInviting, setIsInviting] = useState(false)
   const [pwForm, setPwForm] = useState({ current: '', next: '', confirm: '' })
   const [isPwLoading, setIsPwLoading] = useState(false)
@@ -42,12 +42,12 @@ const SettingsPage = () => {
     if (!currentOrg) return
     setIsInviting(true)
     try {
-      await memberApi.invite(currentOrg.id, inviteForm.email, inviteForm.name, inviteForm.role)
-      addToast('success', `${inviteForm.email} invited`)
+      await memberApi.invite(currentOrg.id, inviteForm.email, inviteForm.name, inviteForm.role, inviteForm.password)
+      addToast('success', `${inviteForm.email} added to organization`)
       setShowInvite(false)
-      setInviteForm({ email: '', name: '', role: 'VIEWER' })
+      setInviteForm({ email: '', name: '', password: '', role: 'VIEWER' })
       loadMembers()
-    } catch (err: unknown) { addToast('error', err instanceof Error ? err.message : 'Failed to invite member') }
+    } catch (err: unknown) { addToast('error', err instanceof Error ? err.message : 'Failed to add member') }
     finally { setIsInviting(false) }
   }
 
@@ -146,7 +146,7 @@ const SettingsPage = () => {
             <h2 className="text-[14px] font-semibold text-on-surface">Team Members ({members.length})</h2>
             <button type="button" onClick={() => setShowInvite(true)} className="flex items-center gap-1.5 px-3 h-8 rounded-lg bg-primary text-on-primary text-[12px] font-medium hover:bg-primary-container transition-colors">
               <UserPlus size={14} />
-              Invite Member
+              Add Member
             </button>
           </div>
 
@@ -225,10 +225,11 @@ const SettingsPage = () => {
             <div className="fixed inset-0 z-[200] flex items-center justify-center">
               <div className="absolute inset-0 bg-on-surface/30 backdrop-blur-[2px]" onClick={() => setShowInvite(false)} />
               <div className="relative bg-surface-container-lowest rounded-xl shadow-2xl p-6 w-full max-w-md mx-4 border border-surface-variant">
-                <h2 className="text-[16px] font-semibold text-on-surface mb-4">Invite Team Member</h2>
+                <h2 className="text-[16px] font-semibold text-on-surface mb-4">Add Team Member</h2>
                 <form onSubmit={handleInvite} className="flex flex-col gap-4">
                   <div><label className="block text-[13px] font-medium text-on-surface-variant mb-1.5">Email *</label><input type="email" value={inviteForm.email} onChange={(e) => setInviteForm((f) => ({ ...f, email: e.target.value }))} required className={inputCls} /></div>
                   <div><label className="block text-[13px] font-medium text-on-surface-variant mb-1.5">Name</label><input type="text" value={inviteForm.name} onChange={(e) => setInviteForm((f) => ({ ...f, name: e.target.value }))} className={inputCls} /></div>
+                  <div><label className="block text-[13px] font-medium text-on-surface-variant mb-1.5">Initial Password *</label><input type="password" value={inviteForm.password} onChange={(e) => setInviteForm((f) => ({ ...f, password: e.target.value }))} required minLength={8} className={inputCls} /></div>
                   <div>
                     <label className="block text-[13px] font-medium text-on-surface-variant mb-1.5">Role *</label>
                     <select value={inviteForm.role} onChange={(e) => setInviteForm((f) => ({ ...f, role: e.target.value as MemberRole }))} className={inputCls}>
@@ -239,7 +240,7 @@ const SettingsPage = () => {
                     <button type="button" onClick={() => setShowInvite(false)} className="px-4 h-9 rounded-lg bg-surface-container-lowest border border-surface-variant text-on-surface text-[13px] font-medium hover:bg-surface-container-low transition-colors">Cancel</button>
                     <button type="submit" disabled={isInviting} className="px-4 h-9 rounded-lg bg-primary text-on-primary text-[13px] font-medium hover:bg-primary-container transition-colors disabled:opacity-60 flex items-center gap-2">
                       {isInviting && <Loader2 size={14} className="animate-spin" />}
-                      Send Invite
+                      Add User
                     </button>
                   </div>
                 </form>

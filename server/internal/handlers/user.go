@@ -26,16 +26,17 @@ func (h *UserHandler) ListMembers(c *gin.Context) {
 	c.JSON(http.StatusOK, asArray(members))
 }
 
-// InviteMember creates a user (if not exists) and adds them to the org.
-type inviteRequest struct {
-	Email string             `json:"email" binding:"required,email"`
-	Name  string             `json:"name"`
-	Role  models.MemberRole  `json:"role" binding:"required"`
+// CreateMember creates a user (if not exists) and adds them to the org.
+type createMemberRequest struct {
+	Email    string             `json:"email" binding:"required,email"`
+	Name     string             `json:"name"`
+	Password string             `json:"password" binding:"required,min=8"`
+	Role     models.MemberRole  `json:"role" binding:"required"`
 }
 
 func (h *UserHandler) InviteMember(c *gin.Context) {
 	orgID := c.MustGet("org_id").(uuid.UUID)
-	var req inviteRequest
+	var req createMemberRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
@@ -56,13 +57,13 @@ func (h *UserHandler) InviteMember(c *gin.Context) {
 
 	var user models.User
 	if err := h.db.Where("email = ?", req.Email).First(&user).Error; err != nil {
-		// Create user with a temporary password they must reset
-		tempHash, _ := bcrypt.GenerateFromPassword([]byte(randomHex(16)), bcrypt.DefaultCost)
+		// Create user with provided password
+		hash, _ := bcrypt.GenerateFromPassword([]byte(req.Password), bcrypt.DefaultCost)
 		user = models.User{
 			Base:         models.Base{ID: uuid.New()},
 			Email:        req.Email,
 			Name:         req.Name,
-			PasswordHash: string(tempHash),
+			PasswordHash: string(hash),
 		}
 		h.db.Create(&user)
 	}
