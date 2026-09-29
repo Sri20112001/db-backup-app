@@ -90,7 +90,24 @@ const AgentsPage = () => {
 
   const handleCopy = () => {
     if (!regToken) return
-    navigator.clipboard.writeText(regToken.registration_key)
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(regToken.registration_key)
+    } else {
+      // Fallback for insecure contexts (like exposed IPs without HTTPS)
+      const textArea = document.createElement('textarea')
+      textArea.value = regToken.registration_key
+      textArea.style.position = 'fixed'
+      textArea.style.left = '-9999px'
+      document.body.appendChild(textArea)
+      textArea.focus()
+      textArea.select()
+      try {
+        document.execCommand('copy')
+      } catch (err) {
+        console.error('Fallback copy failed', err)
+      }
+      document.body.removeChild(textArea)
+    }
     setCopied(true)
     setTimeout(() => setCopied(false), 2000)
   }
