@@ -59,6 +59,20 @@
   --color-on-tertiary-fixed: #07006c;
   --color-on-tertiary-fixed-variant: #2f2ebe;
 
+  /* Status Colors */
+  --color-success: #16a34a;
+  --color-success-container: #dcfce7;
+  --color-on-success-container: #14532d;
+  --color-warning: #d97706;
+  --color-warning-container: #fef3c7;
+  --color-on-warning-container: #78350f;
+  --color-info: #0ea5e9;
+  --color-info-container: #e0f2fe;
+  --color-on-info-container: #0c4a6e;
+  --color-inactive: #6b7280;
+  --color-inactive-container: #f3f4f6;
+  --color-on-inactive-container: #374151;
+
   /* Backgrounds */
   --color-background: #edf1fa;
   --color-on-background: #141b2b;
@@ -144,6 +158,23 @@
   --color-on-error: #690005;
   --color-error-container: #93000a;
   --color-on-error-container: #ffdad6;
+
+  /* Status Colors (Adapted for Dark Mode) */
+  --color-success: #22c55e;
+  --color-success-container: rgba(22, 163, 74, 0.15);
+  --color-on-success-container: #4ade80;
+  
+  --color-warning: #f59e0b;
+  --color-warning-container: rgba(217, 119, 6, 0.15);
+  --color-on-warning-container: #fbbf24;
+  
+  --color-info: #0ea5e9;
+  --color-info-container: rgba(14, 165, 233, 0.15);
+  --color-on-info-container: #38bdf8;
+  
+  --color-inactive: #64748b;
+  --color-inactive-container: rgba(255, 255, 255, 0.05);
+  --color-on-inactive-container: #94a3b8;
 
   /* Backgrounds */
   --color-background: #0f1422;

@@ -3,28 +3,28 @@ import type { BackupRunStatus, RestoreStatus, AgentStatus } from '../types'
 type Status = BackupRunStatus | RestoreStatus | AgentStatus | 'HEALTHY' | 'WARNING' | 'UNKNOWN' | 'PAUSED'
 
 const config: Record<string, { bg: string; text: string; dot?: string; pulse?: boolean }> = {
-  // Success / Active States (Emerald)
-  HEALTHY:   { bg: 'bg-[#d1fae5]', text: 'text-[#065f46]', dot: 'bg-[#059669]' },
-  COMPLETED: { bg: 'bg-[#d1fae5]', text: 'text-[#065f46]', dot: 'bg-[#059669]' },
-  ONLINE:    { bg: 'bg-[#d1fae5]', text: 'text-[#065f46]', dot: 'bg-[#059669]', pulse: true },
+  // Success / Active States (Green)
+  HEALTHY:   { bg: 'bg-success-container', text: 'text-on-success-container', dot: 'bg-success' },
+  COMPLETED: { bg: 'bg-success-container', text: 'text-on-success-container', dot: 'bg-success' },
+  ONLINE:    { bg: 'bg-success-container', text: 'text-on-success-container', dot: 'bg-success', pulse: true },
 
-  // Active / Processing States (Teal / Cyan)
-  RUNNING:   { bg: 'bg-[#ccfbf1]', text: 'text-[#115e59]', dot: 'bg-[#0f766e]', pulse: true },
-  UPLOADING: { bg: 'bg-[#ccfbf1]', text: 'text-[#115e59]', dot: 'bg-[#0f766e]', pulse: true },
-  VERIFYING: { bg: 'bg-[#ccfbf1]', text: 'text-[#115e59]', dot: 'bg-[#0f766e]', pulse: true },
+  // Active / Processing States (Blue)
+  RUNNING:   { bg: 'bg-info-container', text: 'text-on-info-container', dot: 'bg-info', pulse: true },
+  UPLOADING: { bg: 'bg-info-container', text: 'text-on-info-container', dot: 'bg-info', pulse: true },
+  VERIFYING: { bg: 'bg-info-container', text: 'text-on-info-container', dot: 'bg-info', pulse: true },
 
   // Attention / Waiting States (Amber)
-  WARNING:   { bg: 'bg-[#fef3c7]', text: 'text-[#92400e]', dot: 'bg-[#d97706]' },
-  PENDING:   { bg: 'bg-[#fef3c7]', text: 'text-[#92400e]', dot: 'bg-[#d97706]' },
-  PAUSED:    { bg: 'bg-[#fef3c7]/80', text: 'text-[#92400e]', dot: 'bg-[#d97706]' },
+  WARNING:   { bg: 'bg-warning-container', text: 'text-on-warning-container', dot: 'bg-warning' },
+  PENDING:   { bg: 'bg-warning-container', text: 'text-on-warning-container', dot: 'bg-warning' },
+  PAUSED:    { bg: 'bg-warning-container/80', text: 'text-on-warning-container', dot: 'bg-warning' },
 
-  // Critical / Destructive States (Rose / Crimson)
+  // Critical / Destructive States (Red)
   FAILED:    { bg: 'bg-error-container', text: 'text-on-error-container', dot: 'bg-error' },
 
-  // Inactive / Neutral States (Muted Sage-Slate)
-  CANCELLED: { bg: 'bg-[#e6ebe8]', text: 'text-[#3e4943]', dot: 'bg-[#6d7a73]' },
-  OFFLINE:   { bg: 'bg-[#e6ebe8]', text: 'text-[#3e4943]', dot: 'bg-[#6d7a73]' },
-  UNKNOWN:   { bg: 'bg-[#e6ebe8]', text: 'text-[#3e4943]', dot: 'bg-[#6d7a73]' },
+  // Inactive / Neutral States (Gray)
+  CANCELLED: { bg: 'bg-inactive-container', text: 'text-on-inactive-container', dot: 'bg-inactive' },
+  OFFLINE:   { bg: 'bg-inactive-container', text: 'text-on-inactive-container', dot: 'bg-inactive' },
+  UNKNOWN:   { bg: 'bg-inactive-container', text: 'text-on-inactive-container', dot: 'bg-inactive' },
 }
 
 interface Props {
