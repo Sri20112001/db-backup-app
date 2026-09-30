@@ -25,20 +25,26 @@ func NewStorageHandler(db *gorm.DB, encryptionKey []byte) *StorageHandler {
 }
 
 type createStorageRequest struct {
-	Name      string            `json:"name" binding:"required"`
-	Type      models.StorageType `json:"type" binding:"required"`
-	Bucket    string            `json:"bucket"`
-	Region    string            `json:"region"`
-	Endpoint  string            `json:"endpoint"`
-	AccessKey string            `json:"access_key"`
-	SecretKey string            `json:"secret_key"`
-	Path      string            `json:"path"`
+	Name         string             `json:"name" binding:"required"`
+	Type         models.StorageType `json:"type" binding:"required"`
+	Bucket       string             `json:"bucket"`
+	Region       string             `json:"region"`
+	Endpoint     string             `json:"endpoint"`
+	UsePathStyle bool               `json:"use_path_style"`
+	AccessKey    string             `json:"access_key"`
+	SecretKey    string             `json:"secret_key"`
+	Path         string             `json:"path"`
 }
 
 func (h *StorageHandler) List(c *gin.Context) {
 	orgID := c.MustGet("org_id").(uuid.UUID)
 	var targets []models.StorageTarget
 	h.db.Where("organization_id = ?", orgID).Find(&targets)
+	// Transient UI flag — the encrypted values themselves never leave the
+	// server (json:"-"); claims unwrap them per-job instead.
+	for i := range targets {
+		targets[i].HasCredentials = targets[i].EncryptedAccessKey != "" || targets[i].EncryptedSecretKey != ""
+	}
 	c.JSON(http.StatusOK, asArray(targets))
 }
 
@@ -69,9 +75,11 @@ func (h *StorageHandler) Create(c *gin.Context) {
 		Bucket:             req.Bucket,
 		Region:             req.Region,
 		Endpoint:           req.Endpoint,
+		UsePathStyle:       req.UsePathStyle,
 		EncryptedAccessKey: encAccess,
 		EncryptedSecretKey: encSecret,
 		Path:               req.Path,
+		HasCredentials:     req.AccessKey != "" || req.SecretKey != "",
 	}
 	if err := h.db.Create(&target).Error; err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "create failed"})

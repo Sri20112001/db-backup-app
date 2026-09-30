@@ -110,12 +110,18 @@ type StorageTarget struct {
 	OrganizationID     uuid.UUID   `gorm:"type:uuid;not null;index" json:"organization_id"`
 	Name               string      `gorm:"not null" json:"name"`
 	Type               StorageType `gorm:"not null" json:"type"`
-	Bucket             string      `json:"bucket"`
-	Region             string      `json:"region"`
-	Endpoint           string      `json:"endpoint"`
-	EncryptedAccessKey string      `json:"-"`
-	EncryptedSecretKey string      `json:"-"`
-	Path               string      `json:"path"`
+	Bucket             string    `json:"bucket"`
+	Region             string    `json:"region"`
+	Endpoint           string    `json:"endpoint"`
+	// UsePathStyle selects path-style addressing (http://host/bucket/key,
+	// MinIO-friendly) over virtual-hosted style (AWS/R2/Wasabi).
+	UsePathStyle       bool      `gorm:"default:false" json:"use_path_style"`
+	EncryptedAccessKey string    `json:"-"`
+	EncryptedSecretKey string    `json:"-"`
+	Path               string    `json:"path"`
+	// HasCredentials is transient (never stored): tells the UI whether
+	// credentials exist without ever returning them.
+	HasCredentials     bool      `gorm:"-" json:"has_credentials"`
 }
 
 // --- BackupJob ---
@@ -254,7 +260,22 @@ type BackupArtifact struct {
 	Size        int64     `json:"size"`
 	Checksum    string    `json:"checksum"`
 	StoragePath string    `json:"storage_path"`
+	// StorageTargetID pins the exact target this artifact was written to,
+	// even if the job's target is changed or deleted later. Nullable at
+	// the DB level so orphaned historical rows can never block a
+	// migration; the API always fills it for new artifacts.
+	StorageTargetID uuid.UUID `gorm:"type:uuid;index" json:"storage_target_id"`
+	// Verification tracks HEAD/checksum confirmation (and later, recovery
+	// testing): PENDING → VERIFIED | FAILED.
+	VerifiedAt         *time.Time `json:"verified_at,omitempty"`
+	VerificationStatus string     `gorm:"default:'PENDING'" json:"verification_status"`
 }
+
+const (
+	ArtifactUnverified = "PENDING"
+	ArtifactVerified   = "VERIFIED"
+	ArtifactVerifyFail = "FAILED"
+)
 
 // --- BackupChunk ---
 

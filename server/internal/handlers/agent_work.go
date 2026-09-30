@@ -75,6 +75,7 @@ type agentRunDTO struct {
 
 type agentJobConfigDTO struct {
 	JobID           string `json:"job_id"`
+	OrganizationID  string `json:"organization_id"`
 	Name            string `json:"name"`
 	SourceType      string `json:"source_type"`
 	SourcePath      string `json:"source_path"`
@@ -90,6 +91,46 @@ type agentJobConfigDTO struct {
 	StorageRegion   string `json:"storage_region"`
 	StorageEndpoint string `json:"storage_endpoint"`
 	StoragePath     string `json:"storage_path"`
+	// Storage is the self-contained provider config: type + addressing +
+	// credentials. Decrypted server-side, delivered per-claim (over HTTPS
+	// in production) so agents never call storage-target APIs. Credentials
+	// are populated for S3 targets only.
+	Storage agentStorageConfigDTO `json:"storage"`
+}
+
+// agentStorageConfigDTO mirrors the agent's StorageConfig. Flat Storage*
+// fields above are kept for older agents; new agents read Storage.
+type agentStorageConfigDTO struct {
+	Type         string `json:"type"`
+	Path         string `json:"path,omitempty"`
+	Bucket       string `json:"bucket,omitempty"`
+	Region       string `json:"region,omitempty"`
+	Endpoint     string `json:"endpoint,omitempty"`
+	UsePathStyle bool   `json:"use_path_style,omitempty"`
+	AccessKey    string `json:"access_key,omitempty"`
+	SecretKey    string `json:"secret_key,omitempty"`
+}
+
+// storageConfigFor resolves a target into a claim-ready config, unwrapping
+// credentials only for providers that need the agent to present them (S3).
+func storageConfigFor(target models.StorageTarget, encKey []byte) agentStorageConfigDTO {
+	cfg := agentStorageConfigDTO{
+		Type:         string(target.Type),
+		Path:         target.Path,
+		Bucket:       target.Bucket,
+		Region:       target.Region,
+		Endpoint:     target.Endpoint,
+		UsePathStyle: target.UsePathStyle,
+	}
+	if target.Type == models.StorageS3 {
+		if ak, err := decrypt(encKey, target.EncryptedAccessKey); err == nil {
+			cfg.AccessKey = ak
+		}
+		if sk, err := decrypt(encKey, target.EncryptedSecretKey); err == nil {
+			cfg.SecretKey = sk
+		}
+	}
+	return cfg
 }
 
 // PendingRuns lists PENDING runs assigned to the calling agent, oldest first.
@@ -168,6 +209,7 @@ func (h *AgentWorkHandler) ClaimRun(c *gin.Context) {
 		"cancel_requested": run.CancelRequested,
 		"config": agentJobConfigDTO{
 			JobID:           run.BackupJob.ID.String(),
+			OrganizationID:  run.OrganizationID.String(),
 			Name:            run.BackupJob.Name,
 			SourceType:      string(run.BackupJob.SourceType),
 			SourcePath:      run.BackupJob.SourcePath,
@@ -183,6 +225,7 @@ func (h *AgentWorkHandler) ClaimRun(c *gin.Context) {
 			StorageRegion:   run.BackupJob.StorageTarget.Region,
 			StorageEndpoint: run.BackupJob.StorageTarget.Endpoint,
 			StoragePath:     run.BackupJob.StorageTarget.Path,
+			Storage:         storageConfigFor(run.BackupJob.StorageTarget, h.encKey),
 		},
 	})
 }
@@ -197,6 +240,9 @@ type agentRestoreDTO struct {
 	Status          string    `json:"status"`
 	StoragePath     string    `json:"storage_path"`
 	StorageType     string    `json:"storage_type"`
+	// Storage carries the provider config (S3 credentials included) so the
+	// agent can download the object without extra calls.
+	Storage agentStorageConfigDTO `json:"storage"`
 	// DataKey is the raw base64 data key for encrypted backups, unwrapped
 	// with the server ENCRYPTION_KEY. Empty for unencrypted backups.
 	DataKey   string    `json:"data_key,omitempty"`
@@ -217,6 +263,7 @@ func (h *AgentWorkHandler) toAgentRestoreDTO(job models.RestoreJob) agentRestore
 		Status:          string(job.Status),
 		StoragePath:     job.BackupRun.StoragePath,
 		StorageType:     string(job.BackupRun.BackupJob.StorageTarget.Type),
+		Storage:         storageConfigFor(job.BackupRun.BackupJob.StorageTarget, h.encKey),
 		SourceType:      string(job.BackupRun.BackupJob.SourceType),
 		SourceDatabase:  job.BackupRun.BackupJob.SourceDatabase,
 		ExportFormat:    job.BackupRun.BackupJob.ExportFormat,

@@ -15,6 +15,7 @@ import (
 // JobConfig mirrors the server's agentJobConfigDTO.
 type JobConfig struct {
 	JobID           string `json:"job_id"`
+	OrganizationID  string `json:"organization_id"`
 	Name            string `json:"name"`
 	SourceType      string `json:"source_type"`
 	SourcePath      string `json:"source_path"`
@@ -29,8 +30,24 @@ type JobConfig struct {
 	StorageRegion   string `json:"storage_region"`
 	StorageEndpoint string `json:"storage_endpoint"`
 	StoragePath     string `json:"storage_path"`
+	// Storage is the self-contained provider config (S3 credentials
+	// included, decrypted server-side per claim). New code reads this;
+	// the flat Storage* fields above stay for older servers.
+	Storage StorageConfig `json:"storage"`
 	// ExportFormat selects the MongoDB payload (ARCHIVE/JSON/CSV).
 	ExportFormat string `json:"export_format"`
+}
+
+// StorageConfig mirrors the server's agentStorageConfigDTO.
+type StorageConfig struct {
+	Type         string `json:"type"`
+	Path         string `json:"path"`
+	Bucket       string `json:"bucket"`
+	Region       string `json:"region"`
+	Endpoint     string `json:"endpoint"`
+	UsePathStyle bool   `json:"use_path_style"`
+	AccessKey    string `json:"access_key"`
+	SecretKey    string `json:"secret_key"`
 }
 
 type Run struct {
@@ -54,6 +71,9 @@ type Restore struct {
 	Status          string `json:"status"`
 	StoragePath     string `json:"storage_path"`
 	StorageType     string `json:"storage_type"`
+	// Storage carries the provider config (S3 credentials included) so the
+	// agent can download without extra calls.
+	Storage StorageConfig `json:"storage"`
 	// DataKey is the raw base64 data key for encrypted backups.
 	DataKey   string `json:"data_key"`
 	// SourceType/SourceDatabase identify what is being restored.

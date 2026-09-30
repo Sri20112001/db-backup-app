@@ -413,12 +413,13 @@ func (h *BackupRunHandler) RegisterArtifact(c *gin.Context) {
 	}
 
 	artifact := models.BackupArtifact{
-		Base:        models.Base{ID: uuid.New()},
-		BackupRunID: runID,
-		Name:        req.Name,
-		Size:        req.Size,
-		Checksum:    req.Checksum,
-		StoragePath: req.StoragePath,
+		Base:            models.Base{ID: uuid.New()},
+		BackupRunID:     runID,
+		Name:            req.Name,
+		Size:            req.Size,
+		Checksum:        req.Checksum,
+		StoragePath:     req.StoragePath,
+		StorageTargetID: run.StorageTargetID,
 	}
 	h.db.Create(&artifact)
 	c.JSON(http.StatusCreated, artifact)
