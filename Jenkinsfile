@@ -60,12 +60,36 @@ pipeline {
       steps {
         sh '''
           set -e
-          # go vet + unit tests + vulnerability scan. DB-backed integration
-          # tests self-skip without DATABASE_URL (see server/internal/testutil).
-          docker run --rm \
+          # Ephemeral Postgres so DB-gated tests (migrations, scheduler
+          # idempotency, refresh rotation, region seed) actually run instead
+          # of skipping. Torn down even when tests fail.
+          NET="vg-ci-$BUILD_NUMBER"
+          PG="vg-ci-pg-$BUILD_NUMBER"
+          # Drop leftovers from an aborted earlier run, then start fresh.
+          docker rm -f "$PG" >/dev/null 2>&1 || true
+          docker network rm "$NET" >/dev/null 2>&1 || true
+          docker network create "$NET" >/dev/null
+          docker run -d --name "$PG" --network "$NET" \
+            -e POSTGRES_USER=postgres \
+            -e POSTGRES_PASSWORD=postgres \
+            -e POSTGRES_DB=ci_test \
+            postgres:15-alpine >/dev/null
+          i=0
+          while [ $i -lt 30 ]; do
+            if docker exec "$PG" pg_isready -U postgres >/dev/null 2>&1; then break; fi
+            i=$((i+1)); sleep 2
+          done
+          # `|| STATUS=$?` (not bare set -e): a failing suite must still
+          # reach the cleanup below instead of leaking pg containers.
+          STATUS=0
+          docker run --rm --network "$NET" \
             -v "$WORKSPACE/server:/src" -w /src \
+            -e DATABASE_URL="host=$PG user=postgres password=postgres dbname=ci_test port=5432 sslmode=disable" \
             golang:1.26-alpine \
-            sh -c "go vet ./... && go test ./... && go run golang.org/x/vuln/cmd/govulncheck@latest ./..."
+            sh -c "go vet ./... && go test ./... && go run golang.org/x/vuln/cmd/govulncheck@latest ./..." || STATUS=$?
+          docker rm -f "$PG" >/dev/null 2>&1 || true
+          docker network rm "$NET" >/dev/null 2>&1 || true
+          exit $STATUS
         '''
       }
     }
@@ -80,7 +104,6 @@ pipeline {
             sh -c "go vet ./... && go test ./... && go run golang.org/x/vuln/cmd/govulncheck@latest ./..."
         '''
       }
-    }
     }
 
     stage('Test (client)') {
@@ -107,8 +130,12 @@ pipeline {
 
     stage('Deploy') {
       environment {
-        // Fetch secrets from Jenkins credentials
+        // Fetch secrets from Jenkins credentials. BACKUP_DB_PASSWORD is
+        // required since the compose file gives the agent a least-privilege
+        // role instead of the postgres superuser — add this credential
+        // (vaultguard-backup-db-password) before the first deploy.
         POSTGRES_PASSWORD = credentials('vaultguard-postgres-password')
+        BACKUP_DB_PASSWORD = credentials('vaultguard-backup-db-password')
         JWT_SECRET = credentials('vaultguard-jwt-secret')
         JWT_REFRESH_SECRET = credentials('vaultguard-jwt-refresh-secret')
         ENCRYPTION_KEY = credentials('vaultguard-encryption-key')
@@ -124,16 +151,29 @@ pipeline {
           # Start up new containers
           # Passing secrets to docker-compose via environment variables
           export POSTGRES_PASSWORD=$POSTGRES_PASSWORD
+          export BACKUP_DB_PASSWORD=$BACKUP_DB_PASSWORD
           export JWT_SECRET=$JWT_SECRET
           export JWT_REFRESH_SECRET=$JWT_REFRESH_SECRET
           export ENCRYPTION_KEY=$ENCRYPTION_KEY
 
           $COMPOSE up -d
-          
+
           # Clean up dangling images
           docker image prune -f
-          
-          sleep 5
+
+          # Health gate: migrations run before the API listens, so a 200
+          # here means the new version booted AND migrated successfully.
+          OK=0
+          i=0
+          while [ $i -lt 30 ]; do
+            if curl -sf http://localhost:7541/vaultguard/api/health >/dev/null 2>&1; then OK=1; break; fi
+            i=$((i+1)); sleep 2
+          done
+          if [ "$OK" != "1" ]; then
+            echo "backend unhealthy after deploy — tailing server logs" >&2
+            $COMPOSE logs --tail=50 server || true
+            exit 1
+          fi
           echo "VaultGuard deployed! Frontend on port 7540, Backend on 7541"
         '''
       }
