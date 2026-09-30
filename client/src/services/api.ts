@@ -164,6 +164,9 @@ export const storageApi = {
     }),
   delete: (orgId: string, id: string) =>
     request(`/organizations/${orgId}/storage-targets/${id}`, { method: 'DELETE' }),
+  testConnection: (orgId: string, id: string) =>
+    request<{ status: string; latency_ms?: number; bucket?: string; stage?: string; error?: string }>(
+      `/organizations/${orgId}/storage-targets/${id}/test`, { method: 'POST' }),
 }
 
 // Backup Jobs
