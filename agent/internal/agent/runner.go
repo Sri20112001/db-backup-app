@@ -5,11 +5,118 @@ import (
 	"encoding/base64"
 	"errors"
 	"fmt"
+	"io"
 	"log"
 	"os"
 	"strings"
 	"time"
+
+	"github.com/backup-saas/agent/internal/storage"
 )
+
+// storageForJob resolves the provider for a claimed job. It prefers the
+// self-contained Storage block new servers send; older servers only send
+// the flat Storage* fields, which map to the same config.
+func storageForJob(job *JobConfig) (storage.Storage, error) {
+	st := job.Storage
+	if strings.TrimSpace(st.Type) == "" {
+		st = StorageConfig{
+			Type:     job.StorageType,
+			Path:     job.StoragePath,
+			Bucket:   job.StorageBucket,
+			Region:   job.StorageRegion,
+			Endpoint: job.StorageEndpoint,
+		}
+	}
+		var s3cfg *storage.S3Config
+	if strings.EqualFold(strings.TrimSpace(st.Type), "S3") {
+		s3cfg = &storage.S3Config{
+			Bucket:       st.Bucket,
+			Region:       st.Region,
+			Endpoint:     st.Endpoint,
+			UsePathStyle: st.UsePathStyle,
+			AccessKey:    st.AccessKey,
+			SecretKey:    st.SecretKey,
+		}
+	}
+	return storage.ForJob(st.Type, st.Path, s3cfg)
+}
+
+// storageForRestore resolves the provider for a claimed restore, with the
+// same old-server fallback as backups.
+func storageForRestore(rs *Restore) (storage.Storage, error) {
+	st := rs.Storage
+	if strings.TrimSpace(st.Type) == "" {
+		st = StorageConfig{
+			Type:     rs.StorageType,
+			Path:     "",
+			Bucket:   "",
+			Region:   "",
+			Endpoint: "",
+		}
+	}
+	// LOCAL restores read artifact files in place; the root only matters
+	// for key-style paths, which legacy absolute paths bypass anyway.
+	var root string
+	var s3cfg *storage.S3Config
+	if strings.EqualFold(strings.TrimSpace(st.Type), "S3") {
+		s3cfg = &storage.S3Config{
+			Bucket:       st.Bucket,
+			Region:       st.Region,
+			Endpoint:     st.Endpoint,
+			UsePathStyle: st.UsePathStyle,
+			AccessKey:    st.AccessKey,
+			SecretKey:    st.SecretKey,
+		}
+	} else {
+		root = st.Path
+		if root == "" {
+			// Restores address artifacts by their registered absolute path;
+			// any existing directory root works for validation purposes.
+			root = os.TempDir()
+		}
+	}
+	return storage.ForJob(st.Type, root, s3cfg)
+}
+
+// downloadRestoreObject fetches a remote object to a temp file after
+// verifying the disk can hold it. Fails fast with INSUFFICIENT_DISK_SPACE
+// instead of filling the filesystem mid-download.
+func (r *Runner) downloadRestoreObject(ctx context.Context, runID string, store storage.Storage, key string) (string, error) {
+	head, err := store.Head(ctx, key)
+	if err != nil {
+		return "", fmt.Errorf("HEAD %s: %w", key, err)
+	}
+	tmpDir := os.TempDir()
+	if free, err := storage.FreeDiskSpace(tmpDir); err == nil {
+		// Object + decrypted copy + restored output can briefly coexist.
+		if head.Size > 0 && free < uint64(head.Size)*2 {
+			return "", fmt.Errorf("INSUFFICIENT_DISK_SPACE: need ~%d bytes, %d available in %s", head.Size*2, free, tmpDir)
+		}
+	} else {
+		log.Printf("restore %s: disk-space check unavailable (%v), proceeding", runID, err)
+	}
+	rc, _, err := store.Get(ctx, key)
+	if err != nil {
+		return "", fmt.Errorf("GET %s: %w", key, err)
+	}
+	defer rc.Close()
+	tmp, err := os.CreateTemp(tmpDir, "vg-restore-*.tmp")
+	if err != nil {
+		return "", err
+	}
+	if _, err := io.Copy(tmp, rc); err != nil {
+		tmp.Close()
+		os.Remove(tmp.Name())
+		return "", fmt.Errorf("download %s: %w", key, err)
+	}
+	if err := tmp.Close(); err != nil {
+		os.Remove(tmp.Name())
+		return "", err
+	}
+	r.wsLog(runID, fmt.Sprintf("downloaded %d bytes", head.Size))
+	return tmp.Name(), nil
+}
 
 // Runner executes one piece of work at a time, polling the server.
 type Runner struct {
@@ -137,8 +244,11 @@ func (r *Runner) executeBackup(ctx context.Context, runID string, job *JobConfig
 		r.failRun( runID, fmt.Sprintf("source type %s is not supported by agent v%s (supported: FILESYSTEM, POSTGRES, MONGODB, MSSQL_SERVER)", job.SourceType, Version), nil)
 		return
 	}
-	if job.StorageType != "LOCAL" {
-		r.failRun( runID, fmt.Sprintf("storage type %s is not supported by agent v%s (supported: LOCAL)", job.StorageType, Version), nil)
+	// Storage provider for this job. Unknown/misconfigured targets fail
+	// here — before the backup runs, never after the payload is produced.
+	store, err := storageForJob(job)
+	if err != nil {
+		r.failRun(runID, "storage initialization failed", err)
 		return
 	}
 	if ctx.Err() != nil {
@@ -303,12 +413,58 @@ func (r *Runner) executeBackup(ctx context.Context, runID string, job *JobConfig
 		log.Printf("run %s: encrypted archive with fresh data key", runID)
 	}
 
-	dest, uploaded, err := StoreLocal(job.StoragePath, job.Name, runID, archivePath)
+	// Upload through the storage provider. The object key (never a URL)
+	// is what gets registered as the artifact's storage_path.
+	key := storage.BuildKey(job.OrganizationID, job.JobID, runID, artifactName)
+	payload, err := os.Open(archivePath)
 	if err != nil {
-		r.failRun( runID, "store failed", err)
+		r.failRun(runID, "open payload failed", err)
 		return
 	}
-	r.wsLog(runID, fmt.Sprintf("stored %d bytes -> %s", uploaded, dest))
+	payloadStat, err := payload.Stat()
+	if err != nil {
+		payload.Close()
+		r.failRun(runID, "stat payload failed", err)
+		return
+	}
+	info, err := store.Put(ctx, key, payload, payloadStat.Size(), storage.PutOptions{
+		ContentType: storage.ContentTypeForName(artifactName),
+		Metadata: map[string]string{
+			storage.MetaChecksumSHA256: archiveChecksum,
+			storage.MetaRunID:          runID,
+			storage.MetaArtifactName:   artifactName,
+		},
+	})
+	payload.Close()
+	if err != nil {
+		// Local temp payloads are removed by the deferred cleanups above;
+		// the next scheduled run retries the backup from scratch.
+		r.failRun(runID, "upload failed", err)
+		return
+	}
+	uploaded := info.Size
+	r.wsLog(runID, fmt.Sprintf("uploaded %d bytes -> %s", uploaded, info.Location))
+
+	// Verify before trusting: HEAD the object and compare size and the
+	// VaultGuard SHA-256 metadata (S3 ETags are NOT content hashes for
+	// multipart uploads). A mismatch deletes the remote object so a later
+	// verify/reconcile never trusts it.
+	head, err := store.Head(ctx, key)
+	if err != nil {
+		r.failRun(runID, "verify failed: HEAD", err)
+		return
+	}
+	if head.Size != uploaded {
+		_ = store.Delete(ctx, key)
+		r.failRun(runID, fmt.Sprintf("verify failed: size mismatch (wrote %d, stored %d)", uploaded, head.Size), nil)
+		return
+	}
+	if head.ChecksumSHA256 != "" && head.ChecksumSHA256 != strings.ToLower(archiveChecksum) {
+		_ = store.Delete(ctx, key)
+		r.failRun(runID, "verify failed: checksum mismatch", nil)
+		return
+	}
+	dest := info.Location
 
 	if _, err := r.client.RegisterArtifact(runID, artifactName, uploaded, archiveChecksum, dest); err != nil {
 		log.Printf("run %s: register artifact: %v", runID, err)
@@ -332,7 +488,9 @@ func (r *Runner) executeBackup(ctx context.Context, runID string, job *JobConfig
 			return
 		}
 		if r.cancelledByUser(runID, cancel) {
-			os.Remove(dest)
+			// Remove the just-uploaded object so a cancelled run leaves
+			// no orphan behind (provider-aware: S3 key or local file).
+			_ = store.Delete(ctx, key)
 			r.cancelRun( runID)
 			return
 		}
@@ -398,8 +556,9 @@ func (r *Runner) restoreMongoExport(ctx context.Context, target, archivePath, fo
 func (r *Runner) executeRestore(ctx context.Context, rs *Restore) {
 	log.Printf("restore %s: extracting to %q", rs.ID, rs.DestinationPath)
 	r.wsLog(rs.ID, fmt.Sprintf("restore started -> %q", rs.DestinationPath))
-	if rs.StorageType != "" && rs.StorageType != "LOCAL" {
-		msg := fmt.Sprintf("storage type %s is not supported by agent v%s (supported: LOCAL)", rs.StorageType, Version)
+	store, err := storageForRestore(rs)
+	if err != nil {
+		msg := fmt.Sprintf("storage initialization failed: %v", err)
 		log.Printf("restore %s FAILED: %s", rs.ID, msg)
 		_ = r.client.UpdateRestoreStatus(rs.ID, "FAILED", msg)
 		return
@@ -408,9 +567,24 @@ func (r *Runner) executeRestore(ctx context.Context, rs *Restore) {
 		_ = r.client.UpdateRestoreStatus(rs.ID, "FAILED", "agent shutting down")
 		return
 	}
+	// Remote objects (S3) download to a temp file first: deterministic
+	// checksum/decrypt troubleshooting, and a disk-space gate before a
+	// single byte moves. LOCAL artifacts stream straight from disk.
+	archiveSrc := rs.StoragePath
+	if _, isLocal := store.(*storage.LocalStorage); !isLocal {
+		tmp, err := r.downloadRestoreObject(ctx, rs.ID, store, rs.StoragePath)
+		if err != nil {
+			msg := fmt.Sprintf("download failed: %v", err)
+			log.Printf("restore %s FAILED: %s", rs.ID, msg)
+			_ = r.client.UpdateRestoreStatus(rs.ID, "FAILED", msg)
+			return
+		}
+		defer os.Remove(tmp)
+		archiveSrc = tmp
+	}
 	// Decrypt first when the backup was encrypted. The data key arrives with
 	// the claim (unwrapped server-side); plaintext never touches the server.
-	archivePath := rs.StoragePath
+	archivePath := archiveSrc
 	if rs.DataKey != "" {
 		key, err := base64.StdEncoding.DecodeString(rs.DataKey)
 		if err != nil {
@@ -419,7 +593,7 @@ func (r *Runner) executeRestore(ctx context.Context, rs *Restore) {
 			_ = r.client.UpdateRestoreStatus(rs.ID, "FAILED", msg)
 			return
 		}
-		decPath := rs.StoragePath + ".dec"
+		decPath := archiveSrc + ".dec"
 		if err := DecryptFile(key, rs.StoragePath, decPath); err != nil {
 			msg := fmt.Sprintf("decrypt failed: %v", err)
 			log.Printf("restore %s FAILED: %s", rs.ID, msg)
