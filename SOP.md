@@ -83,6 +83,51 @@ Administrators should review the dashboard daily to verify backup integrity.
 
 ---
 
+## 5.4 Backup Database Role (Least Privilege)
+
+The agent must never connect as the PostgreSQL superuser.
+
+- **Docker (fresh volume):** `postgres-init/01-backup-role.sh` creates the
+  `vaultguard_backup` role automatically from `BACKUP_DB_USER` /
+  `BACKUP_DB_PASSWORD` in your root `.env`. The compose file already wires
+  the agent to it.
+- **Docker (existing volume — init scripts don't re-run):** execute once:
+  ```sql
+  CREATE ROLE vaultguard_backup LOGIN PASSWORD '<BACKUP_DB_PASSWORD>';
+  GRANT CONNECT ON DATABASE db_backup TO vaultguard_backup;
+  GRANT USAGE ON SCHEMA public TO vaultguard_backup;
+  GRANT pg_read_all_data TO vaultguard_backup;
+  ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT SELECT ON TABLES TO vaultguard_backup;
+  ```
+- **External database (agent backing up its own Postgres):** run the same
+  SQL as a superuser on that database, replacing `db_backup` with the real
+  database name, then set `AGENT_PG_USER=vaultguard_backup` /
+  `AGENT_PG_PASSWORD=…` in `agent.env`.
+- Restores may need elevated rights on the *target* database (CREATE, or a
+  restore-specific role) — grant those per-restore, then revoke.
+
+## 5.5 Production Security Checklist
+
+Before pointing VaultGuard at real data, all of these must hold:
+
+- [ ] `ENCRYPTION_KEY` is 64 hex chars (`openssl rand -hex 32`); server logs
+      no "legacy key format" warning. (Legacy keys keep old storage targets
+      decrypting; re-create targets after switching.)
+- [ ] PostgreSQL has no host-published port; agents use the
+      `vaultguard_backup` role, never `postgres`.
+- [ ] gRPC `:9090` is not exposed to the internet (compose unpublishes it by
+      default; remote agents work over REST + WebSocket).
+- [ ] Agents reach the server over HTTPS; `AGENT_TLS_SKIP_VERIFY` is unset
+      (the agent logs a loud warning when it is `true`).
+- [ ] If the server talks to a *remote* Postgres, `DB_SSLMODE` is `require`
+      or `verify-full` (see `server/.env.example`), not `disable`.
+- [ ] Root `.env` holds real secrets and is never committed; Jenkins
+      supplies them from credentials.
+- [ ] The Postgres host itself is backed up (it holds every job config and
+      all run history — losing it loses everything).
+
+---
+
 ## 6. Troubleshooting and Incident Response
 
 ### 6.1 Failed Backup Jobs

@@ -1,6 +1,11 @@
 module github.com/backup-saas/agent
 
-go 1.25
+go 1.26.0
+
+// Pinned for security: stdlib CVE fixes land in patch releases, and this
+// pin makes `go` auto-download go1.26.6 everywhere (dev, CI, docker) so
+// `govulncheck` stays green. Bump deliberately, then re-scan.
+toolchain go1.26.6
 
 require (
 	github.com/gorilla/websocket v1.5.3
@@ -17,6 +22,6 @@ require (
 	github.com/xdg-go/stringprep v1.0.4 // indirect
 	github.com/youmark/pkcs8 v0.0.0-20240726163527-a2c0da244d78 // indirect
 	golang.org/x/crypto v0.26.0 // indirect
-	golang.org/x/sync v0.8.0 // indirect
-	golang.org/x/text v0.17.0 // indirect
+	golang.org/x/sync v0.21.0 // indirect
+	golang.org/x/text v0.39.0 // indirect
 )

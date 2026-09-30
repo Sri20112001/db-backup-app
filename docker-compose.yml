@@ -13,12 +13,21 @@
 services:
   postgres:
     image: postgres:15-alpine
+    # NOTE: no `ports:` published on purpose — nothing outside this network
+    # needs raw PostgreSQL access. To administer locally, use
+    # `docker compose exec postgres psql -U postgres`, or temporarily add
+    # `"127.0.0.1:5434:5432"`.
     environment:
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in your shell or .env file}
       POSTGRES_DB: db_backup
+      # Least-privilege role for the backup agent (never the superuser).
+      # Consumed by ./postgres-init/01-backup-role.sh on first init.
+      BACKUP_DB_USER: ${BACKUP_DB_USER:-vaultguard_backup}
+      BACKUP_DB_PASSWORD: ${BACKUP_DB_PASSWORD:?Set BACKUP_DB_PASSWORD in your shell or .env file}
     volumes:
       - postgres_data:/var/lib/postgresql/data
+      - ./postgres-init:/docker-entrypoint-initdb.d:ro
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U postgres"]
       interval: 5s
@@ -31,7 +40,11 @@ services:
       dockerfile: Dockerfile
     ports:
       - "7541:7541"
-      - "9090:9090"
+      # NOTE: gRPC :9090 is intentionally NOT published. No current agent
+      # dials it (agents poll REST and hold a WebSocket for cancel/logs);
+      # the listener stays for compose-internal/legacy use. Re-add
+      # `"127.0.0.1:9090:9090"` only if a grpc-dialing client needs it —
+      # never expose it to the internet without mTLS.
     environment:
       - PORT=7541
       - GRPC_PORT=9090
@@ -52,8 +65,10 @@ services:
       - AGENT_SERVER=http://server:7541/vaultguard/api
       - AGENT_PG_HOST=postgres
       - AGENT_PG_PORT=5432
-      - AGENT_PG_USER=postgres
-      - AGENT_PG_PASSWORD=${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in your shell or .env file}
+      # Least privilege: the agent backs up with vaultguard_backup, never
+      # the postgres superuser (see postgres-init/ + SOP.md).
+      - AGENT_PG_USER=${BACKUP_DB_USER:-vaultguard_backup}
+      - AGENT_PG_PASSWORD=${BACKUP_DB_PASSWORD:?Set BACKUP_DB_PASSWORD in your shell or .env file}
     depends_on:
       - server
 

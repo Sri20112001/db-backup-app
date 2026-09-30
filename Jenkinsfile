@@ -24,17 +24,31 @@ pipeline {
         sh '''
           set -e
           # Ensure a `docker compose` implementation exists. Prefer the plugin;
-          # otherwise fetch the standalone binary once into the workspace.
+          # otherwise fetch the pinned standalone binary and verify its
+          # checksum before executing — never curl|chmod|run blindly.
           if docker compose version >/dev/null 2>&1; then
             echo "docker compose" > .jenkins-compose
           else
-            mkdir -p .jenkins-bin
-            if [ ! -x .jenkins-bin/docker-compose ]; then
-              curl -SL "https://github.com/docker/compose/releases/download/v2.29.7/docker-compose-linux-$(uname -m)" \
-                -o .jenkins-bin/docker-compose
-              chmod +x .jenkins-bin/docker-compose
+            ARCH="$(uname -m)"
+            if [ "$ARCH" != "x86_64" ]; then
+              echo "no pinned compose checksum for arch $ARCH — add it to Jenkinsfile" >&2
+              exit 1
             fi
-            echo "$WORKSPACE/.jenkins-bin/docker-compose" > .jenkins-compose
+            EXPECTED="383ce6698cd5d5bbf958d2c8489ed75094e34a77d340404d9f32c4ae9e12baf0"
+            mkdir -p .jenkins-bin
+            BIN="$WORKSPACE/.jenkins-bin/docker-compose"
+            if [ ! -x "$BIN" ]; then
+              curl -SL "https://github.com/docker/compose/releases/download/v2.29.7/docker-compose-linux-${ARCH}" \
+                -o "$BIN"
+              chmod +x "$BIN"
+            fi
+            ACTUAL="$(sha256sum "$BIN" | cut -d' ' -f1)"
+            if [ "$ACTUAL" != "$EXPECTED" ]; then
+              echo "compose checksum mismatch: got $ACTUAL" >&2
+              rm -f "$BIN"
+              exit 1
+            fi
+            echo "$BIN" > .jenkins-compose
           fi
           echo "compose: $(cat .jenkins-compose)"
           $(cat .jenkins-compose) version
@@ -46,14 +60,27 @@ pipeline {
       steps {
         sh '''
           set -e
-          # go vet + unit tests. DB-backed integration tests self-skip
-          # without DATABASE_URL (see server/internal/testutil).
+          # go vet + unit tests + vulnerability scan. DB-backed integration
+          # tests self-skip without DATABASE_URL (see server/internal/testutil).
           docker run --rm \
             -v "$WORKSPACE/server:/src" -w /src \
-            golang:1.25-alpine \
-            sh -c "go vet ./... && go test ./..."
+            golang:1.26-alpine \
+            sh -c "go vet ./... && go test ./... && go run golang.org/x/vuln/cmd/govulncheck@latest ./..."
         '''
       }
+    }
+
+    stage('Test (agent)') {
+      steps {
+        sh '''
+          set -e
+          docker run --rm \
+            -v "$WORKSPACE/agent:/src" -w /src \
+            golang:1.26-alpine \
+            sh -c "go vet ./... && go test ./... && go run golang.org/x/vuln/cmd/govulncheck@latest ./..."
+        '''
+      }
+    }
     }
 
     stage('Test (client)') {
@@ -63,7 +90,7 @@ pipeline {
           docker run --rm \
             -v "$WORKSPACE/client:/app" -w /app \
             node:20-alpine \
-            sh -c "npm ci --no-audit --no-fund && npm run lint && npm run test"
+            sh -c "npm ci --no-audit --no-fund && npm run lint && npm run test && npm audit --audit-level=high"
         '''
       }
     }
