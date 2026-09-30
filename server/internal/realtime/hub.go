@@ -220,7 +220,7 @@ func (h *Hub) authAgent(r *http.Request) (uuid.UUID, bool) {
 	if err := h.db.Where("id = ?", agentID).First(&agent).Error; err != nil {
 		return uuid.Nil, false
 	}
-	if bcrypt.CompareHashAndPassword([]byte(agent.TokenHash), []byte(raw[7:])) != nil {
+	if agent.TokenHash == nil || bcrypt.CompareHashAndPassword([]byte(*agent.TokenHash), []byte(raw[7:])) != nil {
 		return uuid.Nil, false
 	}
 	return agent.ID, true

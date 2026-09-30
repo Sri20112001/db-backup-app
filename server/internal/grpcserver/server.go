@@ -316,7 +316,7 @@ func (s *Server) authenticateAgent(agentID, token string) (*models.Agent, error)
 	if err := s.db.Where("id = ?", agentID).First(&agent).Error; err != nil {
 		return nil, errors.New("agent not found")
 	}
-	if err := bcrypt.CompareHashAndPassword([]byte(agent.TokenHash), []byte(token)); err != nil {
+	if agent.TokenHash == nil || bcrypt.CompareHashAndPassword([]byte(*agent.TokenHash), []byte(token)) != nil {
 		return nil, errors.New("invalid agent token")
 	}
 	return &agent, nil

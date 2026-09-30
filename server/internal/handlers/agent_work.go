@@ -40,7 +40,7 @@ func (h *AgentWorkHandler) authenticateAgent(c *gin.Context) (*models.Agent, boo
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "invalid agent token"})
 		return nil, false
 	}
-	if bcrypt.CompareHashAndPassword([]byte(agent.TokenHash), []byte(raw)) != nil {
+	if agent.TokenHash == nil || bcrypt.CompareHashAndPassword([]byte(*agent.TokenHash), []byte(raw)) != nil {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "invalid agent token"})
 		return nil, false
 	}

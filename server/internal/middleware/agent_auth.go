@@ -32,7 +32,8 @@ func AgentAuth(db *gorm.DB) gin.HandlerFunc {
 			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "invalid agent token"})
 			return
 		}
-		if bcrypt.CompareHashAndPassword([]byte(agent.TokenHash), []byte(raw)) != nil {
+		// Unregistered (pending) agents have no token hash yet.
+		if agent.TokenHash == nil || bcrypt.CompareHashAndPassword([]byte(*agent.TokenHash), []byte(raw)) != nil {
 			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "invalid agent token"})
 			return
 		}

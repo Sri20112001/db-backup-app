@@ -75,7 +75,11 @@ type Agent struct {
 	Base
 	OrganizationID  uuid.UUID   `gorm:"type:uuid;not null;index" json:"organization_id"`
 	Name            string      `gorm:"not null" json:"name"`
-	TokenHash       string      `gorm:"uniqueIndex" json:"-"`
+	// TokenHash is nil until the agent completes registration. NULLs never
+	// collide in the unique index, so any number of pending (key-only) rows
+	// can coexist — empty-string hashes used to violate it on the second
+	// registration token (HTTP 500 from GenerateRegistrationToken).
+	TokenHash       *string     `gorm:"uniqueIndex" json:"-"`
 	TokenRotatedAt  *time.Time  `json:"token_rotated_at"`
 	Status          AgentStatus `gorm:"not null;default:'OFFLINE'" json:"status"`
 	Version         string      `json:"version"`

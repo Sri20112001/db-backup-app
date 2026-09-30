@@ -92,11 +92,12 @@ func CreateAgent(t *testing.T, database *gorm.DB, orgID uuid.UUID, rawToken stri
 	if err != nil {
 		t.Fatalf("hash agent token: %v", err)
 	}
+	hashStr := string(hash)
 	agent := models.Agent{
 		Base:           models.Base{ID: uuid.New()},
 		OrganizationID: orgID,
 		Name:           "test-agent-" + uuid.New().String()[:8],
-		TokenHash:      string(hash),
+		TokenHash:      &hashStr,
 		Status:         models.AgentOnline,
 	}
 	if err := database.Create(&agent).Error; err != nil {

@@ -148,6 +148,45 @@ func TestRefreshReuseRevokesFamily(t *testing.T) {
 	}
 }
 
+// --- Agent registration ---
+
+// TestPendingAgentsDontCollide pins the GenerateRegistrationToken fix:
+// pending (key-only, nil-hash) rows must coexist. With empty-string hashes
+// the second insert violated the unique token_hash index (HTTP 500).
+func TestPendingAgentsDontCollide(t *testing.T) {
+	db := testutil.OpenDB(t)
+
+	user := testutil.CreateUser(t, db, "pending-agent@test.com", "password123")
+	org := testutil.CreateOrg(t, db, "Pending Org", user.ID)
+
+	mkPending := func() models.Agent {
+		key := "regkey-" + uuid.New().String()
+		a := models.Agent{
+			Base:            models.Base{ID: uuid.New()},
+			OrganizationID:  org.ID,
+			Name:            "pending-" + uuid.New().String()[:8],
+			RegistrationKey: &key,
+		}
+		if err := db.Create(&a).Error; err != nil {
+			t.Fatalf("create pending agent: %v", err)
+		}
+		t.Cleanup(func() { db.Unscoped().Delete(&a) })
+		return a
+	}
+	a, b := mkPending(), mkPending()
+	if a.TokenHash != nil || b.TokenHash != nil {
+		t.Fatal("pending agents must have nil token hashes")
+	}
+
+	var count int64
+	db.Model(&models.Agent{}).
+		Where("organization_id = ? AND token_hash IS NULL", org.ID).
+		Count(&count)
+	if count < 2 {
+		t.Fatalf("expected 2 pending agents, got %d", count)
+	}
+}
+
 // --- Multi-tenant isolation ---
 
 func TestOrgIsolation_AgentNotAccessibleAcrossOrgs(t *testing.T) {
