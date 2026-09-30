@@ -117,6 +117,10 @@ func NewRouter(db *gorm.DB, cfg *config.Config, grpcSrv *grpcserver.Server, hub 
 	org.GET("/storage-targets", storageH.List)
 	org.POST("/storage-targets", middleware.RequireRole(models.RoleOwner, models.RoleAdmin), storageH.Create)
 	org.POST("/storage-targets/:id/test", middleware.RequireRole(models.RoleOwner, models.RoleAdmin, models.RoleOperator), storageH.TestConnection)
+	// S3 region reference data: readable by every member, writable by admins.
+	org.GET("/storage-regions", storageH.ListRegions)
+	org.POST("/storage-regions", middleware.RequireRole(models.RoleOwner, models.RoleAdmin), storageH.CreateRegion)
+	org.DELETE("/storage-regions/:code", middleware.RequireRole(models.RoleOwner, models.RoleAdmin), storageH.DeleteRegion)
 	org.DELETE("/storage-targets/:id", middleware.RequireRole(models.RoleOwner, models.RoleAdmin), storageH.Delete)
 
 	// Backup jobs

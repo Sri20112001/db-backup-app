@@ -1,8 +1,8 @@
 import { useEffect, useState } from 'react'
-import { storageApi } from '@/services/api'
+import { regionApi, storageApi } from '@/services/api'
 import { useAuthStore } from '@/store/authStore'
 import { useUIStore } from '@/store/uiStore'
-import type { StorageTarget, StorageType } from '@/types'
+import type { S3Region, StorageTarget, StorageType } from '@/types'
 import EmptyState from '@/components/EmptyState'
 import Pagination from '@/components/Pagination'
 import { usePagination } from '@/hooks/usePagination'
@@ -27,6 +27,7 @@ const StoragePage = () => {
   const { currentOrg } = useAuthStore()
   const { addToast } = useUIStore()
   const [targets, setTargets] = useState<StorageTarget[]>([])
+  const [regions, setRegions] = useState<S3Region[]>([])
   const [search, setSearch] = useState('')
   const [typeFilter, setTypeFilter] = useState<StorageType | ''>('')
   const [sort, setSort] = useState('name-asc')
@@ -75,7 +76,29 @@ const StoragePage = () => {
     storageApi.list(currentOrg.id).then(setTargets).catch(() => addToast('error', 'Failed to load storage')).finally(() => setIsLoading(false))
   }
 
-  useEffect(() => { loadTargets() }, [currentOrg])
+  useEffect(() => {
+    loadTargets()
+    if (currentOrg) {
+      regionApi.list(currentOrg.id).then(setRegions).catch(() => setRegions([]))
+    } else {
+      setRegions([])
+    }
+  }, [currentOrg])
+
+  const regionIsCustom = form.region !== '' && !regions.some((r) => r.code === form.region)
+  const handleRegionSelect = (value: string) => {
+    if (value === '__custom') {
+      setForm((f) => ({ ...f, region: '' }))
+      return
+    }
+    setForm((f) => {
+      const picked = regions.find((r) => r.code === value)
+      // Preset endpoints (e.g. a private clone registered with one) fill
+      // the endpoint field unless the user already typed their own.
+      const endpoint = picked?.endpoint && !f.endpoint.trim() ? picked.endpoint : f.endpoint
+      return { ...f, region: value, endpoint }
+    })
+  }
 
   const handleCreate = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -253,7 +276,25 @@ const StoragePage = () => {
               {form.type === 'S3' && (
                 <>
                   <div><label className={labelCls}>Bucket *</label><input type="text" value={form.bucket} onChange={(e) => setForm((f) => ({ ...f, bucket: e.target.value }))} required placeholder="my-backup-bucket" className={inputCls} /></div>
-                  <div><label className={labelCls}>Region</label><input type="text" value={form.region} onChange={(e) => setForm((f) => ({ ...f, region: e.target.value }))} placeholder="us-east-1 (or auto for R2)" className={inputCls} /></div>
+                  <div>
+                    <label className={labelCls}>Region</label>
+                    <select
+                      value={regionIsCustom ? '__custom' : form.region}
+                      onChange={(e) => handleRegionSelect(e.target.value)}
+                      className={inputCls}
+                    >
+                      <option value="">Select a region…</option>
+                      {regions.map((r) => (
+                        <option key={r.code} value={r.code}>
+                          {r.code} — {r.name}
+                        </option>
+                      ))}
+                      <option value="__custom">Custom…</option>
+                    </select>
+                  </div>
+                  {regionIsCustom && (
+                    <div><label className={labelCls}>Custom region code</label><input type="text" value={form.region} onChange={(e) => setForm((f) => ({ ...f, region: e.target.value }))} placeholder="auto, custom-region-1…" className={`${inputCls} font-mono text-[13px]`} /></div>
+                  )}
                   <div><label className={labelCls}>Endpoint (S3-compatible)</label><input type="text" value={form.endpoint} onChange={(e) => setForm((f) => ({ ...f, endpoint: e.target.value }))} placeholder="https://minio:9000 or https://xyz.r2.cloudflarestorage.com" className={inputCls} /></div>
                   <label className="flex items-start gap-2.5 p-3 rounded-lg bg-surface-container-low border border-surface-variant cursor-pointer">
                     <input type="checkbox" checked={form.use_path_style} onChange={(e) => setForm((f) => ({ ...f, use_path_style: e.target.checked }))} className="mt-0.5 accent-primary" />

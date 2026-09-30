@@ -124,6 +124,23 @@ type StorageTarget struct {
 	HasCredentials     bool      `gorm:"-" json:"has_credentials"`
 }
 
+// --- S3Region ---
+
+// S3Region is reference data for the storage-target region picker: AWS
+// region codes plus S3-compatible presets. Seeded by migration 000004;
+// admins can add private endpoints (air-gapped clones) via the API without
+// a redeploy. StorageTarget.Region stores the code as free text, so unknown
+// future regions keep working even before anyone inserts them here.
+type S3Region struct {
+	Base
+	Code      string `gorm:"uniqueIndex;not null" json:"code"`
+	Name      string `gorm:"not null" json:"name"`
+	Provider  string `gorm:"not null;default:'AWS'" json:"provider"`
+	Endpoint  string `json:"endpoint,omitempty"`
+	IsSystem  bool   `gorm:"default:true" json:"is_system"`
+	Active    bool   `gorm:"default:true" json:"active"`
+}
+
 // --- BackupJob ---
 
 type BackupSourceType string

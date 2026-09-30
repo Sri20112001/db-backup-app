@@ -248,6 +248,80 @@ func (h *StorageHandler) TestConnection(c *gin.Context) {
 	})
 }
 
+// --- S3 region reference data ---
+
+// ListRegions returns active regions (seeded AWS codes + admin customs) for
+// the storage-target region picker. Reference data is global, not per-org.
+func (h *StorageHandler) ListRegions(c *gin.Context) {
+	var regions []models.S3Region
+	h.db.Where("active = ?", true).Order("provider ASC, name ASC").Find(&regions)
+	c.JSON(http.StatusOK, asArray(regions))
+}
+
+type createRegionRequest struct {
+	Code     string `json:"code" binding:"required"`
+	Name     string `json:"name" binding:"required"`
+	Provider string `json:"provider"`
+	Endpoint string `json:"endpoint"`
+}
+
+// CreateRegion adds a custom region (e.g. a private S3 clone). Seeded
+// system rows are identified by code uniqueness, not by caller.
+func (h *StorageHandler) CreateRegion(c *gin.Context) {
+	var req createRegionRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+	code := strings.ToLower(strings.TrimSpace(req.Code))
+	if code == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "code is required"})
+		return
+	}
+	provider := strings.ToUpper(strings.TrimSpace(req.Provider))
+	if provider == "" {
+		provider = "CUSTOM"
+	}
+	region := models.S3Region{
+		Base:      models.Base{ID: uuid.New()},
+		Code:      code,
+		Name:      strings.TrimSpace(req.Name),
+		Provider:  provider,
+		Endpoint:  strings.TrimSpace(req.Endpoint),
+		IsSystem:  false,
+		Active:    true,
+	}
+	if err := h.db.Create(&region).Error; err != nil {
+		if strings.Contains(err.Error(), "duplicate") || strings.Contains(err.Error(), "uni_s3_regions_code") {
+			c.JSON(http.StatusConflict, gin.H{"error": "region code already exists"})
+			return
+		}
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "create failed"})
+		return
+	}
+	c.JSON(http.StatusCreated, region)
+}
+
+// DeleteRegion removes a custom region. System (seeded) rows are protected.
+func (h *StorageHandler) DeleteRegion(c *gin.Context) {
+	code := strings.ToLower(strings.TrimSpace(c.Param("code")))
+	if code == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "code is required"})
+		return
+	}
+	var region models.S3Region
+	if err := h.db.Where("code = ?", code).First(&region).Error; err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "region not found"})
+		return
+	}
+	if region.IsSystem {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "system regions cannot be deleted (deactivate instead)"})
+		return
+	}
+	h.db.Delete(&region)
+	c.JSON(http.StatusNoContent, nil)
+}
+
 // encrypt uses AES-256-GCM. Returns base64-encoded ciphertext.
 func encrypt(key []byte, plaintext string) (string, error) {
 	if len(key) == 0 {

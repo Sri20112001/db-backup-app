@@ -40,5 +40,6 @@ func Migrate(db *gorm.DB) error {
 		&models.Alert{},
 		&models.AuditLog{},
 		&models.RefreshToken{},
+		&models.S3Region{},
 	)
 }

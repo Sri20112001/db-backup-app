@@ -2,7 +2,7 @@ import type {
   AuthTokens, BackupJob, BackupRun, BackupArtifact,
   Agent, Machine, StorageTarget, RestoreJob, Alert,
   DashboardOverview, JobHealth, OrganizationMember,
-  Organization, PaginatedResponse, PreflightResult, User
+  Organization, PaginatedResponse, PreflightResult, S3Region, User
 } from '../types'
 
 import { useAuthStore } from '../store/authStore'
@@ -167,6 +167,18 @@ export const storageApi = {
   testConnection: (orgId: string, id: string) =>
     request<{ status: string; latency_ms?: number; bucket?: string; stage?: string; error?: string }>(
       `/organizations/${orgId}/storage-targets/${id}/test`, { method: 'POST' }),
+}
+
+// S3 region reference data (seeded server-side; admins can extend it).
+export const regionApi = {
+  list: (orgId: string) =>
+    request<S3Region[]>(`/organizations/${orgId}/storage-regions`),
+  create: (orgId: string, data: { code: string; name: string; provider?: string; endpoint?: string }) =>
+    request<S3Region>(`/organizations/${orgId}/storage-regions`, {
+      method: 'POST', body: JSON.stringify(data),
+    }),
+  remove: (orgId: string, code: string) =>
+    request(`/organizations/${orgId}/storage-regions/${encodeURIComponent(code)}`, { method: 'DELETE' }),
 }
 
 // Backup Jobs
