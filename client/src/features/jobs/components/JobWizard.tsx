@@ -72,7 +72,11 @@ const JobWizard = ({ onClose, onSaved }: { onClose?: () => void; onSaved?: () =>
     if (!currentOrg) return
     setIsSubmitting(true)
     try {
-      await jobApi.create(currentOrg.id, form as Record<string, unknown>)
+      // export_format is MongoDB-only server-side: strip it for every other
+      // source type (the form keeps an ARCHIVE default for the Mongo picker).
+      const payload: Record<string, unknown> = { ...form }
+      if (payload.source_type !== 'MONGODB') delete payload.export_format
+      await jobApi.create(currentOrg.id, payload)
       addToast('success', `${form.name} created successfully`)
       if (onSaved) onSaved()
       if (onClose) onClose()

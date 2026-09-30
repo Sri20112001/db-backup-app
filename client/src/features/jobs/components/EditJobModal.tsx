@@ -75,7 +75,11 @@ const EditJobModal = ({ jobId, onClose, onSaved }: Props) => {
     if (!currentOrg || !jobId) return
     setIsSubmitting(true)
     try {
-      await jobApi.update(currentOrg.id, jobId, form as Record<string, unknown>)
+      // export_format is MongoDB-only server-side: strip it for every other
+      // source type (the form keeps an ARCHIVE fallback).
+      const payload: Record<string, unknown> = { ...form }
+      if (payload.source_type !== 'MONGODB') delete payload.export_format
+      await jobApi.update(currentOrg.id, jobId, payload)
       addToast('success', `${form.name} updated`)
       onSaved()
       onClose()
