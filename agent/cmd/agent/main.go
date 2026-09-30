@@ -33,18 +33,42 @@ package main
 import (
 	"context"
 	"log"
+	"net/url"
 	"os"
 	"os/signal"
+	"strings"
 	"syscall"
 
 	agent "github.com/backup-saas/agent/internal/agent"
 )
+
+// isLoopbackServer reports whether the configured server URL targets this
+// machine (plain HTTP is acceptable there — packets never leave the host).
+func isLoopbackServer(serverURL string) bool {
+	u, err := url.Parse(serverURL)
+	if err != nil {
+		return false
+	}
+	host := strings.ToLower(u.Hostname())
+	return host == "" || host == "localhost" || host == "127.0.0.1" || host == "::1"
+}
 
 func main() {
 	log.SetFlags(log.LstdFlags | log.Lmsgprefix)
 	log.SetPrefix("agent: ")
 
 	cfg := agent.LoadConfig()
+
+	// TLS posture: skipping verification is a lab-only escape hatch. Loud
+	// on purpose — a silent MITM on backup traffic would expose database
+	// contents and the agent token. Production agents must trust the
+	// server CA instead.
+	if cfg.TLSSkipVerify {
+		log.Print("WARNING: AGENT_TLS_SKIP_VERIFY=true — server identity is NOT verified; never use outside a lab")
+	}
+	if !strings.HasPrefix(cfg.Server, "https://") && !isLoopbackServer(cfg.Server) {
+		log.Print("WARNING: AGENT_SERVER is plain HTTP to a non-loopback host — backup traffic is unencrypted")
+	}
 
 	if cfg.BrowseAddr != "" {
 		agent.StartBrowseServer(cfg.BrowseAddr, cfg.BrowseToken, cfg.DashboardOrigin)

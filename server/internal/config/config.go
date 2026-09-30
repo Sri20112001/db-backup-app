@@ -1,10 +1,14 @@
 package config
 
 import (
+	"encoding/hex"
+	"net/url"
 	"os"
 	"strconv"
+	"strings"
 
 	"github.com/joho/godotenv"
+	"github.com/rs/zerolog/log"
 )
 
 type Config struct {
@@ -14,7 +18,12 @@ type Config struct {
 	Port             string
 	GRPCPort         string
 	EncryptionKey    string
-	CORSOrigin       string
+	// EncryptionKeyBytes is the resolved 32-byte AES-256 key. See
+	// resolveEncryptionKey: 64-hex input is decoded; anything else falls
+	// back to the legacy first-32-bytes derivation (with a warning) so
+	// credentials encrypted by older releases keep decrypting.
+	EncryptionKeyBytes []byte
+	CORSOrigin         string
 	// SMTP is optional: empty SMTPHost disables outgoing alert email.
 	SMTPHost     string
 	SMTPPort     int
@@ -55,22 +64,30 @@ func Load() *Config {
 
 	encKey := getEnv("ENCRYPTION_KEY", "")
 	if encKey == "" {
-		panic("ENCRYPTION_KEY environment variable is required")
+		panic("ENCRYPTION_KEY environment variable is required — refusing to start without credential encryption")
 	}
 	if encKey == "change-me-32-byte-encryption-key" {
 		panic("ENCRYPTION_KEY is set to the default placeholder — set a real key before deploying")
 	}
-	if len(encKey) < 32 {
-		panic("ENCRYPTION_KEY must be at least 32 characters")
+	keyBytes := resolveEncryptionKey(encKey)
+
+	databaseURL := getEnv("DATABASE_URL", "host=localhost user=postgres password=postgres dbname=db_backup port=5432 sslmode=disable")
+	// DB_SSLMODE overrides the sslmode embedded in DATABASE_URL without
+	// forcing operators to rewrite the whole DSN. Remote production
+	// databases want `require` at minimum, `verify-full` with a CA.
+	if mode := strings.TrimSpace(getEnv("DB_SSLMODE", "")); mode != "" {
+		databaseURL = overrideSSLMode(databaseURL, mode)
+		log.Info().Str("sslmode", mode).Msg("database TLS mode overridden by DB_SSLMODE")
 	}
 
 	return &Config{
-		DatabaseURL:      getEnv("DATABASE_URL", "host=localhost user=postgres password=postgres dbname=db_backup port=5432 sslmode=disable"),
+		DatabaseURL:      databaseURL,
 		JWTSecret:        jwtSecret,
 		JWTRefreshSecret: jwtRefreshSecret,
 		Port:             getEnv("PORT", "7541"),
 		GRPCPort:         getEnv("GRPC_PORT", "9090"),
 		EncryptionKey:    encKey,
+		EncryptionKeyBytes: keyBytes,
 		CORSOrigin:       getEnv("CORS_ORIGIN", "http://localhost:7540"),
 		SMTPHost:         getEnv("SMTP_HOST", ""),
 		SMTPPort:         getEnvInt("SMTP_PORT", 587),
@@ -82,6 +99,51 @@ func Load() *Config {
 		TLSCertFile: getEnv("TLS_CERT_FILE", ""),
 		TLSKeyFile:  getEnv("TLS_KEY_FILE", ""),
 	}
+}
+
+// resolveEncryptionKey derives the 32-byte AES-256 key from ENCRYPTION_KEY.
+//
+// Correct format: 64 hex characters (e.g. `openssl rand -hex 32`), decoded
+// to 32 bytes. Anything else of length ≥ 32 keeps the pre-v1 legacy
+// derivation (first 32 raw bytes) so credentials encrypted by older
+// releases keep decrypting — but it logs loudly, because raw ASCII bytes
+// carry less entropy than random key material. To migrate: re-create the
+// affected storage targets after switching to a 64-hex key.
+func resolveEncryptionKey(encKey string) []byte {
+	trimmed := strings.TrimSpace(encKey)
+	if decoded, err := hex.DecodeString(trimmed); err == nil && len(decoded) == 32 {
+		return decoded
+	}
+	if len(trimmed) < 32 {
+		panic("ENCRYPTION_KEY must be 64 hex characters (or at least 32 characters legacy format)")
+	}
+	key := make([]byte, 32)
+	copy(key, []byte(trimmed))
+	log.Warn().Msg("ENCRYPTION_KEY is not 64 hex characters — using legacy first-32-bytes derivation; switch to `openssl rand -hex 32` and re-create storage targets")
+	return key
+}
+
+// overrideSSLMode swaps (or appends) the sslmode in either DSN flavor:
+// key=value pairs (`host=… sslmode=disable`) or postgres:// URLs.
+func overrideSSLMode(dsn, mode string) string {
+	if u, err := url.Parse(strings.TrimSpace(dsn)); err == nil && u.Scheme != "" {
+		q := u.Query()
+		q.Set("sslmode", mode)
+		u.RawQuery = q.Encode()
+		return u.String()
+	}
+	parts := strings.Fields(dsn)
+	found := false
+	for i, p := range parts {
+		if k, _, ok := strings.Cut(p, "="); ok && k == "sslmode" {
+			parts[i] = "sslmode=" + mode
+			found = true
+		}
+	}
+	if !found {
+		parts = append(parts, "sslmode="+mode)
+	}
+	return strings.Join(parts, " ")
 }
 
 func getEnv(key, fallback string) string {

@@ -196,7 +196,7 @@ func (h *Hub) authUser(token string) (uuid.UUID, bool) {
 	}{}
 	parsed, err := jwt.ParseWithClaims(token, claims, func(t *jwt.Token) (interface{}, error) {
 		return []byte(h.jwtSecret), nil
-	})
+	}, jwt.WithValidMethods([]string{"HS256"}))
 	if err != nil || !parsed.Valid {
 		return uuid.Nil, false
 	}

@@ -66,6 +66,13 @@ func RestoreLocal(archivePath, destDir string, progress ProgressFunc) (int64, er
 				return written, err
 			}
 		case tar.TypeReg, tar.TypeRegA:
+			// Never write through a pre-existing symlink: an archive (or a
+			// previous restore) planting `dest/link -> /etc` followed by a
+			// regular `dest/link/passwd` entry would otherwise land outside
+			// dest. Refusing is safer than resolving.
+			if fi, err := os.Lstat(target); err == nil && fi.Mode()&os.ModeSymlink != 0 {
+				return written, fmt.Errorf("refusing to overwrite symlink: %s", hdr.Name)
+			}
 			if err := os.MkdirAll(filepath.Dir(target), 0755); err != nil {
 				return written, err
 			}
@@ -82,11 +89,13 @@ func RestoreLocal(archivePath, destDir string, progress ProgressFunc) (int64, er
 			if progress != nil {
 				progress(written, written)
 			}
-		case tar.TypeSymlink:
-			os.Remove(target)
-			if err := os.Symlink(hdr.Linkname, target); err != nil {
-				return written, err
-			}
+		case tar.TypeSymlink, tar.TypeLink:
+			// Symlinks and hardlinks are rejected outright. A malicious
+			// archive can otherwise plant `link -> /etc` and then write
+			// `link/passwd` outside the destination (string-prefix checks
+			// cannot see through the indirection). Restore them manually if
+			// you genuinely need links back.
+			return written, fmt.Errorf("archive contains link entry (symlinks/hardlinks are not restored): %s", hdr.Name)
 		default:
 			// skip devices, pipes, etc.
 		}

@@ -20,8 +20,7 @@ func NewRouter(db *gorm.DB, cfg *config.Config, grpcSrv *grpcserver.Server, hub 
 	r.Use(gin.LoggerWithConfig(gin.LoggerConfig{SkipPaths: []string{"/api/health"}}))
 	r.Use(middleware.CORS(cfg.CORSOrigin))
 
-	encKey := make([]byte, 32)
-	copy(encKey, []byte(cfg.EncryptionKey))
+	encKey := cfg.EncryptionKeyBytes
 	mailer := services.NewMailer(cfg.SMTPHost, cfg.SMTPPort, cfg.SMTPUser, cfg.SMTPPassword, cfg.SMTPFrom)
 
 	authH    := handlers.NewAuthHandler(db, cfg.JWTSecret, cfg.JWTRefreshSecret,

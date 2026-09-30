@@ -33,11 +33,13 @@ func main() {
 		log.Fatal().Err(err).Msg("failed to run migrations")
 	}
 
-	encKey := make([]byte, 32)
-	copy(encKey, []byte(cfg.EncryptionKey))
-
-	if cfg.EncryptionKey == "" {
-		log.Warn().Msg("ENCRYPTION_KEY is not set — storage credentials will be stored in plaintext")
+	// Credential encryption is mandatory: config.Load already refuses to
+	// start without a key, and the storage handlers fail closed on encrypt
+	// errors. This is the last line of defense — plaintext storage
+	// credentials must never be written, in any environment.
+	encKey := cfg.EncryptionKeyBytes
+	if len(encKey) != 32 {
+		log.Fatal().Msg("refusing to start: credential encryption key did not resolve to 32 bytes")
 	}
 
 	mailer := services.NewMailer(cfg.SMTPHost, cfg.SMTPPort, cfg.SMTPUser, cfg.SMTPPassword, cfg.SMTPFrom)

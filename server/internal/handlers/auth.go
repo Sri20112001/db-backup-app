@@ -129,9 +129,12 @@ func (h *AuthHandler) Refresh(c *gin.Context) {
 	tokenHash := hashToken(req.RefreshToken)
 
 	var accessToken, newRawRefresh string
+	reuseDetected := false
 
 	// Wrap rotation in a transaction with SELECT FOR UPDATE to prevent concurrent
-	// requests from both obtaining valid replacement tokens.
+	// requests from both obtaining valid replacement tokens. NOTE: the reuse
+	// branch must COMMIT (return nil) — returning an error would roll back
+	// the family revocation it just wrote.
 	txErr := h.db.Transaction(func(tx *gorm.DB) error {
 		var rt models.RefreshToken
 		if err := tx.Clauses(clause.Locking{Strength: "UPDATE"}).
@@ -147,7 +150,8 @@ func (h *AuthHandler) Refresh(c *gin.Context) {
 				Where("family_id = ? AND revoked = false", rt.FamilyID).
 				Update("revoked", true)
 			h.writeAudit(userID, uuid.Nil, "REFRESH_REUSE_DETECTED", c.ClientIP())
-			return gorm.ErrRecordNotFound // signal 401 to caller
+			reuseDetected = true
+			return nil // commit the revocation; 401 is handled below
 		}
 
 		// Revoke the current token
@@ -185,6 +189,10 @@ func (h *AuthHandler) Refresh(c *gin.Context) {
 		} else {
 			c.JSON(http.StatusUnauthorized, gin.H{"error": "refresh token not found or expired"})
 		}
+		return
+	}
+	if reuseDetected {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "session invalidated — please log in again"})
 		return
 	}
 
