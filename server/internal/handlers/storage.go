@@ -1,14 +1,24 @@
 package handlers
 
 import (
+	"bytes"
+	"context"
 	"crypto/aes"
 	"crypto/cipher"
 	"crypto/rand"
+	"crypto/sha256"
 	"encoding/base64"
+	"encoding/hex"
 	"errors"
+	"fmt"
 	"io"
 	"net/http"
+	"strings"
+	"time"
 
+	"github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/credentials"
+	"github.com/aws/aws-sdk-go-v2/service/s3"
 	"github.com/backup-saas/server/internal/models"
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
@@ -56,6 +66,24 @@ func (h *StorageHandler) Create(c *gin.Context) {
 		return
 	}
 
+	// Fail fast on incomplete targets: S3 needs a bucket, LOCAL needs a
+	// path, and anything else isn't implemented yet (SMB is future work).
+	switch req.Type {
+	case models.StorageS3:
+		if strings.TrimSpace(req.Bucket) == "" {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "bucket is required for S3 targets"})
+			return
+		}
+	case models.StorageLocal:
+		if strings.TrimSpace(req.Path) == "" {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "path is required for LOCAL targets"})
+			return
+		}
+	default:
+		c.JSON(http.StatusBadRequest, gin.H{"error": fmt.Sprintf("unsupported storage type %q (supported: LOCAL, S3)", req.Type)})
+		return
+	}
+
 	encAccess, err := encrypt(h.encryptionKey, req.AccessKey)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "encryption failed"})
@@ -97,6 +125,127 @@ func (h *StorageHandler) Delete(c *gin.Context) {
 	}
 	h.db.Where("id = ? AND organization_id = ?", id, orgID).Delete(&models.StorageTarget{})
 	c.JSON(http.StatusNoContent, nil)
+}
+
+// TestConnection exercises a target end-to-end: PUT a temp object, HEAD
+// it, GET it back with checksum comparison, then DELETE it. A mere
+// ListBuckets is deliberately NOT enough — scoped credentials often can't
+// list, and listing proves nothing about write/read/delete.
+//
+// LOCAL targets can't be tested from here (their paths live on agent
+// machines); S3 round-trips run from the server's network vantage point,
+// which may differ from an agent's.
+func (h *StorageHandler) TestConnection(c *gin.Context) {
+	orgID := c.MustGet("org_id").(uuid.UUID)
+	id, err := uuid.Parse(c.Param("id"))
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid id"})
+		return
+	}
+	var target models.StorageTarget
+	if err := h.db.Where("id = ? AND organization_id = ?", id, orgID).First(&target).Error; err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "storage target not found"})
+		return
+	}
+	if target.Type != models.StorageS3 {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "connection testing is only available for S3 targets"})
+		return
+	}
+	access, err := decrypt(h.encryptionKey, target.EncryptedAccessKey)
+	if err != nil || access == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "target has no usable access key"})
+		return
+	}
+	secret, err := decrypt(h.encryptionKey, target.EncryptedSecretKey)
+	if err != nil || secret == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "target has no usable secret key"})
+		return
+	}
+
+	region := strings.TrimSpace(target.Region)
+	if region == "" {
+		region = "us-east-1"
+	}
+	awsCfg := aws.Config{
+		Region:      region,
+		Credentials: credentials.NewStaticCredentialsProvider(access, secret, ""),
+	}
+	var optFns []func(*s3.Options)
+	if endpoint := strings.TrimSpace(target.Endpoint); endpoint != "" {
+		optFns = append(optFns, func(o *s3.Options) {
+			o.BaseEndpoint = aws.String(endpoint)
+		})
+	}
+	if target.UsePathStyle {
+		optFns = append(optFns, func(o *s3.Options) {
+			o.UsePathStyle = true
+		})
+	}
+	client := s3.NewFromConfig(awsCfg, optFns...)
+
+	ctx, cancel := context.WithTimeout(c.Request.Context(), 60*time.Second)
+	defer cancel()
+	start := time.Now()
+
+	key := ".vaultguard/connection-tests/" + uuid.New().String() + ".txt"
+	body := []byte("VaultGuard storage connectivity test")
+	sum := sha256.Sum256(body)
+
+	fail := func(stage string, err error) {
+		c.JSON(http.StatusBadGateway, gin.H{"status": "error", "stage": stage, "error": err.Error()})
+	}
+	if _, err := client.PutObject(ctx, &s3.PutObjectInput{
+		Bucket:      aws.String(target.Bucket),
+		Key:         aws.String(key),
+		Body:        bytes.NewReader(body),
+		ContentType: aws.String("text/plain"),
+	}); err != nil {
+		fail("put", err)
+		return
+	}
+	head, err := client.HeadObject(ctx, &s3.HeadObjectInput{
+		Bucket: aws.String(target.Bucket),
+		Key:    aws.String(key),
+	})
+	if err != nil {
+		fail("head", err)
+		return
+	}
+	if head.ContentLength != nil && *head.ContentLength != int64(len(body)) {
+		fail("head", fmt.Errorf("size mismatch: wrote %d, stored %d", len(body), *head.ContentLength))
+		return
+	}
+	got, err := client.GetObject(ctx, &s3.GetObjectInput{
+		Bucket: aws.String(target.Bucket),
+		Key:    aws.String(key),
+	})
+	if err != nil {
+		fail("get", err)
+		return
+	}
+	data, err := io.ReadAll(got.Body)
+	got.Body.Close()
+	if err != nil {
+		fail("get", err)
+		return
+	}
+	if actual := sha256.Sum256(data); actual != sum {
+		fail("checksum", fmt.Errorf("content mismatch: expected %s, got %s",
+			hex.EncodeToString(sum[:]), hex.EncodeToString(actual[:])))
+		return
+	}
+	if _, err := client.DeleteObject(ctx, &s3.DeleteObjectInput{
+		Bucket: aws.String(target.Bucket),
+		Key:    aws.String(key),
+	}); err != nil {
+		fail("delete", err)
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{
+		"status":     "ok",
+		"latency_ms": time.Since(start).Milliseconds(),
+		"bucket":     target.Bucket,
+	})
 }
 
 // encrypt uses AES-256-GCM. Returns base64-encoded ciphertext.

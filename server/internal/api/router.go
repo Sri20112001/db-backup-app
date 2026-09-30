@@ -112,9 +112,11 @@ func NewRouter(db *gorm.DB, cfg *config.Config, grpcSrv *grpcserver.Server, hub 
 	org.GET("/machines", machineH.List)
 	org.GET("/machines/:id", machineH.Get)
 
-	// Storage targets
+	// Storage targets. Test runs a live PUT/HEAD/GET/DELETE round-trip
+	// (Operator+) without ever returning credentials.
 	org.GET("/storage-targets", storageH.List)
 	org.POST("/storage-targets", middleware.RequireRole(models.RoleOwner, models.RoleAdmin), storageH.Create)
+	org.POST("/storage-targets/:id/test", middleware.RequireRole(models.RoleOwner, models.RoleAdmin, models.RoleOperator), storageH.TestConnection)
 	org.DELETE("/storage-targets/:id", middleware.RequireRole(models.RoleOwner, models.RoleAdmin), storageH.Delete)
 
 	// Backup jobs
