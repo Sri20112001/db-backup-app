@@ -9,6 +9,7 @@ import (
 	"github.com/robfig/cron/v3"
 	"github.com/rs/zerolog/log"
 	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
 )
 
 // Dispatcher sends a command to a connected agent. Satisfied by grpcserver.Server.
@@ -76,21 +77,29 @@ func (s *Scheduler) tick(now time.Time) {
 		if job.Schedule == nil || job.Schedule.CronExpr == "" {
 			continue
 		}
-		if !s.due(job, prev, now) {
+		boundary, ok := s.boundary(job, prev, now)
+		if !ok {
 			continue
 		}
-		s.fire(job)
+		s.fire(job, boundary)
 	}
 }
 
 // due reports whether the schedule crossed a firing boundary between prev and now.
 func (s *Scheduler) due(job *models.BackupJob, prev, now time.Time) bool {
+	_, ok := s.boundary(job, prev, now)
+	return ok
+}
+
+// boundary returns the exact cron instant crossed between prev and now.
+// The instant doubles as the run's idempotency key (see fire).
+func (s *Scheduler) boundary(job *models.BackupJob, prev, now time.Time) (time.Time, bool) {
 	sched, err := s.parser.Parse(job.Schedule.CronExpr)
 	if err != nil {
 		log.Warn().Str("job_id", job.ID.String()).
 			Str("cron", job.Schedule.CronExpr).
 			Msg("scheduler: invalid cron expression, skipping")
-		return false
+		return time.Time{}, false
 	}
 	loc := time.UTC
 	if job.Schedule.Timezone != "" {
@@ -99,12 +108,20 @@ func (s *Scheduler) due(job *models.BackupJob, prev, now time.Time) bool {
 		}
 	}
 	next := sched.Next(prev.In(loc))
-	return !next.After(now.In(loc))
+	if next.After(now.In(loc)) {
+		return time.Time{}, false
+	}
+	return next, true
 }
 
 // fire creates a PENDING run unless one is already in flight for the job,
 // so an offline agent can't accumulate an unbounded backlog.
-func (s *Scheduler) fire(job *models.BackupJob) {
+//
+// Race safety: the insert carries (backup_job_id, scheduled_for) with
+// ON CONFLICT DO NOTHING against idx_backup_runs_job_scheduled. Two ticks
+// racing — multi-instance schedulers, restarts, overlapping windows —
+// resolve to exactly one run; the loser sees RowsAffected == 0.
+func (s *Scheduler) fire(job *models.BackupJob, scheduledFor time.Time) {
 	var inflight int64
 	s.db.Model(&models.BackupRun{}).
 		Where("backup_job_id = ? AND status IN ?", job.ID,
@@ -119,6 +136,7 @@ func (s *Scheduler) fire(job *models.BackupJob) {
 		return
 	}
 
+	boundary := scheduledFor.UTC()
 	run := models.BackupRun{
 		Base:            models.Base{ID: uuid.New()},
 		OrganizationID:  job.OrganizationID,
@@ -127,10 +145,23 @@ func (s *Scheduler) fire(job *models.BackupJob) {
 		StorageTargetID: job.StorageTargetID,
 		Status:          models.RunPending,
 		SourceType:      string(job.SourceType),
+		ScheduledFor:    &boundary,
 	}
-	if err := s.db.Create(&run).Error; err != nil {
-		log.Warn().Err(err).Str("job_id", job.ID.String()).
+	res := s.db.Clauses(clause.OnConflict{
+		Columns: []clause.Column{
+			{Name: "backup_job_id"},
+			{Name: "scheduled_for"},
+		},
+		DoNothing: true,
+	}).Create(&run)
+	if res.Error != nil {
+		log.Warn().Err(res.Error).Str("job_id", job.ID.String()).
 			Msg("scheduler: create run failed")
+		return
+	}
+	if res.RowsAffected == 0 {
+		log.Debug().Str("job_id", job.ID.String()).
+			Msg("scheduler: boundary already fired (lost race), skipping")
 		return
 	}
 	log.Info().Str("job_id", job.ID.String()).Str("run_id", run.ID.String()).

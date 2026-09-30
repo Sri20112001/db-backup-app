@@ -28,12 +28,13 @@ func simulateRefresh(db *gorm.DB, rawToken string, userID uuid.UUID) (newToken s
 		}
 
 		if rt.Revoked {
-			// Revoke entire family
+			// Revoke entire family. Must COMMIT (return nil) — returning an
+			// error would roll back the revocation this branch just wrote.
 			tx.Model(&models.RefreshToken{}).
 				Where("family_id = ? AND revoked = false", rt.FamilyID).
 				Update("revoked", true)
 			reuseDetected = true
-			return gorm.ErrRecordNotFound
+			return nil
 		}
 
 		if err := tx.Model(&rt).Update("revoked", true).Error; err != nil {
@@ -96,13 +97,16 @@ func TestConcurrentRefreshRotation(t *testing.T) {
 		t.Error("original token should be revoked after rotation")
 	}
 
-	// Exactly one new active token should exist in the family
+	// Losers raced on the same (now revoked) token, which is textbook reuse:
+	// strict reuse detection revokes the whole family, so no active token
+	// may remain. The client never refreshes concurrently (it dedupes via a
+	// single refresh promise), so reaching this state implies compromise.
 	var activeCount int64
 	db.Model(&models.RefreshToken{}).
 		Where("family_id = ? AND revoked = false", original.FamilyID).
 		Count(&activeCount)
-	if activeCount != 1 {
-		t.Errorf("expected exactly 1 active token in family, got %d", activeCount)
+	if activeCount != 0 {
+		t.Errorf("expected 0 active tokens in family after concurrent reuse, got %d", activeCount)
 	}
 }
 

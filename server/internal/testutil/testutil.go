@@ -16,20 +16,21 @@ import (
 	"gorm.io/gorm"
 )
 
-// OpenDB connects to the test database and runs AutoMigrate.
-// Skips the test if DATABASE_URL is not set.
+// OpenDB connects to the test database and runs the versioned migration
+// chain — the same path production boots through, so tests fail if a
+// migration is broken. Skips the test if DATABASE_URL is not set.
 func OpenDB(t *testing.T) *gorm.DB {
 	t.Helper()
 	dsn := os.Getenv("DATABASE_URL")
 	if dsn == "" {
 		t.Skip("DATABASE_URL not set — skipping integration test")
 	}
+	if err := db.MigrateUp(dsn); err != nil {
+		t.Fatalf("migrate: %v", err)
+	}
 	database, err := db.Connect(dsn)
 	if err != nil {
 		t.Fatalf("connect: %v", err)
-	}
-	if err := db.Migrate(database); err != nil {
-		t.Fatalf("migrate: %v", err)
 	}
 	return database
 }

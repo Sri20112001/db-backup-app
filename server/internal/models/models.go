@@ -202,6 +202,11 @@ type BackupRun struct {
 	AgentID         uuid.UUID       `gorm:"type:uuid;not null;index" json:"agent_id"`
 	StorageTargetID uuid.UUID       `gorm:"type:uuid;not null" json:"storage_target_id"`
 	Status          BackupRunStatus `gorm:"not null;default:'PENDING'" json:"status"`
+	// ScheduledFor is the cron boundary this run was fired for. Scheduler
+	// inserts carry it (UNIQUE with backup_job_id, so two racing schedulers
+	// — or a restart replay — can never double-fire the same boundary);
+	// ad-hoc RunNow runs leave it NULL (NULLs never collide).
+	ScheduledFor *time.Time `json:"scheduled_for,omitempty"`
 	// CancelRequested is set by Cancel; the agent honors it at stage
 	// boundaries and reports CANCELLED itself. PENDING runs flip to
 	// CANCELLED immediately since no agent owns them yet.
