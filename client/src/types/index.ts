@@ -22,15 +22,28 @@ export interface OrganizationMember {
 export type MemberRole = 'OWNER' | 'ADMIN' | 'OPERATOR' | 'VIEWER'
 
 export type AgentStatus = 'ONLINE' | 'OFFLINE'
+export type AgentLifecycle = 'PENDING' | 'ONLINE' | 'OFFLINE' | 'REVOKED'
 
 export interface Agent {
   id: string
   organization_id: string
   name: string
+  platform: string
+  architecture: string
+  machine_name: string
   status: AgentStatus
+  lifecycle?: AgentLifecycle
   version: string
   last_seen_at: string | null
+  installed_at: string | null
+  revoked_at: string | null
   created_at: string
+}
+
+export interface EnrollmentTokenResult {
+  agent_id: string
+  enrollment_token: string
+  expires_at: string
 }
 
 export interface Machine {
@@ -72,6 +85,74 @@ export interface StorageTarget {
 export type BackupSourceType = 'FILESYSTEM' | 'MSSQL_SERVER' | 'DBF' | 'POSTGRES' | 'MONGODB'
 export type BackupMode = 'NORMAL' | 'COMPRESSED'
 
+export type ConnectionType = 'POSTGRES' | 'MONGODB' | 'MSSQL'
+export type ConnectionStatus = 'CONNECTED' | 'DISCONNECTED' | 'ERROR' | 'UNKNOWN'
+
+// DatabaseConnection is connection metadata only — the API never returns a
+// password. `databases` carries cached details (sizes, table counts);
+// -1 sentinels mean "unknown for this engine" and render as "—".
+export interface DatabaseInfo {
+  name: string
+  size_bytes: number
+  table_count: number
+}
+
+export interface TableInfo {
+  schema?: string
+  name: string
+  rows: number
+  size_bytes: number
+}
+
+export interface DatabaseConnection {
+  id: string
+  organization_id: string
+  agent_id: string
+  name: string
+  type: ConnectionType
+  host: string
+  port: number
+  username: string
+  status: ConnectionStatus
+  last_checked_at: string | null
+  databases: DatabaseInfo[]
+  database_count: number
+  agent?: Agent
+  created_at: string
+  updated_at?: string
+}
+
+export interface CreateConnectionRequest {
+  name: string
+  type: ConnectionType
+  agent_id: string
+  host: string
+  port: number
+  username: string
+  password: string
+  databases?: string[]
+}
+
+export interface TestConnectionResult {
+  status: string
+  latency_ms?: number
+  databases?: DatabaseInfo[]
+  agent_status?: string
+  error?: string
+  stage?: string
+}
+
+export interface DatabaseListResult {
+  databases: DatabaseInfo[]
+  cached: boolean
+  agent_status?: string
+}
+
+export interface TableListResult {
+  database: string
+  tables: TableInfo[]
+}
+
 export interface BackupSchedule {
   id: string
   backup_job_id: string
@@ -84,6 +165,7 @@ export interface BackupJob {
   organization_id: string
   agent_id: string
   storage_target_id: string
+  connection_id?: string | null
   name: string
   source_type: BackupSourceType
   source_path: string
@@ -151,6 +233,7 @@ export interface RestoreJob {
   organization_id: string
   backup_run_id: string
   agent_id: string
+  connection_id?: string | null
   status: RestoreStatus
   destination_path: string
   target_database: string

@@ -135,6 +135,7 @@ type JobConfigResponse struct {
 	StorageAccessKey string
 	StorageSecretKey string
 	StoragePath      string
+	ConnectionId     string
 }
 
 // ---- gRPC service interfaces ----

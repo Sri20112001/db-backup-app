@@ -14,6 +14,141 @@ import (
 	"github.com/backup-saas/agent/internal/storage"
 )
 
+// connectionCredentials resolves DB credentials for a claimed job: a saved
+// connection (per-claim, decrypted server-side) wins; otherwise the legacy
+// agent environment config applies (backward compatible with pre-connection
+// jobs and local dev). The returned clear function wipes the in-memory copy.
+func pgForConn(conn *ConnectionConfig, fallback PgConfig) PgConfig {
+	// A saved connection always wins when present — including no-auth
+	// endpoints (empty user/password); per-field fallbacks below cover
+	// fields the connection leaves blank.
+	if conn != nil {
+		port := conn.Port
+		if port == 0 {
+			port = 5432
+		}
+		host := conn.Host
+		if host == "" {
+			host = fallback.Host
+		}
+		user := conn.Username
+		if user == "" {
+			user = fallback.User
+		}
+		return PgConfig{Host: host, Port: port, User: user, Password: conn.Password}
+	}
+	return fallback
+}
+
+func pgFor(job *JobConfig, fallback PgConfig) PgConfig {
+	if job == nil {
+		return fallback
+	}
+	return pgForConn(job.Connection, fallback)
+}
+
+func mongoURIForConn(conn *ConnectionConfig, fallback string) string {
+	// Saved connection wins when present; empty user means no-auth URI.
+	if conn != nil {
+		host := conn.Host
+		if host == "" {
+			host = "localhost"
+		}
+		port := conn.Port
+		if port == 0 {
+			port = 27017
+		}
+		return buildMongoURI(conn.Username, conn.Password, host, port)
+	}
+	return fallback
+}
+
+func mongoURIFor(job *JobConfig, fallback string) string {
+	if job == nil {
+		return fallback
+	}
+	return mongoURIForConn(job.Connection, fallback)
+}
+
+func mssqlForConn(conn *ConnectionConfig, fallback MssqlConfig) MssqlConfig {
+	// Saved connection wins when present — including Windows integrated auth
+	// (empty user/password); per-field fallbacks below cover blank fields.
+	if conn != nil {
+		host := conn.Host
+		if host == "" {
+			host = fallback.Server
+		} else if conn.Port != 0 && conn.Port != 1433 {
+			host = strings.Join([]string{host, itoa(conn.Port)}, ",")
+		}
+		user := conn.Username
+		pw := conn.Password
+		if user == "" {
+			user = fallback.User
+			pw = fallback.Password
+		}
+		return MssqlConfig{Server: host, User: user, Password: pw, BackupDir: fallback.BackupDir}
+	}
+	return fallback
+}
+
+func mssqlFor(job *JobConfig, fallback MssqlConfig) MssqlConfig {
+	if job == nil {
+		return fallback
+	}
+	return mssqlForConn(job.Connection, fallback)
+}
+
+func buildMongoURI(user, password, host string, port int) string {
+	if user == "" {
+		return strings.Join([]string{"mongodb://", host, ":", itoa(port), "/?authSource=admin"}, "")
+	}
+	return strings.Join([]string{"mongodb://", escapeUser(user), ":", escapeUser(password), "@", host, ":", itoa(port), "/?authSource=admin"}, "")
+}
+
+func escapeUser(s string) string {
+	r := strings.ReplaceAll(s, "%", "%25")
+	r = strings.ReplaceAll(r, "@", "%40")
+	r = strings.ReplaceAll(r, "/", "%2F")
+	r = strings.ReplaceAll(r, ":", "%3A")
+	return r
+}
+
+func itoa(n int) string {
+	if n == 0 {
+		return "0"
+	}
+	neg := n < 0
+	if neg {
+		n = -n
+	}
+	var b [20]byte
+	pos := len(b)
+	for n > 0 {
+		pos--
+		b[pos] = byte('0' + n%10)
+		n /= 10
+	}
+	if neg {
+		pos--
+		b[pos] = '-'
+	}
+	return string(b[pos:])
+}
+
+func clearConnection(job *JobConfig) {
+	if job.Connection != nil {
+		// Best-effort memory hygiene: drop the secret as soon as the backup
+		// payload is produced (upload uses storage creds, not DB creds).
+		job.Connection.Password = ""
+	}
+}
+
+func clearRestoreConnection(rs *Restore) {
+	if rs.Connection != nil {
+		rs.Connection.Password = ""
+	}
+}
+
 // storageForJob resolves the provider for a claimed job. It prefers the
 // self-contained Storage block new servers send; older servers only send
 // the flat Storage* fields, which map to the same config.
@@ -120,9 +255,28 @@ func (r *Runner) downloadRestoreObject(ctx context.Context, runID string, store 
 
 // Runner executes one piece of work at a time, polling the server.
 type Runner struct {
-	cfg    Config
-	client *Client
-	ws     *WSClient
+	cfg     Config
+	client  *Client
+	ws      *WSClient
+	revoked bool
+}
+
+// isRevokedError detects the server's revocation rejection. Only the exact
+// revocation signal matches — every other error (network, 5xx, invalid
+// token typos) keeps the retry loop alive.
+func isRevokedError(err error) bool {
+	return err != nil && strings.Contains(strings.ToLower(err.Error()), "revoked")
+}
+
+// noteRevoked latches the revoked state and reports whether the caller
+// should stop polling. Revocation is terminal: the credential will never
+// work again, so retrying is pointless and log-spammy.
+func (r *Runner) noteRevoked(err error) bool {
+	if isRevokedError(err) {
+		r.revoked = true
+		return true
+	}
+	return false
 }
 
 func NewRunner(cfg Config, client *Client, ws *WSClient) *Runner {
@@ -143,6 +297,11 @@ func (r *Runner) cancelledByUser(runID string, flag bool) bool {
 }
 
 // Run loops until ctx is cancelled: poll for backup runs, then restores.
+// A revoked credential stops the loop (safe stopped state): the service
+// shows Stopped, and re-enrollment needs a fresh token + credential reset.
+// An in-flight backup is NOT killed: executeBackup runs to its next safe
+// reporting point, fails its server acknowledgements, and then the loop
+// exits without claiming new work.
 func (r *Runner) Run(ctx context.Context) {
 	log.Printf("agent polling %s every %s", r.cfg.Server, r.cfg.PollInterval)
 	ticker := time.NewTicker(r.cfg.PollInterval)
@@ -151,6 +310,10 @@ func (r *Runner) Run(ctx context.Context) {
 	// Immediate first poll, then on every tick.
 	for {
 		r.pollOnce(ctx)
+		if r.revoked {
+			log.Print("agent credential revoked by administrator — stopping poll loop (delete the stored credential and re-enroll to resume)")
+			return
+		}
 		select {
 		case <-ctx.Done():
 			return
@@ -163,6 +326,17 @@ func (r *Runner) pollOnce(ctx context.Context) {
 	if ctx.Err() != nil {
 		return
 	}
+	// Explicit heartbeat: the server derives ONLINE/OFFLINE from recency.
+	// Revocation stops the loop (safe state); anything else just logs and
+	// the work poll below retries on its own cadence (no log spam beyond
+	// the normal poll interval).
+	if err := r.client.Heartbeat(); err != nil {
+		if r.noteRevoked(err) {
+			log.Printf("heartbeat rejected: %v", err)
+			return
+		}
+		log.Printf("heartbeat: %v", err)
+	}
 	if r.pollBackups(ctx) {
 		return // did backup work; restores next tick
 	}
@@ -172,6 +346,9 @@ func (r *Runner) pollOnce(ctx context.Context) {
 func (r *Runner) pollBackups(ctx context.Context) bool {
 	runs, err := r.client.PendingRuns()
 	if err != nil {
+		if r.noteRevoked(err) {
+			return false
+		}
 		log.Printf("poll runs: %v", err)
 		return false
 	}
@@ -183,6 +360,9 @@ func (r *Runner) pollBackups(ctx context.Context) bool {
 		if err != nil {
 			if errors.Is(err, errClaimed) {
 				continue
+			}
+			if r.noteRevoked(err) {
+				return false
 			}
 			log.Printf("claim run %s: %v", run.ID, err)
 			continue
@@ -290,7 +470,9 @@ func (r *Runner) executeBackup(ctx context.Context, runID string, job *JobConfig
 			r.failRun( runID, "POSTGRES job has no source_database configured", nil)
 			return
 		}
-		dumpPath, size, err := BackupPostgres(r.cfg.PG, job.SourceDatabase, strings.ToUpper(job.Mode) == "COMPRESSED")
+		pg := pgFor(job, r.cfg.PG)
+		dumpPath, size, err := BackupPostgres(pg, job.SourceDatabase, strings.ToUpper(job.Mode) == "COMPRESSED")
+		clearConnection(job)
 		if err != nil {
 			r.failRun( runID, "pg_dump failed", err)
 			return
@@ -317,16 +499,17 @@ func (r *Runner) executeBackup(ctx context.Context, runID string, job *JobConfig
 		var size int64
 		var err error
 		var label string
+		mongoURI := mongoURIFor(job, r.cfg.MONGO.URI)
 		switch format {
 		case "ARCHIVE":
 			label = "mongodump"
-			outPath, size, err = BackupMongo(ctx, r.cfg.MONGO.URI, job.SourceDatabase)
+			outPath, size, err = BackupMongo(ctx, mongoURI, job.SourceDatabase)
 		case "JSON":
 			label = "mongo json export"
-			outPath, size, err = ExportMongo(ctx, r.cfg.MONGO.URI, job.SourceDatabase, "JSON", strings.ToUpper(job.Mode) == "COMPRESSED")
+			outPath, size, err = ExportMongo(ctx, mongoURI, job.SourceDatabase, "JSON", strings.ToUpper(job.Mode) == "COMPRESSED")
 		case "CSV":
 			label = "mongo csv export"
-			outPath, size, err = ExportMongo(ctx, r.cfg.MONGO.URI, job.SourceDatabase, "CSV", strings.ToUpper(job.Mode) == "COMPRESSED")
+			outPath, size, err = ExportMongo(ctx, mongoURI, job.SourceDatabase, "CSV", strings.ToUpper(job.Mode) == "COMPRESSED")
 		default:
 			r.failRun( runID, fmt.Sprintf("unknown export_format %q (want ARCHIVE, JSON, or CSV)", job.ExportFormat), nil)
 			return
@@ -335,6 +518,7 @@ func (r *Runner) executeBackup(ctx context.Context, runID string, job *JobConfig
 			r.failRun( runID, label+" failed", err)
 			return
 		}
+		clearConnection(job)
 		defer os.Remove(outPath)
 		checksum, err := ChecksumFile(outPath)
 		if err != nil {
@@ -350,7 +534,8 @@ func (r *Runner) executeBackup(ctx context.Context, runID string, job *JobConfig
 			r.failRun( runID, "MSSQL job has no source_database configured", nil)
 			return
 		}
-		bakPath, size, err := BackupMssql(ctx, r.cfg.MSSQL, job.SourceDatabase, strings.ToUpper(job.Mode) == "COMPRESSED")
+		bakPath, size, err := BackupMssql(ctx, mssqlFor(job, r.cfg.MSSQL), job.SourceDatabase, strings.ToUpper(job.Mode) == "COMPRESSED")
+		clearConnection(job)
 		if err != nil {
 			r.failRun( runID, "BACKUP DATABASE failed", err)
 			return
@@ -505,6 +690,9 @@ func (r *Runner) executeBackup(ctx context.Context, runID string, job *JobConfig
 func (r *Runner) pollRestores(ctx context.Context) {
 	restores, err := r.client.PendingRestores()
 	if err != nil {
+		if r.noteRevoked(err) {
+			return
+		}
 		log.Printf("poll restores: %v", err)
 		return
 	}
@@ -517,6 +705,9 @@ func (r *Runner) pollRestores(ctx context.Context) {
 			if errors.Is(err, errClaimed) {
 				continue
 			}
+			if r.noteRevoked(err) {
+				return
+			}
 			log.Printf("claim restore %s: %v", rs.ID, err)
 			continue
 		}
@@ -528,7 +719,7 @@ func (r *Runner) pollRestores(ctx context.Context) {
 // restoreMongoExport replays a JSON/CSV export (gunzipping first when the
 // stored file is compressed) into targetDB. CSV values land as strings —
 // callers should surface that caveat, not fail on it.
-func (r *Runner) restoreMongoExport(ctx context.Context, target, archivePath, format string) error {
+func (r *Runner) restoreMongoExport(ctx context.Context, mongoURI, target, archivePath, format string) error {
 	sqlPath := archivePath
 	if strings.HasSuffix(archivePath, ".gz") {
 		tmp, err := os.CreateTemp("", "vg-mongoimport-*.tmp")
@@ -544,9 +735,9 @@ func (r *Runner) restoreMongoExport(ctx context.Context, target, archivePath, fo
 		sqlPath = tmpPath
 	}
 	if format == "JSON" {
-		return RestoreMongoJSON(ctx, r.cfg.MONGO.URI, target, sqlPath)
+		return RestoreMongoJSON(ctx, mongoURI, target, sqlPath)
 	}
-	if err := RestoreMongoCSV(ctx, r.cfg.MONGO.URI, target, sqlPath); err != nil {
+	if err := RestoreMongoCSV(ctx, mongoURI, target, sqlPath); err != nil {
 		return err
 	}
 	log.Printf("CSV restore complete: values restored as strings (use ARCHIVE or JSON for exact types)")
@@ -612,12 +803,14 @@ func (r *Runner) executeRestore(ctx context.Context, rs *Restore) {
 			return
 		}
 		log.Printf("restore %s: pg_restore to %q", rs.ID, rs.TargetDatabase)
-		if err := RestorePostgres(r.cfg.PG, rs.TargetDatabase, archivePath); err != nil {
+		if err := RestorePostgres(pgForConn(rs.Connection, r.cfg.PG), rs.TargetDatabase, archivePath); err != nil {
+			clearRestoreConnection(rs)
 			msg := fmt.Sprintf("pg_restore failed: %v", err)
 			log.Printf("restore %s FAILED: %s", rs.ID, msg)
 			_ = r.client.UpdateRestoreStatus(rs.ID, "FAILED", msg)
 			return
 		}
+		clearRestoreConnection(rs)
 		if err := r.client.UpdateRestoreStatus(rs.ID, "COMPLETED", ""); err != nil {
 			log.Printf("restore %s: report completion: %v", rs.ID, err)
 			return
@@ -633,12 +826,14 @@ func (r *Runner) executeRestore(ctx context.Context, rs *Restore) {
 			return
 		}
 		log.Printf("restore %s: RESTORE DATABASE to %q", rs.ID, rs.TargetDatabase)
-		if err := RestoreMssql(ctx, r.cfg.MSSQL, rs.TargetDatabase, archivePath); err != nil {
+		if err := RestoreMssql(ctx, mssqlForConn(rs.Connection, r.cfg.MSSQL), rs.TargetDatabase, archivePath); err != nil {
+			clearRestoreConnection(rs)
 			msg := fmt.Sprintf("RESTORE DATABASE failed: %v", err)
 			log.Printf("restore %s FAILED: %s", rs.ID, msg)
 			_ = r.client.UpdateRestoreStatus(rs.ID, "FAILED", msg)
 			return
 		}
+		clearRestoreConnection(rs)
 		if err := r.client.UpdateRestoreStatus(rs.ID, "COMPLETED", ""); err != nil {
 			log.Printf("restore %s: report completion: %v", rs.ID, err)
 			return
@@ -658,6 +853,7 @@ func (r *Runner) executeRestore(ctx context.Context, rs *Restore) {
 			return
 		}
 		log.Printf("restore %s: mongorestore %q -> %q", rs.ID, rs.SourceDatabase, target)
+		mongoURI := mongoURIForConn(rs.Connection, r.cfg.MONGO.URI)
 		format := strings.ToUpper(strings.TrimSpace(rs.ExportFormat))
 		if format == "" {
 			format = "ARCHIVE"
@@ -667,13 +863,14 @@ func (r *Runner) executeRestore(ctx context.Context, rs *Restore) {
 		switch format {
 		case "ARCHIVE":
 			rlabel = "mongorestore"
-			rerr = RestoreMongo(ctx, r.cfg.MONGO.URI, rs.SourceDatabase, target, archivePath)
+			rerr = RestoreMongo(ctx, mongoURI, rs.SourceDatabase, target, archivePath)
 		case "JSON", "CSV":
 			rlabel = "mongo " + strings.ToLower(format) + " restore"
-			rerr = r.restoreMongoExport(ctx, target, archivePath, format)
+			rerr = r.restoreMongoExport(ctx, mongoURI, target, archivePath, format)
 		default:
 			rerr = fmt.Errorf("unknown export_format %q", rs.ExportFormat)
 		}
+		clearRestoreConnection(rs)
 		if rerr != nil {
 			msg := fmt.Sprintf("%s failed: %v", rlabel, rerr)
 			log.Printf("restore %s FAILED: %s", rs.ID, msg)

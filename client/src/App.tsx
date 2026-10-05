@@ -14,6 +14,7 @@ import RestoresPage from './features/restores/components/RestoresPage'
 import AgentsPage from './features/agents/components/AgentsPage'
 import AgentDetailPage from './features/agents/components/AgentDetailPage'
 import StoragePage from './features/storage/components/StoragePage'
+import ConnectionsPage from './features/connections/components/ConnectionsPage'
 import AlertsPage from './features/alerts/components/AlertsPage'
 import SettingsPage from './features/settings/components/SettingsPage'
 
@@ -65,6 +66,7 @@ const App = () => {
         <Route path="agents" element={<AgentsPage />} />
         <Route path="agents/:id" element={<AgentDetailPage />} />
         <Route path="storage" element={<StoragePage />} />
+        <Route path="connections" element={<ConnectionsPage />} />
         <Route path="alerts" element={<AlertsPage />} />
         <Route path="settings" element={<SettingsPage />} />
       </Route>

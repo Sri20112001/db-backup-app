@@ -260,7 +260,7 @@ func (s *Server) GetJobConfig(_ context.Context, req *pb.JobConfigRequest) (*pb.
 	}
 
 	var job models.BackupJob
-	if err := s.db.Preload("Schedule").Preload("StorageTarget").
+	if err := s.db.Preload("Schedule").Preload("StorageTarget").Preload("Connection").
 		Where("id = ? AND agent_id = ?", req.JobId, agent.ID).First(&job).Error; err != nil {
 		return nil, err
 	}
@@ -279,6 +279,9 @@ func (s *Server) GetJobConfig(_ context.Context, req *pb.JobConfigRequest) (*pb.
 		StorageRegion:   job.StorageTarget.Region,
 		StorageEndpoint: job.StorageTarget.Endpoint,
 		StoragePath:     job.StorageTarget.Path,
+	}
+	if job.ConnectionID != nil {
+		resp.ConnectionId = job.ConnectionID.String()
 	}
 	if job.Schedule != nil {
 		resp.CronExpr = job.Schedule.CronExpr
@@ -318,6 +321,9 @@ func (s *Server) authenticateAgent(agentID, token string) (*models.Agent, error)
 	}
 	if agent.TokenHash == nil || bcrypt.CompareHashAndPassword([]byte(*agent.TokenHash), []byte(token)) != nil {
 		return nil, errors.New("invalid agent token")
+	}
+	if agent.RevokedAt != nil {
+		return nil, errors.New("agent revoked")
 	}
 	return &agent, nil
 }

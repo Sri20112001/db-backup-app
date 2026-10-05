@@ -1,6 +1,8 @@
 package models
 
 import (
+	"encoding/json"
+	"strings"
 	"time"
 
 	"github.com/google/uuid"
@@ -71,6 +73,22 @@ const (
 	AgentOffline AgentStatus = "OFFLINE"
 )
 
+// AgentLifecycle is the effective enrollment-aware state exposed by the API
+// (transient `lifecycle` field, never stored): PENDING = created but never
+// enrolled (no permanent credential yet); REVOKED = administratively
+// revoked (authentication refused); otherwise the ONLINE/OFFLINE heartbeat
+// state. REGISTERED corresponds to enrolled (InstalledAt set, not pending).
+const (
+	LifecyclePending  = "PENDING"
+	LifecycleOnline   = "ONLINE"
+	LifecycleOffline  = "OFFLINE"
+	LifecycleRevoked  = "REVOKED"
+)
+
+// OnlineThreshold is how recently last_seen_at must be for ONLINE.
+// Shared by the heartbeat path and the health monitor so both agree.
+const OnlineThreshold = 3 * time.Minute
+
 type Agent struct {
 	Base
 	OrganizationID  uuid.UUID   `gorm:"type:uuid;not null;index" json:"organization_id"`
@@ -84,7 +102,48 @@ type Agent struct {
 	Status          AgentStatus `gorm:"not null;default:'OFFLINE'" json:"status"`
 	Version         string      `json:"version"`
 	LastSeenAt      *time.Time  `json:"last_seen_at"`
+	// RegistrationKey stores a SHA-256 hex digest of the one-time key, never
+	// plaintext. Pending (never-enrolled) rows carry it; enrollment clears it.
 	RegistrationKey *string     `gorm:"uniqueIndex" json:"-"`
+	// Lifecycle metadata (agent milestone): inventory + revocation.
+	Platform        string      `gorm:"default:''" json:"platform"`
+	Architecture    string      `gorm:"default:''" json:"architecture"`
+	MachineName     string      `gorm:"default:''" json:"machine_name"`
+	InstalledAt     *time.Time  `json:"installed_at,omitempty"`
+	RevokedAt       *time.Time  `json:"revoked_at,omitempty"`
+	RegistrationExpiresAt *time.Time `json:"-"`
+}
+
+// Lifecycle returns the effective enrollment-aware state. ONLINE is derived
+// from heartbeat recency, never trusted blindly from the stored flag.
+func (a *Agent) Lifecycle() string {
+	if a.RevokedAt != nil {
+		return LifecycleRevoked
+	}
+	if a.TokenHash == nil {
+		return LifecyclePending
+	}
+	if a.LastSeenAt != nil && time.Since(*a.LastSeenAt) < OnlineThreshold {
+		return LifecycleOnline
+	}
+	if a.Status == AgentOnline {
+		return LifecycleOnline
+	}
+	return LifecycleOffline
+}
+
+// --- EnrollmentToken ---
+// EnrollmentToken is a short-lived single-use token for agent enrollment.
+// Only the SHA-256 hex digest is stored; plaintext is shown once at
+// creation. Optionally linked to a pre-created pending Agent row.
+type EnrollmentToken struct {
+	Base
+	OrganizationID uuid.UUID  `gorm:"type:uuid;not null;index" json:"organization_id"`
+	AgentID        *uuid.UUID `gorm:"type:uuid;index" json:"agent_id,omitempty"`
+	TokenHash      string     `gorm:"uniqueIndex;not null" json:"-"`
+	ExpiresAt      time.Time  `gorm:"not null;index" json:"expires_at"`
+	UsedAt         *time.Time `json:"used_at,omitempty"`
+	CreatedBy      *uuid.UUID `gorm:"type:uuid" json:"-"`
 }
 
 // --- Machine ---
@@ -145,6 +204,150 @@ type S3Region struct {
 	Active    bool   `gorm:"default:true" json:"active"`
 }
 
+// --- DatabaseConnection ---
+// DatabaseConnection is a reusable infrastructure resource: connection
+// metadata configured once, referenced by many backup jobs. Secrets are
+// NEVER stored here in plaintext — only AES-256-GCM ciphertext (same
+// ENCRYPTION_KEY envelope as storage targets), never returned by the API.
+// The agent receives decrypted credentials per-claim over HTTPS, exactly
+// like storage credentials; filesystem jobs leave ConnectionID NULL.
+type ConnectionType string
+
+const (
+	ConnectionPostgres ConnectionType = "POSTGRES"
+	ConnectionMongo    ConnectionType = "MONGODB"
+	ConnectionMssql    ConnectionType = "MSSQL"
+)
+
+type ConnectionStatus string
+
+const (
+	ConnectionUnknown      ConnectionStatus = "UNKNOWN"
+	ConnectionConnected    ConnectionStatus = "CONNECTED"
+	ConnectionDisconnected ConnectionStatus = "DISCONNECTED"
+	ConnectionError        ConnectionStatus = "ERROR"
+)
+
+type DatabaseConnection struct {
+	Base
+	OrganizationID uuid.UUID        `gorm:"type:uuid;not null;index" json:"organization_id"`
+	AgentID        uuid.UUID        `gorm:"type:uuid;not null;index" json:"agent_id"`
+	Name           string           `gorm:"not null" json:"name"`
+	Type           ConnectionType   `gorm:"not null" json:"type"`
+	Host           string           `gorm:"not null" json:"host"`
+	Port           int              `gorm:"not null" json:"port"`
+	Username       string           `gorm:"not null" json:"username"`
+	// EncryptedPassword holds AES-256-GCM ciphertext (base64). json:"-" so
+	// it never leaves the server except per-claim to the owning agent.
+	EncryptedPassword string           `json:"-"`
+	Status            ConnectionStatus `gorm:"not null;default:'UNKNOWN'" json:"status"`
+	LastCheckedAt     *time.Time       `json:"last_checked_at,omitempty"`
+	// DatabaseNames caches the last discovered database list (metadata,
+	// not secret) so the job wizard can populate its dropdown without a
+	// live agent round-trip. Refreshed on test/save.
+	DatabaseNames string `gorm:"default:''" json:"-"`
+	// DatabaseMetadata caches richer per-database details (JSON array of
+	// DatabaseInfo: sizes, table counts) collected at Test/Refresh time.
+	// Best-effort: empty when the engine doesn't expose details.
+	DatabaseMetadata string `gorm:"default:''" json:"-"`
+	Agent         Agent  `gorm:"foreignKey:AgentID" json:"agent,omitempty"`
+}
+
+// UnknownSize marks an unavailable size/count in DatabaseInfo (-1, since 0
+// is a legitimate empty-database reading).
+const UnknownSize = int64(-1)
+
+// DatabaseInfo is one cached database entry: identity plus best-effort
+// details. TableCount -1 (and SizeBytes -1) mean "unknown for this engine".
+type DatabaseInfo struct {
+	Name       string `json:"name"`
+	SizeBytes  int64  `json:"size_bytes"`
+	TableCount int    `json:"table_count"`
+}
+
+// TableInfo is one table/collection inside a database (live drill-in, not
+// cached). Rows -1 / SizeBytes -1 mean unknown.
+type TableInfo struct {
+	Schema    string `json:"schema,omitempty"`
+	Name      string `json:"name"`
+	Rows      int64  `json:"rows"`
+	SizeBytes int64  `json:"size_bytes"`
+}
+
+// DatabaseList returns the cached database names as a slice.
+func (c *DatabaseConnection) DatabaseList() []string {
+	if c.DatabaseNames == "" {
+		return []string{}
+	}
+	var out []string
+	for _, n := range splitConnDBs(c.DatabaseNames) {
+		if n != "" {
+			out = append(out, n)
+		}
+	}
+	return out
+}
+
+func splitConnDBs(s string) []string {
+	var out []string
+	start := 0
+	for i := 0; i < len(s); i++ {
+		if s[i] == '\n' {
+			out = append(out, s[start:i])
+			start = i + 1
+		}
+	}
+	out = append(out, s[start:])
+	return out
+}
+
+// MetadataList returns cached DatabaseInfo, falling back to bare names with
+// unknown details when no metadata was ever collected.
+func (c *DatabaseConnection) MetadataList() []DatabaseInfo {
+	if strings.TrimSpace(c.DatabaseMetadata) != "" {
+		var out []DatabaseInfo
+		if err := json.Unmarshal([]byte(c.DatabaseMetadata), &out); err == nil && len(out) > 0 {
+			return out
+		}
+	}
+	names := c.DatabaseList()
+	out := make([]DatabaseInfo, 0, len(names))
+	for _, n := range names {
+		out = append(out, DatabaseInfo{Name: n, SizeBytes: UnknownSize, TableCount: -1})
+	}
+	return out
+}
+
+// MarshalDatabaseMetadata encodes details for storage ("" when empty).
+func MarshalDatabaseMetadata(infos []DatabaseInfo) string {
+	if len(infos) == 0 {
+		return ""
+	}
+	data, err := json.Marshal(infos)
+	if err != nil {
+		return ""
+	}
+	return string(data)
+}
+
+// MergeMetadataNames re-attaches cached sizes/counts to a fresh names-only
+// discovery (frontend loopback sends names; details survive by name match).
+func MergeMetadataNames(cached []DatabaseInfo, names []string) []DatabaseInfo {
+	byName := map[string]DatabaseInfo{}
+	for _, d := range cached {
+		byName[d.Name] = d
+	}
+	out := make([]DatabaseInfo, 0, len(names))
+	for _, n := range names {
+		if d, ok := byName[n]; ok {
+			out = append(out, d)
+		} else {
+			out = append(out, DatabaseInfo{Name: n, SizeBytes: UnknownSize, TableCount: -1})
+		}
+	}
+	return out
+}
+
 // --- BackupJob ---
 
 type BackupSourceType string
@@ -174,6 +377,10 @@ type BackupJob struct {
 	StorageTargetID uuid.UUID        `gorm:"type:uuid;not null;index" json:"storage_target_id"`
 	Name            string           `gorm:"not null" json:"name"`
 	SourceType      BackupSourceType `gorm:"not null" json:"source_type"`
+	// ConnectionID references a saved DatabaseConnection for database jobs.
+	// NULL for filesystem jobs and for legacy jobs created before the
+	// connections feature (backward compatible).
+	ConnectionID    *uuid.UUID       `gorm:"type:uuid;index" json:"connection_id,omitempty"`
 	SourcePath      string           `json:"source_path"`
 	SourceDatabase  string           `json:"source_database"`
 	IncludePatterns string           `json:"include_patterns"`
@@ -197,6 +404,7 @@ type BackupJob struct {
 	Schedule        *BackupSchedule  `gorm:"foreignKey:BackupJobID" json:"schedule,omitempty"`
 	Agent           Agent            `gorm:"foreignKey:AgentID" json:"agent,omitempty"`
 	StorageTarget   StorageTarget    `gorm:"foreignKey:StorageTargetID" json:"storage_target,omitempty"`
+	Connection      *DatabaseConnection `gorm:"foreignKey:ConnectionID" json:"connection,omitempty"`
 }
 
 // --- BackupSchedule ---
@@ -326,6 +534,10 @@ type RestoreJob struct {
 	OrganizationID    uuid.UUID     `gorm:"type:uuid;not null;index" json:"organization_id"`
 	BackupRunID       uuid.UUID     `gorm:"type:uuid;not null;index" json:"backup_run_id"`
 	AgentID           uuid.UUID     `gorm:"type:uuid;not null;index" json:"agent_id"`
+	// ConnectionID pins the saved connection for database restores, copied
+	// from the source backup job at creation. NULL for filesystem restores
+	// and legacy rows (agent env fallback applies).
+	ConnectionID      *uuid.UUID    `gorm:"type:uuid;index" json:"connection_id,omitempty"`
 	Status            RestoreStatus `gorm:"not null;default:'PENDING'" json:"status"`
 	DestinationPath   string        `json:"destination_path"`
 	TargetDatabase    string        `json:"target_database"`
@@ -334,6 +546,7 @@ type RestoreJob struct {
 	DurationSeconds   int64         `json:"duration_seconds"`
 	ErrorMessage      string        `json:"error_message,omitempty"`
 	BackupRun         BackupRun     `gorm:"foreignKey:BackupRunID" json:"backup_run,omitempty"`
+	Connection        *DatabaseConnection `gorm:"foreignKey:ConnectionID" json:"connection,omitempty"`
 }
 
 // --- BackupSizeBaseline ---

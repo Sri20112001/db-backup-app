@@ -116,4 +116,8 @@ message JobConfigResponse {
   string storage_access_key  = 14;
   string storage_secret_key  = 15;
   string storage_path        = 16;
+  // connection_id references a saved DatabaseConnection. The agent resolves
+  // credentials per-claim (REST) or via GetJobConfig; the job payload itself
+  // never carries passwords.
+  string connection_id       = 17;
 }

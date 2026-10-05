@@ -1,16 +1,20 @@
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { jobApi, agentApi, storageApi } from '@/services/api'
+import { jobApi, agentApi, storageApi, connectionsApi } from '@/services/api'
 import { useAuthStore } from '@/store/authStore'
 import { useUIStore } from '@/store/uiStore'
-import type { Agent, StorageTarget, BackupSourceType, BackupMode } from '@/types'
+import type { Agent, StorageTarget, BackupSourceType, BackupMode, DatabaseConnection, ConnectionType } from '@/types'
 import { ChevronRight, Check, Server, CloudUpload, FolderOpen, HardDrive, Loader2 } from 'lucide-react'
-import SqlDatabasePicker from './SqlDatabasePicker'
-import PgDatabasePicker from './PgDatabasePicker'
-import MongoDatabasePicker from './MongoDatabasePicker'
+import ConnectionDatabasePicker from './ConnectionDatabasePicker'
 import Action3DButton from '@/components/ui/Action3DButton'
 import NeoToggle from '@/components/ui/NeoToggle'
 import { FileSystemIcon, MssqlServerIcon, PostgresIcon, MongoDbIcon, DbfIcon } from '@/components/ui/SourceIcons'
+
+const SOURCE_TO_CONNECTION: Partial<Record<BackupSourceType, ConnectionType>> = {
+  POSTGRES: 'POSTGRES',
+  MONGODB: 'MONGODB',
+  MSSQL_SERVER: 'MSSQL',
+}
 
 const STEPS = ['Source', 'Agent', 'Schedule', 'Processing', 'Review']
 
@@ -32,11 +36,13 @@ const JobWizard = ({ onClose, onSaved }: { onClose?: () => void; onSaved?: () =>
   const [step, setStep] = useState(0)
   const [agents, setAgents] = useState<Agent[]>([])
   const [storageTargets, setStorageTargets] = useState<StorageTarget[]>([])
+  const [connections, setConnections] = useState<DatabaseConnection[]>([])
   const [isSubmitting, setIsSubmitting] = useState(false)
 
   const [form, setForm] = useState({
     name: '',
     source_type: 'FILESYSTEM' as BackupSourceType,
+    connection_id: '',
     source_path: '',
     source_database: '',
     include_patterns: '',
@@ -51,17 +57,47 @@ const JobWizard = ({ onClose, onSaved }: { onClose?: () => void; onSaved?: () =>
     export_format: 'ARCHIVE',
   })
 
-  useEffect(() => {
+  const loadResources = () => {
     if (!currentOrg) return
-    Promise.all([agentApi.list(currentOrg.id), storageApi.list(currentOrg.id)])
-      .then(([a, s]) => { setAgents(a); setStorageTargets(s) })
+    Promise.all([agentApi.list(currentOrg.id), storageApi.list(currentOrg.id), connectionsApi.list(currentOrg.id)])
+      .then(([a, s, c]) => { setAgents(a); setStorageTargets(s); setConnections(c) })
       .catch(() => addToast('error', 'Failed to load resources'))
+  }
+
+  useEffect(() => {
+    loadResources()
   }, [currentOrg])
 
   const update = (key: string, value: unknown) => setForm((f) => ({ ...f, [key]: value }))
 
+  const connectionType = SOURCE_TO_CONNECTION[form.source_type]
+  const visibleConnections = connectionType ? connections.filter((c) => c.type === connectionType) : []
+
+  // Picking a connection pins the job to the connection's agent so the host
+  // with database access runs the backup.
+  const handleConnectionChange = (id: string) => {
+    const conn = connections.find((c) => c.id === id)
+    setForm((f) => ({
+      ...f,
+      connection_id: id,
+      source_database: '',
+      agent_id: conn ? conn.agent_id : f.agent_id,
+    }))
+  }
+
+  const isDatabaseSource = connectionType !== undefined
+
   const canAdvance = () => {
-    if (step === 0) return !!form.name && !!(form.source_path || form.source_database)
+    if (step === 0) {
+      if (!form.name) return false
+      if (isDatabaseSource) {
+        // Connection-first: require a saved connection when one exists for
+        // this type (legacy manual path stays for agents without connections).
+        if (visibleConnections.length > 0 && !form.connection_id) return false
+        return !!form.source_database
+      }
+      return !!form.source_path
+    }
     if (step === 1) return !!form.agent_id
     if (step === 2) return !!form.cron_expr
     if (step === 3) return !!form.storage_target_id
@@ -74,8 +110,12 @@ const JobWizard = ({ onClose, onSaved }: { onClose?: () => void; onSaved?: () =>
     try {
       // export_format is MongoDB-only server-side: strip it for every other
       // source type (the form keeps an ARCHIVE default for the Mongo picker).
+      // connection_id is database-only and omitted when empty (filesystem /
+      // legacy jobs stay backward compatible).
       const payload: Record<string, unknown> = { ...form }
       if (payload.source_type !== 'MONGODB') delete payload.export_format
+      if (!payload.connection_id) delete payload.connection_id
+      if (payload.source_type === 'FILESYSTEM' || payload.source_type === 'DBF') delete payload.connection_id
       await jobApi.create(currentOrg.id, payload)
       addToast('success', `${form.name} created successfully`)
       if (onSaved) onSaved()
@@ -90,6 +130,7 @@ const JobWizard = ({ onClose, onSaved }: { onClose?: () => void; onSaved?: () =>
 
   const selectedAgent = agents.find((a) => a.id === form.agent_id)
   const selectedStorage = storageTargets.find((s) => s.id === form.storage_target_id)
+  const selectedConnection = connections.find((c) => c.id === form.connection_id)
 
   const closeWizard = () => {
     if (onClose) onClose()
@@ -97,7 +138,7 @@ const JobWizard = ({ onClose, onSaved }: { onClose?: () => void; onSaved?: () =>
   }
 
   return (
-    <div className={onClose ? 'flex flex-col gap-5' : 'h-full min-h-0 overflow-y-auto flex flex-col gap-5 max-w-3xl mx-auto pr-0.5 pb-1'}>
+    <div className={onClose ? 'flex flex-col gap-5' : 'h-full min-h-0 overflow-y-auto flex flex-col gap-4 pr-0.5 pb-1'}>
       {!onClose && (
       <div>
         <div className="flex items-center gap-2 text-[12px] text-on-surface-variant mb-1">
@@ -132,7 +173,7 @@ const JobWizard = ({ onClose, onSaved }: { onClose?: () => void; onSaved?: () =>
       <div className="bg-surface-container-lowest rounded-xl border border-surface-variant shadow-sm p-6">
         {/* Step 0: Source */}
         {step === 0 && (
-          <div className="flex flex-col gap-5">
+          <div className="flex flex-col gap-4">
             <h2 className="text-[16px] font-semibold text-on-surface">Source Configuration</h2>
             <div>
               <label className="block text-[13px] font-medium text-on-surface-variant mb-1.5">Job Name *</label>
@@ -157,7 +198,7 @@ const JobWizard = ({ onClose, onSaved }: { onClose?: () => void; onSaved?: () =>
                   <button
                     key={s.type}
                     type="button"
-                    onClick={() => update('source_type', s.type)}
+                    onClick={() => { update('source_type', s.type); update('connection_id', ''); update('source_database', '') }}
                     className={`flex flex-col items-center gap-2 p-4 rounded-xl border-2 transition-all ${
                       form.source_type === s.type
                         ? 'border-primary bg-primary-container/30'
@@ -183,16 +224,16 @@ const JobWizard = ({ onClose, onSaved }: { onClose?: () => void; onSaved?: () =>
                   className="w-full h-9 px-3 rounded-lg border border-surface-variant bg-surface-container-low font-mono text-[13px] text-on-surface focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all"
                 />
               </div>
-            ) : form.source_type === 'POSTGRES' ? (
-              <PgDatabasePicker
-                value={form.source_database}
-                onChange={(v) => update('source_database', v)}
-              />
             ) : form.source_type === 'MONGODB' ? (
               <div className="flex flex-col gap-4">
-                <MongoDatabasePicker
-                  value={form.source_database}
-                  onChange={(v) => update('source_database', v)}
+                <ConnectionDatabasePicker
+                  connections={visibleConnections}
+                  connectionId={form.connection_id}
+                  database={form.source_database}
+                  agent={agents.find((a) => a.id === (form.agent_id || visibleConnections.find((c) => c.id === form.connection_id)?.agent_id))}
+                  onConnectionChange={handleConnectionChange}
+                  onDatabaseChange={(v) => update('source_database', v)}
+                  onRefreshConnections={loadResources}
                 />
                 <div>
                   <label className="block text-[13px] font-medium text-on-surface-variant mb-2">Export Format</label>
@@ -225,9 +266,14 @@ const JobWizard = ({ onClose, onSaved }: { onClose?: () => void; onSaved?: () =>
                 </div>
               </div>
             ) : (
-              <SqlDatabasePicker
-                value={form.source_database}
-                onChange={(v) => update('source_database', v)}
+              <ConnectionDatabasePicker
+                connections={visibleConnections}
+                connectionId={form.connection_id}
+                database={form.source_database}
+                agent={agents.find((a) => a.id === (form.agent_id || visibleConnections.find((c) => c.id === form.connection_id)?.agent_id))}
+                onConnectionChange={handleConnectionChange}
+                onDatabaseChange={(v) => update('source_database', v)}
+                onRefreshConnections={loadResources}
               />
             )}
             {(form.source_type === 'FILESYSTEM') && (
@@ -293,7 +339,7 @@ const JobWizard = ({ onClose, onSaved }: { onClose?: () => void; onSaved?: () =>
 
         {/* Step 2: Schedule */}
         {step === 2 && (
-          <div className="flex flex-col gap-5">
+          <div className="flex flex-col gap-4">
             <h2 className="text-[16px] font-semibold text-on-surface">Schedule</h2>
             <div className="flex flex-wrap gap-2">
               {PRESETS.map((p) => (
@@ -335,7 +381,7 @@ const JobWizard = ({ onClose, onSaved }: { onClose?: () => void; onSaved?: () =>
 
         {/* Step 3: Processing & Storage */}
         {step === 3 && (
-          <div className="flex flex-col gap-5">
+          <div className="flex flex-col gap-4">
             <h2 className="text-[16px] font-semibold text-on-surface">Processing & Storage</h2>
 
             <div className="flex flex-col gap-3">
@@ -404,12 +450,15 @@ const JobWizard = ({ onClose, onSaved }: { onClose?: () => void; onSaved?: () =>
 
         {/* Step 4: Review */}
         {step === 4 && (
-          <div className="flex flex-col gap-5">
+          <div className="flex flex-col gap-4">
             <h2 className="text-[16px] font-semibold text-on-surface">Review & Create</h2>
             <div className="grid grid-cols-2 gap-x-8 gap-y-3 text-[13px]">
               {[
                 { label: 'Job Name', value: form.name },
                 { label: 'Source Type', value: form.source_type.replace('_', ' ') },
+                ...(selectedConnection
+                  ? [{ label: 'Connection', value: selectedConnection.name }]
+                  : []),
                 { label: 'Source', value: form.source_path || form.source_database || '—', mono: true },
                 ...(form.source_type === 'MONGODB'
                   ? [{ label: 'Export Format', value: form.export_format || 'ARCHIVE' }]

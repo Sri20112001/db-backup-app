@@ -30,6 +30,8 @@ func NewRouter(db *gorm.DB, cfg *config.Config, grpcSrv *grpcserver.Server, hub 
 	agentH   := handlers.NewAgentHandler(db, grpcSrv)
 	machineH := handlers.NewMachineHandler(db)
 	storageH := handlers.NewStorageHandler(db, encKey)
+	connH    := handlers.NewConnectionHandler(db, encKey)
+	enrollH  := handlers.NewEnrollmentHandler(db, grpcSrv)
 	jobH     := handlers.NewBackupJobHandler(db, grpcSrv)
 	runH     := handlers.NewBackupRunHandler(db, grpcSrv, encKey, mailer)
 	restoreH := handlers.NewRestoreHandler(db, grpcSrv, encKey)
@@ -64,6 +66,8 @@ func NewRouter(db *gorm.DB, cfg *config.Config, grpcSrv *grpcserver.Server, hub 
 
 	// Agent self-registration (one-time key, no agent token yet)
 	api.POST("/agents/register", agentH.Register)
+	// Agent enrollment (one-time enrollment token → permanent credential).
+	api.POST("/agents/enroll", enrollH.Enroll)
 
 	// All agent-authenticated endpoints share one middleware group so
 	// protection is structural — a new handler added here is automatically
@@ -79,6 +83,7 @@ func NewRouter(db *gorm.DB, cfg *config.Config, grpcSrv *grpcserver.Server, hub 
 	agentRoutes.POST("/agent/runs/:id/claim", workH.ClaimRun)
 	agentRoutes.GET("/agent/restores", workH.PendingRestores)
 	agentRoutes.POST("/agent/restores/:id/claim", workH.ClaimRestore)
+	agentRoutes.POST("/agent/heartbeat", enrollH.Heartbeat)
 
 	// JWT-authenticated routes
 	authed := api.Group("")
@@ -104,8 +109,10 @@ func NewRouter(db *gorm.DB, cfg *config.Config, grpcSrv *grpcserver.Server, hub 
 	// Agents
 	org.GET("/agents", agentH.List)
 	org.POST("/agents/token", middleware.RequireRole(models.RoleOwner, models.RoleAdmin), agentH.GenerateRegistrationToken)
+	org.POST("/agents/enrollment-token", middleware.RequireRole(models.RoleOwner, models.RoleAdmin), enrollH.GenerateEnrollmentToken)
 	org.GET("/agents/:id", agentH.Get)
 	org.POST("/agents/:id/rotate-token", middleware.RequireRole(models.RoleOwner, models.RoleAdmin), agentH.RotateToken)
+	org.POST("/agents/:id/revoke", middleware.RequireRole(models.RoleOwner, models.RoleAdmin), enrollH.Revoke)
 	org.DELETE("/agents/:id", middleware.RequireRole(models.RoleOwner, models.RoleAdmin), agentH.Delete)
 
 	// Machines
@@ -122,6 +129,17 @@ func NewRouter(db *gorm.DB, cfg *config.Config, grpcSrv *grpcserver.Server, hub 
 	org.POST("/storage-regions", middleware.RequireRole(models.RoleOwner, models.RoleAdmin), storageH.CreateRegion)
 	org.DELETE("/storage-regions/:code", middleware.RequireRole(models.RoleOwner, models.RoleAdmin), storageH.DeleteRegion)
 	org.DELETE("/storage-targets/:id", middleware.RequireRole(models.RoleOwner, models.RoleAdmin), storageH.Delete)
+
+	// Database connections: reusable credentials configured once, referenced
+	// by backup jobs via connection_id. Secrets are write-only (never listed).
+	org.GET("/connections", connH.List)
+	org.POST("/connections", middleware.RequireRole(models.RoleOwner, models.RoleAdmin, models.RoleOperator), connH.Create)
+	org.GET("/connections/:id", connH.Get)
+	org.PUT("/connections/:id", middleware.RequireRole(models.RoleOwner, models.RoleAdmin, models.RoleOperator), connH.Update)
+	org.DELETE("/connections/:id", middleware.RequireRole(models.RoleOwner, models.RoleAdmin), connH.Delete)
+	org.POST("/connections/:id/test", middleware.RequireRole(models.RoleOwner, models.RoleAdmin, models.RoleOperator), connH.Test)
+	org.GET("/connections/:id/databases", connH.Databases)
+	org.GET("/connections/:id/databases/:dbname/tables", connH.Tables)
 
 	// Backup jobs
 	org.GET("/backup-jobs", jobH.List)

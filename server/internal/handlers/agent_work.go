@@ -44,6 +44,10 @@ func (h *AgentWorkHandler) authenticateAgent(c *gin.Context) (*models.Agent, boo
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "invalid agent token"})
 		return nil, false
 	}
+	if agent.RevokedAt != nil {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "agent revoked"})
+		return nil, false
+	}
 	return &agent, true
 }
 
@@ -78,6 +82,7 @@ type agentJobConfigDTO struct {
 	OrganizationID  string `json:"organization_id"`
 	Name            string `json:"name"`
 	SourceType      string `json:"source_type"`
+	ConnectionID    string `json:"connection_id,omitempty"`
 	SourcePath      string `json:"source_path"`
 	SourceDatabase  string `json:"source_database"`
 	IncludePatterns string `json:"include_patterns"`
@@ -86,6 +91,11 @@ type agentJobConfigDTO struct {
 	Encrypted       bool   `json:"encrypted"`
 	RetentionDays   int    `json:"retention_days"`
 	ExportFormat    string `json:"export_format"`
+	// Connection carries decrypted DB credentials for database jobs that
+	// reference a saved connection. Delivered per-claim over HTTPS (same
+	// pattern as storage credentials); never persisted on the agent.
+	// Nil for filesystem jobs and legacy jobs without a connection.
+	Connection *agentConnectionDTO `json:"connection,omitempty"`
 	StorageType     string `json:"storage_type"`
 	StorageBucket   string `json:"storage_bucket"`
 	StorageRegion   string `json:"storage_region"`
@@ -109,6 +119,46 @@ type agentStorageConfigDTO struct {
 	UsePathStyle bool   `json:"use_path_style,omitempty"`
 	AccessKey    string `json:"access_key,omitempty"`
 	SecretKey    string `json:"secret_key,omitempty"`
+}
+
+// agentConnectionDTO mirrors the agent's ConnectionConfig: per-claim
+// decrypted credentials. The password field exists ONLY in this claim
+// payload — it is never stored in backup job records or logs.
+type agentConnectionDTO struct {
+	ID       string `json:"id"`
+	Type     string `json:"type"`
+	Host     string `json:"host"`
+	Port     int    `json:"port"`
+	Username string `json:"username"`
+	Password string `json:"password"`
+}
+
+// connectionFor resolves a job's saved connection into a claim-ready config,
+// decrypting the password in memory only. Returns nil when the job has no
+// connection (filesystem / legacy jobs).
+func connectionFor(job models.BackupJob, encKey []byte) *agentConnectionDTO {
+	if job.ConnectionID == nil {
+		return nil
+	}
+	var conn models.DatabaseConnection
+	// Connection preloaded by caller when possible; fall back to lookup.
+	if job.Connection != nil && job.Connection.ID == *job.ConnectionID {
+		conn = *job.Connection
+	} else {
+		return nil
+	}
+	pw, err := decrypt(encKey, conn.EncryptedPassword)
+	if err != nil {
+		return nil
+	}
+	return &agentConnectionDTO{
+		ID:       conn.ID.String(),
+		Type:     string(conn.Type),
+		Host:     conn.Host,
+		Port:     conn.Port,
+		Username: conn.Username,
+		Password: pw,
+	}
 }
 
 // storageConfigFor resolves a target into a claim-ready config, unwrapping
@@ -192,13 +242,17 @@ func (h *AgentWorkHandler) ClaimRun(c *gin.Context) {
 	}
 
 	var run models.BackupRun
-	if err := h.db.Preload("BackupJob.StorageTarget").
+	if err := h.db.Preload("BackupJob.StorageTarget").Preload("BackupJob.Connection").
 		Where("id = ?", runID).First(&run).Error; err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to load run"})
 		return
 	}
 	publishRun(run, models.RunRunning, 0, 0, 0, "", "", "")
 
+	connID := ""
+	if run.BackupJob.ConnectionID != nil {
+		connID = run.BackupJob.ConnectionID.String()
+	}
 	c.JSON(http.StatusOK, gin.H{
 		"run": agentRunDTO{
 			ID:          run.ID,
@@ -212,6 +266,7 @@ func (h *AgentWorkHandler) ClaimRun(c *gin.Context) {
 			OrganizationID:  run.OrganizationID.String(),
 			Name:            run.BackupJob.Name,
 			SourceType:      string(run.BackupJob.SourceType),
+			ConnectionID:    connID,
 			SourcePath:      run.BackupJob.SourcePath,
 			SourceDatabase:  run.BackupJob.SourceDatabase,
 			IncludePatterns: run.BackupJob.IncludePatterns,
@@ -220,6 +275,7 @@ func (h *AgentWorkHandler) ClaimRun(c *gin.Context) {
 			Encrypted:       run.BackupJob.Encrypted,
 			RetentionDays:   run.BackupJob.RetentionDays,
 			ExportFormat:    run.BackupJob.ExportFormat,
+			Connection:      connectionFor(run.BackupJob, h.encKey),
 			StorageType:     string(run.BackupJob.StorageTarget.Type),
 			StorageBucket:   run.BackupJob.StorageTarget.Bucket,
 			StorageRegion:   run.BackupJob.StorageTarget.Region,
@@ -246,12 +302,40 @@ type agentRestoreDTO struct {
 	// DataKey is the raw base64 data key for encrypted backups, unwrapped
 	// with the server ENCRYPTION_KEY. Empty for unencrypted backups.
 	DataKey   string    `json:"data_key,omitempty"`
+	// Connection carries per-claim decrypted DB credentials for database
+	// restores (copied from the source backup job). Nil for filesystem /
+	// legacy restores (agent env fallback applies).
+	Connection *agentConnectionDTO `json:"connection,omitempty"`
 	// SourceType/SourceDatabase identify what is being restored.
 	SourceType     string `json:"source_type"`
 	SourceDatabase string `json:"source_database"`
 	// ExportFormat selects the MongoDB restore path (ARCHIVE/JSON/CSV).
 	ExportFormat string `json:"export_format,omitempty"`
 	CreatedAt time.Time `json:"created_at"`
+}
+
+// connectionForRestore resolves restore credentials: the restore's own
+// pinned connection first, falling back to the source backup job's
+// connection (covers restores created before connection pinning).
+func connectionForRestore(job models.RestoreJob, encKey []byte) *agentConnectionDTO {
+	if job.ConnectionID != nil && job.Connection != nil && job.Connection.ID == *job.ConnectionID {
+		if pw, err := decrypt(encKey, job.Connection.EncryptedPassword); err == nil && pw != "" {
+			return &agentConnectionDTO{
+				ID:       job.Connection.ID.String(),
+				Type:     string(job.Connection.Type),
+				Host:     job.Connection.Host,
+				Port:     job.Connection.Port,
+				Username: job.Connection.Username,
+				Password: pw,
+			}
+		}
+	}
+	// Fallback: source job's connection via the backup run.
+	if job.BackupRun.BackupJob.ConnectionID != nil && job.BackupRun.BackupJob.Connection != nil &&
+		job.BackupRun.BackupJob.Connection.ID == *job.BackupRun.BackupJob.ConnectionID {
+		return connectionFor(job.BackupRun.BackupJob, encKey)
+	}
+	return nil
 }
 
 func (h *AgentWorkHandler) toAgentRestoreDTO(job models.RestoreJob) agentRestoreDTO {
@@ -264,6 +348,7 @@ func (h *AgentWorkHandler) toAgentRestoreDTO(job models.RestoreJob) agentRestore
 		StoragePath:     job.BackupRun.StoragePath,
 		StorageType:     string(job.BackupRun.BackupJob.StorageTarget.Type),
 		Storage:         storageConfigFor(job.BackupRun.BackupJob.StorageTarget, h.encKey),
+		Connection:      connectionForRestore(job, h.encKey),
 		SourceType:      string(job.BackupRun.BackupJob.SourceType),
 		SourceDatabase:  job.BackupRun.BackupJob.SourceDatabase,
 		ExportFormat:    job.BackupRun.BackupJob.ExportFormat,
@@ -286,7 +371,7 @@ func (h *AgentWorkHandler) PendingRestores(c *gin.Context) {
 	h.touch(agent)
 
 	var jobs []models.RestoreJob
-	h.db.Preload("BackupRun.BackupJob.StorageTarget").
+	h.db.Preload("Connection").Preload("BackupRun.BackupJob.StorageTarget").Preload("BackupRun.BackupJob.Connection").
 		Where("agent_id = ? AND status = ?", agent.ID, models.RestorePending).
 		Order("created_at ASC").Find(&jobs)
 
@@ -331,7 +416,7 @@ func (h *AgentWorkHandler) ClaimRestore(c *gin.Context) {
 	}
 
 	var job models.RestoreJob
-	if err := h.db.Preload("BackupRun.BackupJob.StorageTarget").
+	if err := h.db.Preload("Connection").Preload("BackupRun.BackupJob.StorageTarget").Preload("BackupRun.BackupJob.Connection").
 		Where("id = ?", id).First(&job).Error; err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to load restore"})
 		return

@@ -32,6 +32,7 @@ type createJobRequest struct {
 	StorageTargetID  string                  `json:"storage_target_id" binding:"required"`
 	Name             string                  `json:"name" binding:"required"`
 	SourceType       models.BackupSourceType `json:"source_type" binding:"required"`
+	ConnectionID     string                  `json:"connection_id"`
 	SourcePath       string                  `json:"source_path"`
 	SourceDatabase   string                  `json:"source_database"`
 	IncludePatterns  string                  `json:"include_patterns"`
@@ -72,7 +73,7 @@ func normalizeExportFormat(sourceType models.BackupSourceType, raw string) (stri
 
 func (h *BackupJobHandler) List(c *gin.Context) {	orgID := c.MustGet("org_id").(uuid.UUID)
 	var jobs []models.BackupJob
-	h.db.Preload("Schedule").Preload("Agent").Preload("StorageTarget").
+	h.db.Preload("Schedule").Preload("Agent").Preload("StorageTarget").Preload("Connection").
 		Where("organization_id = ?", orgID).Find(&jobs)
 	c.JSON(http.StatusOK, asArray(jobs))
 }
@@ -110,6 +111,31 @@ func (h *BackupJobHandler) Create(c *gin.Context) {
 		retDays = 30
 	}
 
+	// Resolve optional connection reference: must belong to this org, and
+	// database jobs should pin the same agent as the connection so the
+	// agent that holds network access runs the backup.
+	var connID *uuid.UUID
+	if strings.TrimSpace(req.ConnectionID) != "" {
+		parsed, err := uuid.Parse(req.ConnectionID)
+		if err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "invalid connection_id"})
+			return
+		}
+		var conn models.DatabaseConnection
+		if err := h.db.Where("id = ? AND organization_id = ?", parsed, orgID).First(&conn).Error; err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "connection not found in this organization"})
+			return
+		}
+		if isDatabaseSource(req.SourceType) && conn.AgentID != agentID {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "connection belongs to a different agent; select the connection's agent"})
+			return
+		}
+		connID = &parsed
+	} else if isDatabaseSource(req.SourceType) && strings.TrimSpace(req.SourceDatabase) == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "source_database is required for database jobs"})
+		return
+	}
+
 	job := models.BackupJob{
 		Base:             models.Base{ID: uuid.New()},
 		OrganizationID:   orgID,
@@ -117,6 +143,7 @@ func (h *BackupJobHandler) Create(c *gin.Context) {
 		StorageTargetID:  storageID,
 		Name:             req.Name,
 		SourceType:       req.SourceType,
+		ConnectionID:     connID,
 		SourcePath:       req.SourcePath,
 		SourceDatabase:   req.SourceDatabase,
 		IncludePatterns:  req.IncludePatterns,
@@ -147,7 +174,7 @@ func (h *BackupJobHandler) Create(c *gin.Context) {
 		})
 	}
 
-	h.db.Preload("Schedule").Preload("Agent").Preload("StorageTarget").First(&job, job.ID)
+	h.db.Preload("Schedule").Preload("Agent").Preload("StorageTarget").Preload("Connection").First(&job, job.ID)
 	publishEntity(orgID.String(), realtime.TypeJobs, "created", job.ID.String())
 	c.JSON(http.StatusCreated, job)
 }
@@ -160,12 +187,17 @@ func (h *BackupJobHandler) Get(c *gin.Context) {
 		return
 	}
 	var job models.BackupJob
-	if err := h.db.Preload("Schedule").Preload("Agent").Preload("StorageTarget").
+	if err := h.db.Preload("Schedule").Preload("Agent").Preload("StorageTarget").Preload("Connection").
 		Where("id = ? AND organization_id = ?", jobID, orgID).First(&job).Error; err != nil {
 		c.JSON(http.StatusNotFound, gin.H{"error": "not found"})
 		return
 	}
 	c.JSON(http.StatusOK, job)
+}
+
+func isDatabaseSource(t models.BackupSourceType) bool {
+	return t == models.SourcePostgres || t == models.SourceMongo ||
+		t == models.SourceSQLServer || t == models.SourceMssqlServer
 }
 
 func (h *BackupJobHandler) Update(c *gin.Context) {
@@ -194,7 +226,7 @@ func (h *BackupJobHandler) Update(c *gin.Context) {
 		return
 	}
 
-	h.db.Model(&job).Updates(map[string]interface{}{
+	updates := map[string]interface{}{
 		"name":               req.Name,
 		"source_path":        req.SourcePath,
 		"source_database":    req.SourceDatabase,
@@ -207,7 +239,26 @@ func (h *BackupJobHandler) Update(c *gin.Context) {
 		"sla_target_minutes": req.SLATargetMinutes,
 		"rpo_target_minutes": req.RPOTargetMinutes,
 		"rto_target_minutes": req.RTOTargetMinutes,
-	})
+	}
+
+	// Connection reassignment is optional; empty string leaves it unchanged,
+	// explicit null clears it (filesystem migration). Frontend sends
+	// connection_id only when the user picks one.
+	if strings.TrimSpace(req.ConnectionID) != "" {
+		parsed, err := uuid.Parse(req.ConnectionID)
+		if err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "invalid connection_id"})
+			return
+		}
+		var conn models.DatabaseConnection
+		if err := h.db.Where("id = ? AND organization_id = ?", parsed, orgID).First(&conn).Error; err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "connection not found in this organization"})
+			return
+		}
+		updates["connection_id"] = parsed
+	}
+
+	h.db.Model(&job).Updates(updates)
 
 	if req.CronExpr != "" {
 		tz := req.Timezone
@@ -223,7 +274,7 @@ func (h *BackupJobHandler) Update(c *gin.Context) {
 		}
 	}
 
-	h.db.Preload("Schedule").Preload("Agent").Preload("StorageTarget").First(&job, job.ID)
+	h.db.Preload("Schedule").Preload("Agent").Preload("StorageTarget").Preload("Connection").First(&job, job.ID)
 	publishEntity(orgID.String(), realtime.TypeJobs, "updated", job.ID.String())
 	c.JSON(http.StatusOK, job)
 }

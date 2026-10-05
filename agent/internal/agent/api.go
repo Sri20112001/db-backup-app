@@ -4,11 +4,13 @@ import (
 	"bytes"
 	"crypto/tls"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net"
 	"net/http"
 	"runtime"
+	"strings"
 	"time"
 )
 
@@ -18,6 +20,7 @@ type JobConfig struct {
 	OrganizationID  string `json:"organization_id"`
 	Name            string `json:"name"`
 	SourceType      string `json:"source_type"`
+	ConnectionID    string `json:"connection_id,omitempty"`
 	SourcePath      string `json:"source_path"`
 	SourceDatabase  string `json:"source_database"`
 	IncludePatterns string `json:"include_patterns"`
@@ -25,6 +28,10 @@ type JobConfig struct {
 	Mode            string `json:"mode"`
 	Encrypted       bool   `json:"encrypted"`
 	RetentionDays   int    `json:"retention_days"`
+	// Connection carries per-claim decrypted DB credentials for jobs that
+	// reference a saved connection. Cleared from memory after use; never
+	// logged. Nil for filesystem / legacy jobs (env fallback applies).
+	Connection *ConnectionConfig `json:"connection,omitempty"`
 	StorageType     string `json:"storage_type"`
 	StorageBucket   string `json:"storage_bucket"`
 	StorageRegion   string `json:"storage_region"`
@@ -36,6 +43,17 @@ type JobConfig struct {
 	Storage StorageConfig `json:"storage"`
 	// ExportFormat selects the MongoDB payload (ARCHIVE/JSON/CSV).
 	ExportFormat string `json:"export_format"`
+}
+
+// ConnectionConfig mirrors the server's agentConnectionDTO: per-claim
+// decrypted credentials for one saved connection.
+type ConnectionConfig struct {
+	ID       string `json:"id"`
+	Type     string `json:"type"`
+	Host     string `json:"host"`
+	Port     int    `json:"port"`
+	Username string `json:"username"`
+	Password string `json:"password"`
 }
 
 // StorageConfig mirrors the server's agentStorageConfigDTO.
@@ -76,6 +94,10 @@ type Restore struct {
 	Storage StorageConfig `json:"storage"`
 	// DataKey is the raw base64 data key for encrypted backups.
 	DataKey   string `json:"data_key"`
+	// Connection carries per-claim decrypted DB credentials for database
+	// restores (copied from the source backup job). Nil for filesystem /
+	// legacy restores (env fallback applies). Cleared after use, never logged.
+	Connection *ConnectionConfig `json:"connection,omitempty"`
 	// SourceType/SourceDatabase identify what is being restored.
 	SourceType     string `json:"source_type"`
 	SourceDatabase string `json:"source_database"`
@@ -161,6 +183,65 @@ func (c *Client) do(method, path string, body interface{}, authed bool) ([]byte,
 type registerResponse struct {
 	AgentID    string `json:"agent_id"`
 	AgentToken string `json:"agent_token"`
+}
+
+// EnrollRequest is the setup/agent enrollment payload. The enrollment token
+// is single-use and short-lived; it is never logged and never appears in
+// error strings.
+type EnrollRequest struct {
+	EnrollmentToken string `json:"enrollment_token"`
+	MachineName     string `json:"machine_name"`
+	Platform        string `json:"platform"`
+	Architecture    string `json:"architecture"`
+	AgentVersion    string `json:"agent_version"`
+	Hostname        string `json:"hostname,omitempty"`
+	OS              string `json:"os,omitempty"`
+	IPAddress       string `json:"ip_address,omitempty"`
+}
+
+type enrollResponse struct {
+	AgentID                  string `json:"agent_id"`
+	AgentToken               string `json:"agent_token"`
+	PollIntervalSeconds      int    `json:"poll_interval_seconds"`
+	HeartbeatIntervalSeconds int    `json:"heartbeat_interval_seconds"`
+}
+
+// Enroll exchanges a one-time enrollment token for a permanent credential.
+// Errors are sanitized: the token value is never included.
+func (c *Client) Enroll(req EnrollRequest) (*enrollResponse, error) {
+	data, _, err := c.do("POST", "/agents/enroll", req, false)
+	if err != nil {
+		return nil, sanitizeClientError(err)
+	}
+	var out enrollResponse
+	if err := json.Unmarshal(data, &out); err != nil {
+		return nil, err
+	}
+	if out.AgentID == "" || out.AgentToken == "" {
+		return nil, fmt.Errorf("enrollment response incomplete")
+	}
+	return &out, nil
+}
+
+// sanitizeClientError strips any credential material from request errors.
+// Server error bodies never contain the token, but transport errors echo
+// URLs — keep only the status/message, never the payload.
+func sanitizeClientError(err error) error {
+	msg := err.Error()
+	if i := strings.Index(msg, "\n"); i >= 0 {
+		msg = msg[:i]
+	}
+	if len(msg) > 300 {
+		msg = msg[:300]
+	}
+	return errors.New(msg)
+}
+
+// Heartbeat posts the explicit liveness signal. The server derives
+// ONLINE/OFFLINE from recency; a 401 here means revoked/invalid credential.
+func (c *Client) Heartbeat() error {
+	_, _, err := c.do("POST", "/agent/heartbeat", nil, true)
+	return err
 }
 
 // Register performs the one-time self-registration with the registration key.

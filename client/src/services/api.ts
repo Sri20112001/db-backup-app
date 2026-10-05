@@ -2,7 +2,9 @@ import type {
   AuthTokens, BackupJob, BackupRun, BackupArtifact,
   Agent, Machine, StorageTarget, RestoreJob, Alert,
   DashboardOverview, JobHealth, OrganizationMember,
-  Organization, PaginatedResponse, PreflightResult, S3Region, User
+  Organization, PaginatedResponse, PreflightResult, S3Region, User,
+  DatabaseConnection, CreateConnectionRequest, TestConnectionResult,
+  DatabaseListResult, TableListResult, EnrollmentTokenResult
 } from '../types'
 
 import { useAuthStore } from '../store/authStore'
@@ -145,6 +147,12 @@ export const agentApi = {
   get: (orgId: string, id: string) => request<Agent>(`/organizations/${orgId}/agents/${id}`),
   generateToken: (orgId: string) =>
     request<{ agent_id: string; registration_key: string }>(`/organizations/${orgId}/agents/token`, { method: 'POST' }),
+  enrollmentToken: (orgId: string, data?: { name?: string; expires_minutes?: number }) =>
+    request<EnrollmentTokenResult>(`/organizations/${orgId}/agents/enrollment-token`, {
+      method: 'POST', body: JSON.stringify(data ?? {}),
+    }),
+  revoke: (orgId: string, id: string) =>
+    request<{ revoked: boolean }>(`/organizations/${orgId}/agents/${id}/revoke`, { method: 'POST' }),
   delete: (orgId: string, id: string) =>
     request(`/organizations/${orgId}/agents/${id}`, { method: 'DELETE' }),
 }
@@ -179,6 +187,31 @@ export const regionApi = {
     }),
   remove: (orgId: string, code: string) =>
     request(`/organizations/${orgId}/storage-regions/${encodeURIComponent(code)}`, { method: 'DELETE' }),
+}
+
+// Database connections: reusable credentials configured once. Passwords are
+// write-only (create/update) and never appear in list/get responses.
+export const connectionsApi = {
+  list: (orgId: string) => request<DatabaseConnection[]>(`/organizations/${orgId}/connections`),
+  get: (orgId: string, id: string) => request<DatabaseConnection>(`/organizations/${orgId}/connections/${id}`),
+  create: (orgId: string, data: CreateConnectionRequest) =>
+    request<DatabaseConnection>(`/organizations/${orgId}/connections`, {
+      method: 'POST', body: JSON.stringify(data),
+    }),
+  update: (orgId: string, id: string, data: Partial<CreateConnectionRequest>) =>
+    request<DatabaseConnection>(`/organizations/${orgId}/connections/${id}`, {
+      method: 'PUT', body: JSON.stringify(data),
+    }),
+  delete: (orgId: string, id: string) =>
+    request(`/organizations/${orgId}/connections/${id}`, { method: 'DELETE' }),
+  test: (orgId: string, id: string) =>
+    request<TestConnectionResult>(`/organizations/${orgId}/connections/${id}/test`, { method: 'POST' }),
+  databases: (orgId: string, id: string) =>
+    request<DatabaseListResult>(
+      `/organizations/${orgId}/connections/${id}/databases`),
+  tables: (orgId: string, id: string, db: string) =>
+    request<TableListResult>(
+      `/organizations/${orgId}/connections/${id}/databases/${encodeURIComponent(db)}/tables`),
 }
 
 // Backup Jobs
