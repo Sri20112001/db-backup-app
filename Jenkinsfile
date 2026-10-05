@@ -194,6 +194,25 @@ pipeline {
           sh '''
             set -e
             COMPOSE="$(cat "$WORKSPACE/.jenkins-compose")"
+            # Self-healing buildx: `compose build` requires buildx >= 0.17,
+            # but the Jenkins image ships an older plugin. Install a local
+            # copy under $HOME (persists in jenkins_home, no host/image
+            # changes, invisible to other projects) when needed.
+            ensure_buildx() {
+              ver=$(docker buildx version 2>/dev/null | grep -Eo 'v[0-9]+\.[0-9]+' | head -1)
+              major=${ver%%.*}; major=${major#v}; minor=${ver#*.}
+              if [ "$major" -gt 0 ] 2>/dev/null; then return 1; fi
+              if [ "$minor" -ge 17 ] 2>/dev/null; then return 1; fi
+              return 0
+            }
+            if ensure_buildx; then
+              echo "buildx too old or missing - installing local v0.17.1"
+              mkdir -p "$HOME/.docker/cli-plugins"
+              curl -SL "https://github.com/docker/buildx/releases/download/v0.17.1/buildx-v0.17.1.linux-amd64" \
+                -o "$HOME/.docker/cli-plugins/docker-buildx"
+              chmod +x "$HOME/.docker/cli-plugins/docker-buildx"
+            fi
+            docker buildx version
             $COMPOSE build
           '''
         }
