@@ -1,6 +1,6 @@
 import { ArrowRight, Play } from 'lucide-react'
 import StatusBadge from '@/components/StatusBadge'
-import { SkeletonRow } from '@/components/Skeleton'
+import { SkeletonListRow } from '@/components/Skeleton'
 import { formatDuration, formatRelative } from '@/utils/format'
 import type { JobHealth } from '@/types'
 import { fmtMinutes, slaColor, slaLabel } from '../utils/slaFormat'
@@ -33,7 +33,7 @@ const JobsPanel = ({ health, isLoading, onRunNow, onNewJob, onSelectJob, onViewA
     </div>
     <div className="flex-1 min-h-0 overflow-y-auto flex flex-col divide-y divide-[#e9edff]">
       {isLoading ? (
-        [...Array(4)].map((_, i) => <SkeletonRow key={i} cols={1} />)
+        [...Array(4)].map((_, i) => <SkeletonListRow key={i} />)
       ) : health.length === 0 ? (
         <div className="p-5 text-center text-[13px] text-outline">
           No jobs yet.{' '}

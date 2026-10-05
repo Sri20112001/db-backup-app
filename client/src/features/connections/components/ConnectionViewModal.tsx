@@ -15,7 +15,6 @@ import {
   Server,
   Activity,
   AlertCircle,
-  ExternalLink,
 } from 'lucide-react'
 import { connectionsApi } from '@/services/api'
 import { useAuthStore } from '@/store/authStore'
@@ -58,10 +57,6 @@ const ConnectionViewModal = ({
     const q = filter.toLowerCase().trim()
     return c.databases.filter((db) => db.name.toLowerCase().includes(q))
   }, [c.databases, filter])
-
-  const currentDatabaseObj = useMemo(() => {
-    return c.databases.find((db) => db.name === selectedDb)
-  }, [c.databases, selectedDb])
 
   const visibleTables = useMemo(() => {
     if (!selectedDb || !tables[selectedDb]) return []

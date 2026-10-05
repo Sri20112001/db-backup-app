@@ -33,7 +33,7 @@ const DashboardPage = () => {
   const preflightJob = preflight ? health.find((h) => h.job_id === preflight.jobId) : undefined
 
   return (
-    <div className="h-full min-h-0 overflow-hidden flex flex-col gap-3 pr-0.5">
+    <div className="h-full min-h-0 overflow-hidden flex flex-col gap-4 pr-0.5">
 
       {preflight && (
         <PreflightModal
@@ -49,7 +49,7 @@ const DashboardPage = () => {
 
       <div className="flex-1 min-h-0 grid grid-cols-1 lg:grid-cols-12 gap-4">
         {/* Left: issues first, then the live run log */}
-        <div className="lg:col-span-8 min-h-0 flex flex-col gap-3">
+        <div className="lg:col-span-8 min-h-0 flex flex-col gap-4">
           <AttentionPanel
             failedJobs={failedJobs}
             anomalies={anomalies}

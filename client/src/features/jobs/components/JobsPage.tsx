@@ -12,6 +12,7 @@ import EditJobModal from "./EditJobModal";
 import NewJobModal from "./NewJobModal";
 import { useRealtimeStore } from "@/stores/realtimeStore";
 import { SkeletonCard } from "@/components/Skeleton";
+import { Page, PageHeader } from "@/components/Page";
 import SearchInput from "@/components/ui/SearchInput";
 import SortSelect from "@/components/ui/SortSelect";
 import Action3DButton from "@/components/ui/Action3DButton";
@@ -162,32 +163,32 @@ const JobsPage = () => {
   };
 
   return (
-    <div className="h-full min-h-0 flex flex-col gap-4 pb-1">
+    <Page className="pb-1">
       {/* Header */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-        <div>
+      <PageHeader
+        eyebrow={
           <div className="flex items-center gap-2 text-[12px] text-on-surface-variant mb-1">
             <span>VaultGuard</span>
             <ChevronRight size={14} />
             <span className="text-primary font-medium">Backup Jobs</span>
           </div>
-          <h1 className="text-[20px] font-semibold text-on-surface tracking-tight flex items-center gap-2.5">
+        }
+        title={
+          <>
             Backup Jobs
             <span className="px-2 py-0.5 rounded-full bg-surface-container-high text-on-surface-variant text-[12px] font-medium">
               {jobs.length} Workloads
             </span>
-          </h1>
-          <p className="text-[13px] text-on-surface-variant mt-0.5">
-            Configure, schedule, and monitor backup policies.
-          </p>
-        </div>
-        <div className="flex items-center gap-2.5 shrink-0">
+          </>
+        }
+        description="Configure, schedule, and monitor backup policies."
+        actions={
           <Action3DButton onClick={() => setShowNew(true)}>
             <Plus size={16} />
             New Backup Job
           </Action3DButton>
-        </div>
-      </div>
+        }
+      />
 
       {/* Metric strip */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
@@ -486,7 +487,7 @@ const JobsPage = () => {
       {showNew && (
         <NewJobModal onClose={() => setShowNew(false)} onSaved={loadJobs} />
       )}
-    </div>
+    </Page>
   );
 };
 

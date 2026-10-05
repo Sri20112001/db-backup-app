@@ -10,6 +10,7 @@ import { formatRelative } from '@/utils/format'
 import { XCircle, Clock, WifiOff, Database, RotateCcw, ShieldOff, Bell, ArrowDownWideNarrow, ArrowUpNarrowWide, Check, CheckCheck } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 import SearchInput from '@/components/ui/SearchInput'
+import { Page, PageHeader } from '@/components/Page'
 import { useDebouncedValue } from '@/hooks/useDebouncedValue'
 
 const TYPE_FILTERS: { label: string; value: AlertType | '' }[] = [
@@ -120,46 +121,48 @@ const AlertsPage = () => {
   const groupKeys = (oldestFirst ? [...GROUP_ORDER].reverse() : GROUP_ORDER).filter((g) => grouped[g])
 
   return (
-    <div className="h-full min-h-0 flex flex-col gap-4">
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-        <div>
-          <h1 className="text-[20px] font-semibold text-on-surface tracking-tight flex items-center gap-2.5">
+    <Page>
+      <PageHeader
+        title={
+          <>
             Alerts
             {unreadCount > 0 && (
               <span className="px-2 py-0.5 rounded-full bg-error text-on-primary text-[12px] font-medium">{unreadCount}</span>
             )}
-          </h1>
-          <p className="text-[12px] text-on-surface-variant mt-0.5">System alerts and notifications</p>
-        </div>
-        <div className="flex items-center gap-1.5 shrink-0">
-          <button
-            type="button"
-            onClick={() => { setOldestFirst((v) => !v); setPage(1) }}
-            title={oldestFirst ? 'Oldest first' : 'Newest first'}
-            className="flex items-center gap-1.5 px-3 h-8 rounded-lg text-[12px] font-medium transition-colors bg-surface-container-low text-on-surface-variant hover:bg-surface-container-high"
-          >
-            {oldestFirst ? <ArrowUpNarrowWide size={14} /> : <ArrowDownWideNarrow size={14} />}
-            {oldestFirst ? 'Oldest' : 'Newest'}
-          </button>
-          <button
-            type="button"
-            onClick={() => { setUnreadOnly(!unreadOnly); setPage(1) }}
-            className={`px-3 h-8 rounded-lg text-[12px] font-medium transition-colors ${unreadOnly ? 'bg-primary text-on-primary' : 'bg-surface-container-low text-on-surface-variant hover:bg-surface-container-high'}`}
-          >
-            Unread only
-          </button>
-          {unreadCount > 0 && (
+          </>
+        }
+        description="System alerts and notifications"
+        actions={
+          <>
             <button
               type="button"
-              onClick={handleMarkAllRead}
-              className="flex items-center gap-1.5 px-3 h-8 rounded-lg bg-primary text-on-primary text-[12px] font-medium hover:bg-primary-container transition-colors shadow-sm whitespace-nowrap"
+              onClick={() => { setOldestFirst((v) => !v); setPage(1) }}
+              title={oldestFirst ? 'Oldest first' : 'Newest first'}
+              className="flex items-center gap-1.5 px-3 h-8 rounded-lg text-[12px] font-medium transition-colors bg-surface-container-low text-on-surface-variant hover:bg-surface-container-high"
             >
-              <CheckCheck size={14} />
-              Mark all read
+              {oldestFirst ? <ArrowUpNarrowWide size={14} /> : <ArrowDownWideNarrow size={14} />}
+              {oldestFirst ? 'Oldest' : 'Newest'}
             </button>
-          )}
-        </div>
-      </div>
+            <button
+              type="button"
+              onClick={() => { setUnreadOnly(!unreadOnly); setPage(1) }}
+              className={`px-3 h-8 rounded-lg text-[12px] font-medium transition-colors ${unreadOnly ? 'bg-primary text-on-primary' : 'bg-surface-container-low text-on-surface-variant hover:bg-surface-container-high'}`}
+            >
+              Unread only
+            </button>
+            {unreadCount > 0 && (
+              <button
+                type="button"
+                onClick={handleMarkAllRead}
+                className="flex items-center gap-1.5 px-3 h-8 rounded-lg bg-primary text-on-primary text-[12px] font-medium hover:bg-primary-container transition-colors shadow-sm whitespace-nowrap"
+              >
+                <CheckCheck size={14} />
+                Mark all read
+              </button>
+            )}
+          </>
+        }
+      />
 
       {/* Search + type filter */}
       <div className="flex flex-col lg:flex-row lg:items-center gap-3">
@@ -242,7 +245,7 @@ const AlertsPage = () => {
         perPage={limit}
         onPage={setPage}
       />
-    </div>
+    </Page>
   )
 }
 

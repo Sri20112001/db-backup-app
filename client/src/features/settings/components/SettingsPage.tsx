@@ -5,6 +5,7 @@ import { useUIStore } from '@/store/uiStore'
 import type { OrganizationMember, MemberRole } from '@/types'
 import { UserPlus, UserMinus, Loader2 } from 'lucide-react'
 import Pagination from '@/components/Pagination'
+import { Page, PageHeader } from '@/components/Page'
 import { usePagination } from '@/hooks/usePagination'
 
 const TABS = ['Organization', 'Team Members', 'Security']
@@ -94,11 +95,11 @@ const SettingsPage = () => {
   const inputCls = "w-full h-9 px-3 rounded-lg border border-surface-variant bg-surface-container-low text-[14px] text-on-surface focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all"
 
   return (
-    <div className="h-full min-h-0 flex flex-col gap-4 max-w-3xl overflow-y-auto pr-0.5">
-      <div>
-        <h1 className="text-[20px] font-semibold text-on-surface tracking-tight">Settings</h1>
-        <p className="text-[12px] text-on-surface-variant mt-0.5">Manage your organization and team</p>
-      </div>
+    <Page scroll>
+      <PageHeader
+        title="Settings"
+        description="Manage your organization and team"
+      />
 
       {/* Tabs */}
       <div className="flex items-center gap-1 border-b border-surface-variant shrink-0">
@@ -274,7 +275,7 @@ const SettingsPage = () => {
           </form>
         </div>
       )}
-    </div>
+    </Page>
   )
 }
 

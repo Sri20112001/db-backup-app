@@ -17,6 +17,7 @@ import { formatBytes, formatDuration, formatRelative } from '@/utils/format'
 import { ChevronRight, Play, Loader2 } from 'lucide-react'
 import normalizeWindowsPath from '@/utils/normalizeWindowsPath'
 import Action3DButton from '@/components/ui/Action3DButton'
+import { Page } from '@/components/Page'
 
 const JobDetailPage = () => {
   const { id } = useParams<{ id: string }>()
@@ -119,7 +120,7 @@ const JobDetailPage = () => {
   if (!job) return null
 
   return (
-    <div className="h-full min-h-0 flex flex-col gap-4 overflow-y-auto pr-0.5 pb-1">
+    <Page scroll>
       {/* Breadcrumb */}
       <div className="flex items-center gap-2 text-[12px] text-on-surface-variant">
         <button type="button" onClick={() => navigate('/jobs')} className="hover:text-primary">Backup Jobs</button>
@@ -276,7 +277,7 @@ const JobDetailPage = () => {
       )}
 
       {runDetailId && <RunDetailDrawer runId={runDetailId} />}
-    </div>
+    </Page>
   )
 }
 

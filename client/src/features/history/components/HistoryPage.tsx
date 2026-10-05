@@ -13,6 +13,7 @@ import { formatBytes, formatDuration, formatRelative } from '@/utils/format'
 import { History } from 'lucide-react'
 import SearchInput from '@/components/ui/SearchInput'
 import SortableTh from '@/components/ui/SortableTh'
+import { Page, PageHeader } from '@/components/Page'
 import { useDebouncedValue } from '@/hooks/useDebouncedValue'
 import type { SortDir } from '@/hooks/useSort'
 
@@ -84,13 +85,11 @@ const HistoryPage = () => {
   const totalPages = Math.ceil(total / limit)
 
   return (
-    <div className="h-full min-h-0 flex flex-col gap-4">
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-        <div>
-          <h1 className="text-[20px] font-semibold text-on-surface tracking-tight">Backup History</h1>
-          <p className="text-[12px] text-on-surface-variant mt-0.5">All backup run executions across all jobs</p>
-        </div>
-      </div>
+    <Page>
+      <PageHeader
+        title="Backup History"
+        description="All backup run executions across all jobs"
+      />
 
       {/* Filters */}
       <div className="flex flex-col lg:flex-row lg:items-center gap-3">
@@ -180,7 +179,7 @@ const HistoryPage = () => {
       </div>
 
       {runDetailId && <RunDetailDrawer runId={runDetailId} />}
-    </div>
+    </Page>
   )
 }
 

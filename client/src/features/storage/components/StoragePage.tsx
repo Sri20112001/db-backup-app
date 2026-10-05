@@ -11,6 +11,7 @@ import { CloudUpload, HardDrive, FolderOpen, Lock, Trash2, Plus, X, Loader2, Dat
 import type { LucideIcon } from 'lucide-react'
 import SearchInput from '@/components/ui/SearchInput'
 import SortSelect from '@/components/ui/SortSelect'
+import { Page, PageHeader } from '@/components/Page'
 
 const TYPE_FILTERS: { label: string; value: StorageType | '' }[] = [
   { label: 'All', value: '' },
@@ -128,17 +129,17 @@ const StoragePage = () => {
   const labelCls = "block text-[13px] font-medium text-on-surface-variant mb-1.5"
 
   return (
-    <div className="h-full min-h-0 flex flex-col gap-4">
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-        <div>
-          <h1 className="text-[20px] font-semibold text-on-surface tracking-tight">Storage Targets</h1>
-          <p className="text-[12px] text-on-surface-variant mt-0.5">Configure where backup data is stored</p>
-        </div>
-        <button type="button" onClick={() => setShowAdd(true)} className="flex items-center gap-2 px-4 h-9 rounded-lg bg-primary text-on-primary text-[13px] font-medium hover:bg-primary-container transition-colors shadow-sm">
-          <Plus size={16} />
-          Add Storage
-        </button>
-      </div>
+    <Page>
+      <PageHeader
+        title="Storage Targets"
+        description="Configure where backup data is stored"
+        actions={
+          <button type="button" onClick={() => setShowAdd(true)} className="flex items-center gap-2 px-4 h-9 rounded-lg bg-primary text-on-primary text-[13px] font-medium hover:bg-primary-container transition-colors shadow-sm">
+            <Plus size={16} />
+            Add Storage
+          </button>
+        }
+      />
 
       {/* Search + filters */}
       <div className="flex flex-col lg:flex-row lg:items-center gap-3">
@@ -327,7 +328,7 @@ const StoragePage = () => {
       {deleteId && (
         <ConfirmDialog title="Remove Storage Target?" message="This will not delete any backup data. The storage configuration will be removed." confirmLabel="Remove" danger onConfirm={handleDelete} onCancel={() => setDeleteId(null)} />
       )}
-    </div>
+    </Page>
   )
 }
 
