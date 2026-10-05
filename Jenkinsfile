@@ -143,6 +143,8 @@ pipeline {
           # Existing stages above are untouched.
           # DooD-safe: sources are baked into the throwaway image (see
           # Test (server) comment) instead of -v mounting $WORKSPACE.
+          # NOTE: the container env cross-compiles to Windows, but the
+          # verifier must EXECUTE on Linux — scope Linux env to it only.
           IMG="vg-ci-agent-$BUILD_NUMBER"
           docker rmi -f "$IMG" >/dev/null 2>&1 || true
           docker build -t "$IMG" -f agent/Dockerfile.ci agent/ >/dev/null
@@ -150,7 +152,7 @@ pipeline {
           docker run --rm \
             -e GOOS=windows -e GOARCH=amd64 -e CGO_ENABLED=0 \
             "$IMG" \
-            sh -c "go build -trimpath -o /tmp/VaultGuard-Agent.exe ./cmd/agent && go run ./cmd/verify-artifact --arch amd64 --min-bytes 5000000 /tmp/VaultGuard-Agent.exe && go build -trimpath -o /tmp/VaultGuard-Agent-Setup-Console.exe ./cmd/agent-setup && go run ./cmd/verify-artifact --arch amd64 --min-bytes 100000 /tmp/VaultGuard-Agent-Setup-Console.exe" || STATUS=$?
+            sh -c "go build -trimpath -o /tmp/VaultGuard-Agent.exe ./cmd/agent && env GOOS=linux GOARCH=amd64 CGO_ENABLED=0 go run ./cmd/verify-artifact --arch amd64 --min-bytes 5000000 /tmp/VaultGuard-Agent.exe && go build -trimpath -o /tmp/VaultGuard-Agent-Setup-Console.exe ./cmd/agent-setup && env GOOS=linux GOARCH=amd64 CGO_ENABLED=0 go run ./cmd/verify-artifact --arch amd64 --min-bytes 100000 /tmp/VaultGuard-Agent-Setup-Console.exe" || STATUS=$?
           docker rmi -f "$IMG" >/dev/null 2>&1 || true
           exit $STATUS
         '''
