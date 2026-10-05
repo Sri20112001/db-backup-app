@@ -1,5 +1,5 @@
-# Build stage
-FROM node:20-alpine as builder
+# Build stage (node >=22.12 per frontend deps; keep in sync with Dockerfile.ci)
+FROM node:22-alpine as builder
 WORKDIR /app
 COPY package*.json ./
 RUN npm install

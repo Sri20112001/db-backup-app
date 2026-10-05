@@ -169,6 +169,8 @@ pipeline {
           docker rmi -f "$IMG" >/dev/null 2>&1 || true
           docker build -t "$IMG" -f client/Dockerfile.ci client/ >/dev/null
           STATUS=0
+          # node:22 (deps require >=22.12; node:20 only warns today but the
+          # production builder below must match it).
           docker run --rm "$IMG" \
             sh -c "npm ci --no-audit --no-fund && npm run lint && npm run test && npm audit --audit-level=high" || STATUS=$?
           docker rmi -f "$IMG" >/dev/null 2>&1 || true
@@ -179,11 +181,22 @@ pipeline {
 
     stage('Build') {
       steps {
-        sh '''
-          set -e
-          COMPOSE="$(cat "$WORKSPACE/.jenkins-compose")"
-          $COMPOSE build
-        '''
+        // Compose interpolates ${POSTGRES_PASSWORD/...} at build time, so
+        // the secrets must exist in THIS process environment — same Jenkins
+        // credential IDs as Deploy. Never commit real values to the repo.
+        withCredentials([
+          string(credentialsId: 'vaultguard-postgres-password', variable: 'POSTGRES_PASSWORD'),
+          string(credentialsId: 'vaultguard-backup-db-password', variable: 'BACKUP_DB_PASSWORD'),
+          string(credentialsId: 'vaultguard-jwt-secret', variable: 'JWT_SECRET'),
+          string(credentialsId: 'vaultguard-jwt-refresh-secret', variable: 'JWT_REFRESH_SECRET'),
+          string(credentialsId: 'vaultguard-encryption-key', variable: 'ENCRYPTION_KEY'),
+        ]) {
+          sh '''
+            set -e
+            COMPOSE="$(cat "$WORKSPACE/.jenkins-compose")"
+            $COMPOSE build
+          '''
+        }
       }
     }
 

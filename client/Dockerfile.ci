@@ -1,6 +1,7 @@
 # CI-only image: bakes the client source in so test stages need no host
 # bind-mount (Docker-outside-of-Docker safe â€” see server/Dockerfile.ci).
 # node_modules are installed at run time (fresh checkouts have none).
-FROM node:20-alpine
+# Deps require node >=22.12 (matches local dev v22.x and the prod builder).
+FROM node:22-alpine
 WORKDIR /app
 COPY . /app/
