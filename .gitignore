@@ -1,28 +1,84 @@
 # Env / secrets — never commit real credentials
 .env
+.env.*
 *.env
 !.env.example
-agent-state.json
+!*.env.example
+**/agent-state.json
+**/credentials.json
+secrets/
+
+# Certs / keys
+*.pem
+*.key
+*.p12
+*.pfx
+*.jks
+*.keystore
 
 # Go
 *.exe
+*.msi
+*.msix
 /bin/
 /dist/
-/tmp/
-server/tmp/
-agent/tmp/
+**/dist/
+**/build/
+vendor/
 *.test
 *.out
+*.coverprofile
+coverage/
+coverage.out
+go.work
+go.work.sum
+
+# Air live-reload + local tmp
+tmp/
+**/tmp/
+*~
+
+# Backup outputs (never commit real dumps — migrations in server/internal/db/migrations stay tracked)
+backups/
+backup-data/
+pgdata/
+postgres-data/
+*.dump
+*.bak
+*.backup
+*.sql.gz
+*.tar.gz
 
 # Frontend
-client/node_modules/
+**/node_modules/
 client/dist/
 client/dist-ssr/
+client/coverage/
+**/.vite/
+*.tsbuildinfo
 client/*.local
+**/*.local
+.pnp
+.pnp.js
 
-# OS / editor
+# OS / editor / AI tools
 .DS_Store
 Thumbs.db
+desktop.ini
 .vscode/
 .idea/
+.amazonq/
+.opencode/
+*.swp
+*.swo
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+logs/
 *.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
