@@ -253,10 +253,15 @@ pipeline {
 
           # Health gate: migrations run before the API listens, so a 200
           # here means the new version booted AND migrated successfully.
+          # Runs INSIDE the server container: Jenkins lives on another
+          # Docker network, so localhost:7541 from the Jenkins container
+          # can never reach it. Uses the Compose service name (no
+          # hardcoded container names); -T disables TTY for CI.
+          # (alpine/busybox ships wget; no image change needed.)
           OK=0
           i=0
           while [ $i -lt 30 ]; do
-            if curl -sf http://localhost:7541/vaultguard/api/health >/dev/null 2>&1; then OK=1; break; fi
+            if $COMPOSE exec -T server wget -qO- http://localhost:7541/vaultguard/api/health >/dev/null 2>&1; then OK=1; break; fi
             i=$((i+1)); sleep 2
           done
           if [ "$OK" != "1" ]; then
