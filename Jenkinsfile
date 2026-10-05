@@ -133,7 +133,7 @@ pipeline {
         '''
       }
     }
-    }
+    
 
     stage('Test (client)') {
       steps {
