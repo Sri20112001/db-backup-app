@@ -35,7 +35,7 @@ type createRestoreRequest struct {
 func (h *RestoreHandler) List(c *gin.Context) {
 	orgID := c.MustGet("org_id").(uuid.UUID)
 	var jobs []models.RestoreJob
-	h.db.Preload("BackupRun").Where("organization_id = ?", orgID).Order("created_at DESC").Find(&jobs)
+	h.db.Preload("BackupRun").Preload("Connection").Where("organization_id = ?", orgID).Order("created_at DESC").Find(&jobs)
 	c.JSON(http.StatusOK, asArray(jobs))
 }
 
@@ -64,9 +64,24 @@ func (h *RestoreHandler) Create(c *gin.Context) {
 	}
 
 	var run models.BackupRun
-	if err := h.db.Where("id = ? AND organization_id = ?", runID, orgID).First(&run).Error; err != nil {
+	if err := h.db.Preload("BackupJob").Where("id = ? AND organization_id = ?", runID, orgID).First(&run).Error; err != nil {
 		c.JSON(http.StatusNotFound, gin.H{"error": "backup run not found"})
 		return
+	}
+
+	// Database restores reuse the backup job's saved connection so the same
+	// securely-stored credential is resolved agent-side. The restore must
+	// run on the connection's agent (the host with database access).
+	var connID *uuid.UUID
+	if run.BackupJob.ConnectionID != nil {
+		var conn models.DatabaseConnection
+		if err := h.db.Where("id = ? AND organization_id = ?", *run.BackupJob.ConnectionID, orgID).First(&conn).Error; err == nil {
+			if conn.AgentID != agentID {
+				c.JSON(http.StatusBadRequest, gin.H{"error": "restore must run on the connection's agent"})
+				return
+			}
+			connID = run.BackupJob.ConnectionID
+		}
 	}
 
 	job := models.RestoreJob{
@@ -74,6 +89,7 @@ func (h *RestoreHandler) Create(c *gin.Context) {
 		OrganizationID:  orgID,
 		BackupRunID:     runID,
 		AgentID:         agentID,
+		ConnectionID:    connID,
 		Status:          models.RestorePending,
 		DestinationPath: req.DestinationPath,
 		TargetDatabase:  req.TargetDatabase,
@@ -104,7 +120,7 @@ func (h *RestoreHandler) Get(c *gin.Context) {
 		return
 	}
 	var job models.RestoreJob
-	if err := h.db.Preload("BackupRun").
+	if err := h.db.Preload("BackupRun").Preload("Connection").
 		Where("id = ? AND organization_id = ?", id, orgID).First(&job).Error; err != nil {
 		c.JSON(http.StatusNotFound, gin.H{"error": "not found"})
 		return

@@ -1,8 +1,8 @@
 import { useEffect, useState } from 'react'
-import { restoreApi, runApi, agentApi } from '@/services/api'
+import { restoreApi, runApi, agentApi, connectionsApi } from '@/services/api'
 import { useAuthStore } from '@/store/authStore'
 import { useUIStore } from '@/store/uiStore'
-import type { RestoreJob, BackupRun, Agent, RestoreStatus } from '@/types'
+import type { RestoreJob, BackupRun, Agent, RestoreStatus, DatabaseConnection } from '@/types'
 import StatusBadge from '@/components/StatusBadge'
 import EmptyState from '@/components/EmptyState'
 import Pagination from '@/components/Pagination'
@@ -12,6 +12,7 @@ import { formatRelative, formatDate } from '@/utils/format'
 import { RotateCcw, X, Check, Loader2 } from 'lucide-react'
 import SearchInput from '@/components/ui/SearchInput'
 import SortSelect from '@/components/ui/SortSelect'
+import { Page, PageHeader } from '@/components/Page'
 
 const RESTORE_STATUS_FILTERS: { label: string; value: RestoreStatus | '' }[] = [
   { label: 'All', value: '' },
@@ -30,6 +31,7 @@ const RestoresPage = () => {
   const [wizardStep, setWizardStep] = useState(0)
   const [recentRuns, setRecentRuns] = useState<BackupRun[]>([])
   const [agents, setAgents] = useState<Agent[]>([])
+  const [connections, setConnections] = useState<DatabaseConnection[]>([])
   const [form, setForm] = useState({ backup_run_id: '', agent_id: '', destination_path: '', target_database: '' })
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [search, setSearch] = useState('')
@@ -63,12 +65,14 @@ const RestoresPage = () => {
   const openWizard = async () => {
     if (!currentOrg) return
     try {
-      const [runs, ags] = await Promise.all([
+      const [runs, ags, conns] = await Promise.all([
         runApi.list(currentOrg.id, { status: 'COMPLETED', limit: 50 }),
         agentApi.list(currentOrg.id),
+        connectionsApi.list(currentOrg.id),
       ])
       setRecentRuns(runs.data)
       setAgents(ags)
+      setConnections(conns)
       setShowWizard(true)
       setWizardStep(0)
     } catch { addToast('error', 'Failed to load data') }
@@ -78,7 +82,9 @@ const RestoresPage = () => {
     if (!currentOrg) return
     setIsSubmitting(true)
     try {
-      await restoreApi.create(currentOrg.id, form as Record<string, unknown>)
+      // confirmed:true acknowledges overwrite; connection_id is resolved
+      // server-side from the source backup job (never sent from the UI).
+      await restoreApi.create(currentOrg.id, { ...form, confirmed: true })
       addToast('success', 'Restore job started')
       setShowWizard(false)
       setForm({ backup_run_id: '', agent_id: '', destination_path: '', target_database: '' })
@@ -88,6 +94,14 @@ const RestoresPage = () => {
   }
 
   const selectedRun = recentRuns.find((r) => r.id === form.backup_run_id)
+  const selectedConnection = connections.find((c) => c.id === selectedRun?.backup_job?.connection_id)
+
+  // Database restores reuse the backup job's saved connection: pin the
+  // wizard to the connection's agent so credentials resolve correctly.
+  const selectRun = (run: BackupRun) => {
+    const connAgent = run.backup_job?.agent_id
+    setForm((f) => ({ ...f, backup_run_id: run.id, agent_id: connAgent || f.agent_id }))
+  }
   const filtered = restores.filter((r) => {
     const matchStatus = !statusFilter || r.status === statusFilter
     const q = search.toLowerCase()
@@ -107,17 +121,17 @@ const RestoresPage = () => {
   const inputCls = "w-full h-9 px-3 rounded-lg border border-surface-variant bg-surface-container-low text-[14px] text-on-surface focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all"
 
   return (
-    <div className="h-full min-h-0 flex flex-col gap-4">
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-        <div>
-          <h1 className="text-[20px] font-semibold text-on-surface tracking-tight">Restores</h1>
-          <p className="text-[12px] text-on-surface-variant mt-0.5">Restore data from backup recovery points</p>
-        </div>
-        <button type="button" onClick={openWizard} className="flex items-center gap-2 px-4 h-9 rounded-lg bg-primary text-on-primary text-[13px] font-medium hover:bg-primary-container transition-colors shadow-sm">
-          <RotateCcw size={16} />
-          New Restore
-        </button>
-      </div>
+    <Page>
+      <PageHeader
+        title="Restores"
+        description="Restore data from backup recovery points"
+        actions={
+          <button type="button" onClick={openWizard} className="flex items-center gap-2 px-4 h-9 rounded-lg bg-primary text-on-primary text-[13px] font-medium hover:bg-primary-container transition-colors shadow-sm">
+            <RotateCcw size={16} />
+            New Restore
+          </button>
+        }
+      />
 
       {/* Search + filters */}
       <div className="flex flex-col lg:flex-row lg:items-center gap-3">
@@ -227,7 +241,7 @@ const RestoresPage = () => {
                   <h3 className="text-[14px] font-semibold text-on-surface">Select Recovery Point</h3>
                   <div className="flex flex-col gap-2 max-h-96 overflow-y-auto">
                     {recentRuns.map((run) => (
-                      <button key={run.id} type="button" onClick={() => setForm((f) => ({ ...f, backup_run_id: run.id }))}
+                      <button key={run.id} type="button" onClick={() => selectRun(run)}
                         className={`flex items-center gap-3 p-3.5 rounded-xl border-2 text-left transition-all ${form.backup_run_id === run.id ? 'border-primary bg-primary-container/20' : 'border-surface-variant hover:border-outline'}`}>
                         <div className="flex-1 min-w-0">
                           <p className="text-[13px] font-semibold text-on-surface">{run.backup_job?.name ?? '—'}</p>
@@ -243,9 +257,15 @@ const RestoresPage = () => {
               {wizardStep === 1 && (
                 <>
                   <h3 className="text-[14px] font-semibold text-on-surface">Destination</h3>
+                  {selectedConnection && (
+                    <div className="p-3 rounded-lg bg-primary-container/20 border border-primary/30 text-[12px] text-on-surface">
+                      Restores using saved connection <span className="font-semibold">{selectedConnection.name}</span>
+                      {' '}({selectedConnection.host}:{selectedConnection.port}) — agent is pinned to the connection's agent and credentials resolve securely.
+                    </div>
+                  )}
                   <div>
-                    <label className="block text-[13px] font-medium text-on-surface-variant mb-1.5">Target Agent</label>
-                    <select value={form.agent_id} onChange={(e) => setForm((f) => ({ ...f, agent_id: e.target.value }))} className={inputCls}>
+                    <label className="block text-[13px] font-medium text-on-surface-variant mb-1.5">Target Agent{selectedConnection ? ' (pinned to connection)' : ''}</label>
+                    <select value={form.agent_id} onChange={(e) => setForm((f) => ({ ...f, agent_id: e.target.value }))} disabled={!!selectedConnection} className={`${inputCls} ${selectedConnection ? 'opacity-60' : ''}`}>
                       <option value="">Select agent...</option>
                       {agents.map((a) => <option key={a.id} value={a.id}>{a.name} ({a.status})</option>)}
                     </select>
@@ -310,7 +330,7 @@ const RestoresPage = () => {
           </div>
         </div>
       )}
-    </div>
+    </Page>
   )
 }
 
