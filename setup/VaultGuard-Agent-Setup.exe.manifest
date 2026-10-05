@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<assembly xmlns="urn:schemas-microsoft-com:asm.v1" manifestVersion="1.0">
+  <assemblyIdentity version="1.0.0.0" processorArchitecture="amd64"
+                    name="VaultGuard.Agent.Setup" type="win32"/>
+  <description>VaultGuard Agent Setup</description>
+  <!--
+    requireAdministrator: the customer must NOT open an admin terminal
+    manually. Windows shows the UAC prompt at launch; the Fyne setup GUI
+    then runs elevated and can write Program Files / ProgramData and
+    create/start the VaultGuardAgent service. If the user cancels UAC,
+    Windows refuses to start the process at all (no partial install),
+    and the installer's RequireAdmin preflight is the second line of
+    defense when the manifest wasn't embedded.
+  -->
+  <trustInfo xmlns="urn:schemas-microsoft-com:asm.v3">
+    <security>
+      <requestedPrivileges>
+        <requestedExecutionLevel level="requireAdministrator" uiAccess="false"/>
+      </requestedPrivileges>
+    </security>
+  </trustInfo>
+  <compatibility xmlns="urn:schemas-microsoft-com:compatibility.v1">
+    <application>
+      <supportedOS Id="{8e0f7a12-bfb3-4fe8-b9a5-48fd50a15a9a}"/>
+      <supportedOS Id="{1f676c76-80e1-4239-95bb-83d0f6d0da78}"/>
+      <supportedOS Id="{4a2f28e3-53b9-4441-ba9c-d69d4a6a6e38}"/>
+      <supportedOS Id="{35138b9a-5d96-4fbd-8e2d-a2440225f93a}"/>
+    </application>
+  </compatibility>
+</assembly>

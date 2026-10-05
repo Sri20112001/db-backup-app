@@ -5,6 +5,7 @@ import { useAuthStore } from '@/store/authStore'
 import { useUIStore } from '@/store/uiStore'
 import type { Agent, Machine, BackupJob } from '@/types'
 import StatusBadge from '@/components/StatusBadge'
+import { Page } from '@/components/Page'
 import Pagination from '@/components/Pagination'
 import { usePagination } from '@/hooks/usePagination'
 import NewJobModal from '@/features/jobs/components/NewJobModal'
@@ -53,7 +54,7 @@ const AgentDetailPage = () => {
   if (!agent) return null
 
   return (
-    <div className="h-full min-h-0 flex flex-col gap-4 overflow-y-auto pr-0.5">
+    <Page scroll>
       {/* Breadcrumb */}
       <div className="flex items-center gap-2 text-[12px] text-on-surface-variant">
         <button type="button" onClick={() => navigate('/agents')} className="hover:text-primary">
@@ -179,7 +180,7 @@ const AgentDetailPage = () => {
       {showNew && (
         <NewJobModal onClose={() => setShowNew(false)} onSaved={() => setReloadKey((k) => k + 1)} />
       )}
-    </div>
+    </Page>
   )
 }
 

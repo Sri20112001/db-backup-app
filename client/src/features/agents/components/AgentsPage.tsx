@@ -3,23 +3,31 @@ import { useNavigate } from 'react-router-dom'
 import { agentApi } from '@/services/api'
 import { useAuthStore } from '@/store/authStore'
 import { useUIStore } from '@/store/uiStore'
-import type { Agent, AgentStatus } from '@/types'
+import type { Agent, AgentLifecycle, EnrollmentTokenResult } from '@/types'
 import StatusBadge from '@/components/StatusBadge'
 import EmptyState from '@/components/EmptyState'
 import ConfirmDialog from '@/components/ConfirmDialog'
 import Pagination from '@/components/Pagination'
 import { usePagination } from '@/hooks/usePagination'
 import { useRealtimeStore } from '@/stores/realtimeStore'
-import { formatRelative } from '@/utils/format'
-import { Plus, Server, Trash2, Copy, Check, Loader2 } from 'lucide-react'
+import { formatRelative, formatDate } from '@/utils/format'
+import { Plus, Server, Trash2, Copy, Check, Loader2, Ban } from 'lucide-react'
 import SearchInput from '@/components/ui/SearchInput'
 import SortSelect from '@/components/ui/SortSelect'
+import { Page, PageHeader } from '@/components/Page'
 
-const AGENT_STATUS_FILTERS: { label: string; value: AgentStatus | '' }[] = [
+const AGENT_STATUS_FILTERS: { label: string; value: AgentLifecycle | '' }[] = [
   { label: 'All', value: '' },
   { label: 'Online', value: 'ONLINE' },
   { label: 'Offline', value: 'OFFLINE' },
+  { label: 'Pending', value: 'PENDING' },
+  { label: 'Revoked', value: 'REVOKED' },
 ]
+
+// lifecycleOf prefers the server-computed lifecycle, falling back to the raw
+// ONLINE/OFFLINE flag for older servers.
+const lifecycleOf = (a: Agent): AgentLifecycle =>
+  a.lifecycle ?? (a.status === 'ONLINE' ? 'ONLINE' : 'OFFLINE')
 
 const AgentsPage = () => {
   const { currentOrg } = useAuthStore()
@@ -28,15 +36,19 @@ const AgentsPage = () => {
   const [agents, setAgents] = useState<Agent[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [showRegister, setShowRegister] = useState(false)
-  const [regToken, setRegToken] = useState<{ agent_id: string; registration_key: string } | null>(null)
+  const [agentName, setAgentName] = useState('')
+  const [enroll, setEnroll] = useState<EnrollmentTokenResult | null>(null)
+  const [isGenerating, setIsGenerating] = useState(false)
   const [copied, setCopied] = useState(false)
   const [deleteId, setDeleteId] = useState<string | null>(null)
+  const [revokeId, setRevokeId] = useState<string | null>(null)
   const [search, setSearch] = useState('')
-  const [statusFilter, setStatusFilter] = useState<AgentStatus | ''>('')
+  const [statusFilter, setStatusFilter] = useState<AgentLifecycle | ''>('')
   const [sort, setSort] = useState('name-asc')
   const filtered = agents.filter((a) => {
-    const matchStatus = !statusFilter || a.status === statusFilter
-    const matchSearch = !search || a.name.toLowerCase().includes(search.toLowerCase())
+    const matchStatus = !statusFilter || lifecycleOf(a) === statusFilter
+    const matchSearch = !search || a.name.toLowerCase().includes(search.toLowerCase()) ||
+      (a.machine_name || '').toLowerCase().includes(search.toLowerCase())
     return matchStatus && matchSearch
   })
   const sorted = [...filtered].sort((a, b) => {
@@ -79,23 +91,31 @@ const AgentsPage = () => {
 
   useEffect(() => { loadAgents() }, [currentOrg])
 
+  const openAddAgent = () => {
+    setAgentName('')
+    setEnroll(null)
+    setShowRegister(true)
+  }
+
   const handleGenerateToken = async () => {
     if (!currentOrg) return
+    setIsGenerating(true)
     try {
-      const token = await agentApi.generateToken(currentOrg.id)
-      setRegToken(token)
-      setShowRegister(true)
-    } catch { addToast('error', 'Failed to generate token') }
+      const token = await agentApi.enrollmentToken(currentOrg.id, { name: agentName.trim() || undefined })
+      setEnroll(token)
+    } catch { addToast('error', 'Failed to generate enrollment token') }
+    finally { setIsGenerating(false) }
   }
 
   const handleCopy = () => {
-    if (!regToken) return
+    if (!enroll) return
+    const text = enroll.enrollment_token
     if (navigator.clipboard && navigator.clipboard.writeText) {
-      navigator.clipboard.writeText(regToken.registration_key)
+      navigator.clipboard.writeText(text)
     } else {
       // Fallback for insecure contexts (like exposed IPs without HTTPS)
       const textArea = document.createElement('textarea')
-      textArea.value = regToken.registration_key
+      textArea.value = text
       textArea.style.position = 'fixed'
       textArea.style.left = '-9999px'
       document.body.appendChild(textArea)
@@ -112,6 +132,23 @@ const AgentsPage = () => {
     setTimeout(() => setCopied(false), 2000)
   }
 
+  const handleRevoke = async () => {
+    if (!currentOrg || !revokeId) return
+    try {
+      await agentApi.revoke(currentOrg.id, revokeId)
+      addToast('success', 'Agent revoked — its credential no longer works')
+      setRevokeId(null)
+      loadAgents()
+    } catch { addToast('error', 'Failed to revoke agent') }
+  }
+
+  const closeRegister = () => {
+    setShowRegister(false)
+    setEnroll(null)
+    setAgentName('')
+    loadAgents()
+  }
+
   const handleDelete = async () => {
     if (!currentOrg || !deleteId) return
     try {
@@ -123,21 +160,21 @@ const AgentsPage = () => {
   }
 
   return (
-    <div className="h-full min-h-0 flex flex-col gap-4">
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-        <div>
-          <h1 className="text-[20px] font-semibold text-on-surface tracking-tight">Agents & Machines</h1>
-          <p className="text-[12px] text-on-surface-variant mt-0.5">Windows backup agents installed on your infrastructure</p>
-        </div>
-        <button
-          type="button"
-          onClick={handleGenerateToken}
-          className="flex items-center gap-2 px-4 h-9 rounded-lg bg-primary text-on-primary text-[13px] font-medium hover:bg-primary-container transition-colors shadow-sm"
-        >
-          <Plus size={16} />
-          Register Agent
-        </button>
-      </div>
+    <Page>
+      <PageHeader
+        title="Agents & Machines"
+        description="Windows backup agents installed on your infrastructure"
+        actions={
+          <button
+            type="button"
+            onClick={openAddAgent}
+            className="flex items-center gap-2 px-4 h-9 rounded-lg bg-primary text-on-primary text-[13px] font-medium hover:bg-primary-container transition-colors shadow-sm"
+          >
+            <Plus size={16} />
+            Add Agent
+          </button>
+        }
+      />
 
       {/* Search + filters */}
       <div className="flex flex-col lg:flex-row lg:items-center gap-3">
@@ -186,7 +223,7 @@ const AgentsPage = () => {
           title="No agents registered"
           description="Install the VaultGuard agent on your Windows machines and register them here."
           action={
-            <button type="button" onClick={handleGenerateToken} className="px-4 h-9 rounded-lg bg-primary text-on-primary text-[13px] font-medium hover:bg-primary-container transition-colors">
+            <button type="button" onClick={openAddAgent} className="px-4 h-9 rounded-lg bg-primary text-on-primary text-[13px] font-medium hover:bg-primary-container transition-colors">
               Register First Agent
             </button>
           }
@@ -201,26 +238,43 @@ const AgentsPage = () => {
             >
               <div className="flex items-start justify-between">
                 <div className="flex items-center gap-3">
-                  <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${agent.status === 'ONLINE' ? 'bg-primary-container/40 text-on-primary-container' : 'bg-surface-variant text-outline'}`}>
+                  <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${lifecycleOf(agent) === 'ONLINE' ? 'bg-primary-container/40 text-on-primary-container' : 'bg-surface-variant text-outline'}`}>
                     <Server size={20} />
                   </div>
                   <div>
                     <h3 className="text-[15px] font-semibold text-on-surface">{agent.name}</h3>
-                    <p className="font-mono text-[11px] text-outline">v{agent.version || '—'}</p>
+                    <p className="font-mono text-[11px] text-outline">
+                      {[agent.machine_name, [agent.platform, agent.architecture].filter(Boolean).join('/'), agent.version ? `v${agent.version}` : ''].filter(Boolean).join(' · ') || '—'}
+                    </p>
                   </div>
                 </div>
-                <StatusBadge status={agent.status} size="sm" />
+                <StatusBadge status={lifecycleOf(agent)} size="sm" />
               </div>
 
               <div className="flex items-center justify-between text-[12px] text-outline">
-                <span>Last seen: {formatRelative(agent.last_seen_at)}</span>
-                <button
-                  type="button"
-                  onClick={(e) => { e.stopPropagation(); setDeleteId(agent.id) }}
-                  className="p-1.5 rounded-lg text-outline hover:text-error hover:bg-error-container/30 transition-colors"
-                >
-                  <Trash2 size={16} />
-                </button>
+                <span>
+                  Last seen: {formatRelative(agent.last_seen_at)}
+                  {agent.installed_at ? ` · Installed: ${formatDate(agent.installed_at)}` : ''}
+                </span>
+                <span className="flex items-center gap-1">
+                  {lifecycleOf(agent) !== 'REVOKED' && lifecycleOf(agent) !== 'PENDING' && (
+                    <button
+                      type="button"
+                      title="Revoke agent"
+                      onClick={(e) => { e.stopPropagation(); setRevokeId(agent.id) }}
+                      className="p-1.5 rounded-lg text-outline hover:text-error hover:bg-error-container/30 transition-colors"
+                    >
+                      <Ban size={16} />
+                    </button>
+                  )}
+                  <button
+                    type="button"
+                    onClick={(e) => { e.stopPropagation(); setDeleteId(agent.id) }}
+                    className="p-1.5 rounded-lg text-outline hover:text-error hover:bg-error-container/30 transition-colors"
+                  >
+                    <Trash2 size={16} />
+                  </button>
+                </span>
               </div>
             </div>
           ))}
@@ -235,19 +289,21 @@ const AgentsPage = () => {
         onPage={paged.setPage}
       />
 
-      {/* Register modal */}
+      {/* Add Agent / enrollment token modal */}
       {showRegister && (
         <div className="fixed inset-0 z-[200] flex items-center justify-center">
-          <div className="absolute inset-0 bg-on-surface/30 backdrop-blur-[2px]" onClick={() => { setShowRegister(false); setRegToken(null); loadAgents() }} />
+          <div className="absolute inset-0 bg-on-surface/30 backdrop-blur-[2px]" onClick={closeRegister} />
           <div className="relative bg-surface-container-lowest rounded-xl shadow-2xl p-6 w-full max-w-md mx-4 border border-surface-variant">
-            <h2 className="text-[16px] font-semibold text-on-surface mb-2">Register New Agent</h2>
+            <h2 className="text-[16px] font-semibold text-on-surface mb-2">Add Agent</h2>
             <p className="text-[13px] text-on-surface-variant mb-4">
-              Run the VaultGuard agent installer on your Windows machine and enter this registration key when prompted.
+              Generate a one-time enrollment token, then run VaultGuard-Agent-Setup on the
+              machine and paste it there. The token is for initial enrollment only —
+              the agent receives its permanent credential automatically.
             </p>
-            {regToken ? (
+            {enroll ? (
               <>
-                <div className="flex items-center gap-2 p-3 rounded-lg bg-surface-container-low border border-surface-variant mb-4">
-                  <code className="flex-1 font-mono text-[12px] text-on-surface break-all">{regToken.registration_key}</code>
+                <div className="flex items-center gap-2 p-3 rounded-lg bg-surface-container-low border border-surface-variant mb-2">
+                  <code className="flex-1 font-mono text-[12px] text-on-surface break-all">{enroll.enrollment_token}</code>
                   <button
                     type="button"
                     onClick={handleCopy}
@@ -256,22 +312,52 @@ const AgentsPage = () => {
                     {copied ? <Check size={16} className="text-on-primary-container" /> : <Copy size={16} />}
                   </button>
                 </div>
-                <p className="text-[12px] text-outline mb-4">This key can only be used once. Keep it secure.</p>
+                <p className="text-[12px] text-outline mb-1">
+                  Expires: {new Date(enroll.expires_at).toLocaleString()} · Single-use.
+                </p>
+                <p className="text-[12px] text-outline mb-4">This token will never be shown again. Permanent agent credentials are never displayed.</p>
               </>
             ) : (
-              <div className="flex items-center justify-center py-8">
-                <Loader2 size={32} className="text-[#c3c6d7] animate-spin" />
-              </div>
+              <>
+                <label className="block text-[13px] font-medium text-on-surface-variant mb-1.5">Agent name (optional)</label>
+                <input
+                  type="text"
+                  value={agentName}
+                  onChange={(e) => setAgentName(e.target.value)}
+                  placeholder="e.g. Office-PC"
+                  className="w-full h-9 px-3 rounded-lg border border-surface-variant bg-surface-container-low text-[13px] text-on-surface focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all mb-4"
+                />
+                <button
+                  type="button"
+                  onClick={() => void handleGenerateToken()}
+                  disabled={isGenerating}
+                  className="w-full h-9 rounded-lg bg-primary text-on-primary text-[13px] font-medium hover:bg-primary-container transition-colors disabled:opacity-50 flex items-center justify-center gap-2 mb-2"
+                >
+                  {isGenerating && <Loader2 size={14} className="animate-spin" />}
+                  Generate enrollment token
+                </button>
+              </>
             )}
             <button
               type="button"
-              onClick={() => { setShowRegister(false); setRegToken(null); loadAgents() }}
-              className="w-full h-9 rounded-lg bg-primary text-on-primary text-[13px] font-medium hover:bg-primary-container transition-colors"
+              onClick={closeRegister}
+              className="w-full h-9 rounded-lg bg-surface-container-lowest border border-surface-variant text-on-surface text-[13px] font-medium hover:bg-surface-container-low transition-colors"
             >
               Done
             </button>
           </div>
         </div>
+      )}
+
+      {revokeId && (
+        <ConfirmDialog
+          title="Revoke Agent?"
+          message="The agent's credential stops working immediately: heartbeat, job claims and restore claims are rejected. The record is kept for audit. Use this for lost, retired, or compromised machines."
+          confirmLabel="Revoke Agent"
+          danger
+          onConfirm={() => void handleRevoke()}
+          onCancel={() => setRevokeId(null)}
+        />
       )}
 
       {deleteId && (
@@ -284,7 +370,7 @@ const AgentsPage = () => {
           onCancel={() => setDeleteId(null)}
         />
       )}
-    </div>
+    </Page>
   )
 }
 

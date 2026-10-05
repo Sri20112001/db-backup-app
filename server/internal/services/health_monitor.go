@@ -49,7 +49,7 @@ func (h *HealthMonitor) run() {
 func (h *HealthMonitor) checkAgents() {
 	threshold := time.Now().Add(-3 * time.Minute)
 	var staleAgents []models.Agent
-	h.db.Where("status = ? AND last_seen_at < ?", models.AgentOnline, threshold).Find(&staleAgents)
+	h.db.Where("status = ? AND revoked_at IS NULL AND last_seen_at < ?", models.AgentOnline, threshold).Find(&staleAgents)
 
 	for _, agent := range staleAgents {
 		h.db.Model(&agent).Update("status", models.AgentOffline)

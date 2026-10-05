@@ -10,7 +10,6 @@ import (
 	"github.com/backup-saas/server/internal/realtime"
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
-	"golang.org/x/crypto/bcrypt"
 	"gorm.io/gorm"
 	"gorm.io/gorm/clause"
 )
@@ -33,19 +32,25 @@ func (h *AgentHandler) List(c *gin.Context) {
 	orgID := c.MustGet("org_id").(uuid.UUID)
 	var agents []models.Agent
 	h.db.Where("organization_id = ?", orgID).Find(&agents)
-	c.JSON(http.StatusOK, asArray(agents))
+	out := make([]gin.H, 0, len(agents))
+	for _, a := range agents {
+		out = append(out, agentWithLifecycle(a))
+	}
+	c.JSON(http.StatusOK, out)
 }
 
 // GenerateRegistrationToken creates a one-time token the agent uses to register.
+// The plaintext key is returned once; only its SHA-256 digest is stored.
 func (h *AgentHandler) GenerateRegistrationToken(c *gin.Context) {
 	orgID := c.MustGet("org_id").(uuid.UUID)
 
 	token := randomHex(32)
+	keyHash := sha256Hex(token)
 	agent := models.Agent{
 		Base:            models.Base{ID: uuid.New()},
 		OrganizationID:  orgID,
 		Name:            "pending-" + randomHex(4),
-		RegistrationKey: &token,
+		RegistrationKey: &keyHash,
 		Status:          models.AgentOffline,
 	}
 	if err := h.db.Create(&agent).Error; err != nil {
@@ -60,6 +65,7 @@ func (h *AgentHandler) GenerateRegistrationToken(c *gin.Context) {
 }
 
 // Register is called by the agent binary with the registration key.
+// Legacy path (kept working): prefers the new enrollment flow for setup GUI.
 func (h *AgentHandler) Register(c *gin.Context) {
 	var req struct {
 		RegistrationKey string `json:"registration_key" binding:"required"`
@@ -74,20 +80,23 @@ func (h *AgentHandler) Register(c *gin.Context) {
 	}
 
 	var agent models.Agent
-	if err := h.db.Where("registration_key = ?", req.RegistrationKey).First(&agent).Error; err != nil {
+	if err := h.db.Where("registration_key = ?", sha256Hex(req.RegistrationKey)).First(&agent).Error; err != nil {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "invalid registration key"})
+		return
+	}
+	if agent.RevokedAt != nil {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "invalid registration key"})
 		return
 	}
 
-	agentToken := randomHex(32)
-	tokenHash, err := bcrypt.GenerateFromPassword([]byte(agentToken), bcrypt.DefaultCost)
+	agentToken, tokenHash, err := mintAgentToken()
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "token generation failed"})
 		return
 	}
 	updates := map[string]interface{}{
 		"name":             req.Hostname,
-		"token_hash":       string(tokenHash),
+		"token_hash":       tokenHash,
 		"version":          req.Version,
 		"status":           models.AgentOnline,
 		"registration_key": nil,
@@ -133,7 +142,7 @@ func (h *AgentHandler) Get(c *gin.Context) {
 		c.JSON(http.StatusNotFound, gin.H{"error": "not found"})
 		return
 	}
-	c.JSON(http.StatusOK, agent)
+	c.JSON(http.StatusOK, agentWithLifecycle(agent))
 }
 
 func (h *AgentHandler) Delete(c *gin.Context) {
@@ -162,8 +171,7 @@ func (h *AgentHandler) RotateToken(c *gin.Context) {
 		return
 	}
 
-	newToken := randomHex(32)
-	tokenHash, err := bcrypt.GenerateFromPassword([]byte(newToken), bcrypt.DefaultCost)
+	newToken, tokenHash, err := mintAgentToken()
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "token generation failed"})
 		return
@@ -177,9 +185,12 @@ func (h *AgentHandler) RotateToken(c *gin.Context) {
 			First(&agent).Error; err != nil {
 			return err
 		}
+		if agent.RevokedAt != nil {
+			return errAgentRevoked
+		}
 		now := time.Now()
 		return tx.Model(&agent).Updates(map[string]interface{}{
-			"token_hash":       string(tokenHash),
+			"token_hash":       tokenHash,
 			"token_rotated_at": &now,
 		}).Error
 	})

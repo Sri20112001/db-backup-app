@@ -1,6 +1,6 @@
 import type { BackupRunStatus, RestoreStatus, AgentStatus } from '../types'
 
-type Status = BackupRunStatus | RestoreStatus | AgentStatus | 'HEALTHY' | 'WARNING' | 'UNKNOWN' | 'PAUSED'
+type Status = BackupRunStatus | RestoreStatus | AgentStatus | 'HEALTHY' | 'WARNING' | 'UNKNOWN' | 'PAUSED' | 'REVOKED'
 
 const config: Record<string, { bg: string; text: string; dot?: string; pulse?: boolean }> = {
   // Success / Active States (Green)
@@ -20,6 +20,7 @@ const config: Record<string, { bg: string; text: string; dot?: string; pulse?: b
 
   // Critical / Destructive States (Red)
   FAILED:    { bg: 'bg-error-container', text: 'text-on-error-container', dot: 'bg-error' },
+  REVOKED:   { bg: 'bg-error-container', text: 'text-on-error-container', dot: 'bg-error' },
 
   // Inactive / Neutral States (Gray)
   CANCELLED: { bg: 'bg-inactive-container', text: 'text-on-inactive-container', dot: 'bg-inactive' },

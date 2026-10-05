@@ -37,6 +37,11 @@ func AgentAuth(db *gorm.DB) gin.HandlerFunc {
 			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "invalid agent token"})
 			return
 		}
+		// Revoked agents are rejected everywhere: heartbeat, claims, status.
+		if agent.RevokedAt != nil {
+			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "agent revoked"})
+			return
+		}
 		c.Set("agent", &agent)
 		c.Next()
 	}

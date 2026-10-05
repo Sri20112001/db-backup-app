@@ -106,6 +106,35 @@ pipeline {
       }
     }
 
+    stage('Build (agent windows)') {
+      steps {
+        sh '''
+          set -e
+          # Pure-Go cross-compile of the headless agent (service wrapper
+          # included) — no C toolchain needed. dist/ is the ONLY source of
+          # distributable binaries (git-ignored); tmp/ dev artifacts must
+          # never be shipped. The Fyne setup GUI is NOT built here: it needs
+          # network module downloads plus platform graphics backends, so GUI
+          # packaging requires a Windows build agent
+          # (see setup/README.md + docs/WINDOWS_VALIDATION.md).
+          #
+          # Future Windows-agent pipeline (separate node, does not touch
+          # this Linux flow):
+          #   windows-agent: checkout -> go mod tidy (setup/) ->
+          #     rsrc manifest embed -> go build GUI ->
+          #     signtool Authenticode sign + timestamp ->
+          #     dist/windows package -> release
+          # Existing stages above are untouched.
+          docker run --rm \
+            -v "$WORKSPACE/agent:/src" -w /src \
+            -e GOOS=windows -e GOARCH=amd64 -e CGO_ENABLED=0 \
+            golang:1.26-alpine \
+            sh -c "go build -trimpath -o dist/windows/VaultGuard-Agent.exe ./cmd/agent && go run ./cmd/verify-artifact --arch amd64 --min-bytes 5000000 dist/windows/VaultGuard-Agent.exe && go build -trimpath -o dist/windows/VaultGuard-Agent-Setup-Console.exe ./cmd/agent-setup && go run ./cmd/verify-artifact --arch amd64 --min-bytes 100000 dist/windows/VaultGuard-Agent-Setup-Console.exe"
+        '''
+      }
+    }
+    }
+
     stage('Test (client)') {
       steps {
         sh '''

@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strconv"
 	"strings"
 	"time"
@@ -57,6 +58,13 @@ type Config struct {
 	// RegistrationKey is the one-time key from GenerateRegistrationToken.
 	// Only needed on first run; afterwards state file holds the credentials.
 	RegistrationKey string
+	// EnrollmentToken is the one-time token from the enrollment API
+	// (Agents → Add Agent). Preferred over RegistrationKey for setup-GUI
+	// installs; exchanged once for a permanent credential.
+	EnrollmentToken string
+	// ConfigFile is the JSON config path (non-secret settings only).
+	// Empty selects DefaultConfigFile.
+	ConfigFile string
 	// StateFile persists agent_id + agent_token between restarts.
 	StateFile string
 	Hostname  string
@@ -103,9 +111,15 @@ func LoadConfig() Config {
 	// without a process manager. Real environment variables always win.
 	_ = godotenv.Load("agent.env")
 
+	fileCfg := loadConfigFile(configFilePath())
+
 	poll := 30 * time.Second
 	if v := os.Getenv("AGENT_POLL_INTERVAL"); v != "" {
 		if d, err := time.ParseDuration(v); err == nil && d >= 5*time.Second {
+			poll = d
+		}
+	} else if fileCfg.PollInterval != "" {
+		if d, err := time.ParseDuration(fileCfg.PollInterval); err == nil && d >= 5*time.Second {
 			poll = d
 		}
 	}
@@ -120,11 +134,11 @@ func LoadConfig() Config {
 	}
 	hostname := os.Getenv("AGENT_HOSTNAME")
 	if hostname == "" {
-		hostname = defaultHostname()
+		hostname = firstNonEmpty(fileCfg.Hostname, defaultHostname())
 	}
 	server := os.Getenv("AGENT_SERVER")
 	if server == "" {
-		server = "http://localhost:7541/vaultguard/api"
+		server = firstNonEmpty(fileCfg.ServerURL, "http://localhost:7541/vaultguard/api")
 	}
 	browseAddr := os.Getenv("AGENT_BROWSE_ADDR")
 	if browseAddr == "" {
@@ -155,6 +169,8 @@ func LoadConfig() Config {
 	return Config{
 		Server:          server,
 		RegistrationKey: os.Getenv("AGENT_REGISTRATION_KEY"),
+		EnrollmentToken: os.Getenv("AGENT_ENROLLMENT_TOKEN"),
+		ConfigFile:      configFilePath(),
 		StateFile:       stateFile,
 		Hostname:        hostname,
 		PollInterval:    poll,
@@ -188,6 +204,93 @@ func firstNonEmpty(vals ...string) string {
 		}
 	}
 	return ""
+}
+
+// --- Local config file (non-secret settings only) ---
+//
+// The installed agent reads C:\ProgramData\VaultGuard\Agent\config.json
+// (Windows) or /etc/vaultguard/agent/config.json (Linux), written by the
+// setup GUI. Database passwords and the agent token MUST NOT go here:
+// credentials live only in the CredentialStore (or the legacy state file).
+// Unknown/secret-looking keys are ignored, never honored.
+
+// FileSettings mirrors config.json. Deliberately no credential fields:
+// server URL, host identity, agent ID (all non-secret diagnostics).
+// Exported so the setup installer writes exactly the schema the agent
+// reads — a single source of truth, no drift.
+type FileSettings struct {
+	ServerURL    string `json:"server_url"`
+	Hostname     string `json:"hostname"`
+	PollInterval string `json:"poll_interval"`
+	// AgentID is informational (which agent this install is). It is NOT a
+	// credential — authentication needs the stored token, never this ID.
+	AgentID string `json:"agent_id,omitempty"`
+}
+
+// DefaultConfigDir is the platform config/data directory for the agent.
+// Mutable data lives here — never inside Program Files.
+func DefaultConfigDir() string {
+	switch runtime.GOOS {
+	case "windows":
+		if pd := os.Getenv("ProgramData"); pd != "" {
+			return filepath.Join(pd, "VaultGuard", "Agent")
+		}
+		return `C:\ProgramData\VaultGuard\Agent`
+	case "linux":
+		return "/etc/vaultguard/agent"
+	default:
+		if exe, err := os.Executable(); err == nil {
+			return filepath.Dir(exe)
+		}
+		return "."
+	}
+}
+
+// DefaultConfigFile is the default config.json path.
+func DefaultConfigFile() string {
+	return filepath.Join(DefaultConfigDir(), "config.json")
+}
+
+// CredentialDir is where the CredentialStore lives (config dir by default,
+// AGENT_CREDENTIAL_DIR override for tests/portable installs).
+func CredentialDir() string {
+	if d := os.Getenv("AGENT_CREDENTIAL_DIR"); d != "" {
+		return d
+	}
+	return DefaultConfigDir()
+}
+
+func configFilePath() string {
+	if p := os.Getenv("AGENT_CONFIG_FILE"); p != "" {
+		return p
+	}
+	return DefaultConfigFile()
+}
+
+// loadConfigFile reads non-secret settings; missing file = zero value
+// (env/defaults apply). A file that fails to parse is reported by the
+// caller-visible error return.
+func loadConfigFile(path string) FileSettings {
+	var fs FileSettings
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return fs
+	}
+	_ = json.Unmarshal(data, &fs) // unknown keys ignored; bad JSON = defaults
+	return fs
+}
+
+// WriteConfigFile persists non-secret settings for service installs.
+// It refuses to write anything resembling a credential.
+func WriteConfigFile(path string, fs FileSettings) error {
+	if err := os.MkdirAll(filepath.Dir(path), 0755); err != nil {
+		return err
+	}
+	data, err := json.MarshalIndent(fs, "", "  ")
+	if err != nil {
+		return err
+	}
+	return os.WriteFile(path, data, 0644)
 }
 
 func jobTimeout() time.Duration {
