@@ -198,19 +198,18 @@ pipeline {
             # but the Jenkins image ships an older plugin. Install a local
             # copy under $HOME (persists in jenkins_home, no host/image
             # changes, invisible to other projects) when needed.
-            ensure_buildx() {
-              ver=$(docker buildx version 2>/dev/null | grep -Eo 'v[0-9]+\.[0-9]+' | head -1)
-              major=${ver%%.*}; major=${major#v}; minor=${ver#*.}
-              if [ "$major" -gt 0 ] 2>/dev/null; then return 1; fi
-              if [ "$minor" -ge 17 ] 2>/dev/null; then return 1; fi
-              return 0
-            }
-            if ensure_buildx; then
-              echo "buildx too old or missing - installing local v0.17.1"
+            # Written without backslashes or arithmetic so no
+            # Groovy/shell quoting layer can misread it.
+            ver=$(docker buildx version 2>/dev/null | grep -Eo 'v[0-9]+[.][0-9]+' | head -1)
+            lowest=$(printf '%s\n%s\n' 'v0.17' "$ver" | sort -V | head -1)
+            if [ -z "$ver" ] || [ "$lowest" != "v0.17" ]; then
+              echo "buildx too old or missing (got '$ver') - installing local v0.17.1"
               mkdir -p "$HOME/.docker/cli-plugins"
               curl -SL "https://github.com/docker/buildx/releases/download/v0.17.1/buildx-v0.17.1.linux-amd64" \
                 -o "$HOME/.docker/cli-plugins/docker-buildx"
               chmod +x "$HOME/.docker/cli-plugins/docker-buildx"
+            else
+              echo "buildx $ver OK"
             fi
             docker buildx version
             $COMPOSE build
