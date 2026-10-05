@@ -1,0 +1,7 @@
+# CI-only image: bakes the server source in so test stages need no host
+# bind-mount (Docker-outside-of-Docker safe: `docker build` ships the
+# context from the Jenkins container, while `-v $WORKSPACE/...` would be
+# resolved against the Docker HOST filesystem and fail).
+FROM golang:1.26-alpine
+WORKDIR /src
+COPY . /src/

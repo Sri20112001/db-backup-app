@@ -1,0 +1,5 @@
+# CI-only image: bakes the agent source in so test stages need no host
+# bind-mount (Docker-outside-of-Docker safe â€” see server/Dockerfile.ci).
+FROM golang:1.26-alpine
+WORKDIR /src
+COPY . /src/

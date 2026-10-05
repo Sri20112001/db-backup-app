@@ -1,0 +1,6 @@
+# CI-only image: bakes the client source in so test stages need no host
+# bind-mount (Docker-outside-of-Docker safe â€” see server/Dockerfile.ci).
+# node_modules are installed at run time (fresh checkouts have none).
+FROM node:20-alpine
+WORKDIR /app
+COPY . /app/

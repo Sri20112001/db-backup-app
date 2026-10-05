@@ -60,14 +60,25 @@ pipeline {
       steps {
         sh '''
           set -e
+          # DooD-safe: NO host bind-mounts anywhere in this pipeline. The
+          # Jenkins workspace path (/var/jenkins_home/...) exists only inside
+          # the Jenkins container — the host Docker daemon cannot see it, so
+          # `-v $WORKSPACE/...` fails. Instead each stage bakes its sources
+          # into a throwaway image (`docker build` ships the context from the
+          # Jenkins container) and runs that. Same for compose: the postgres
+          # image carries its init script (see postgres/Dockerfile), so no
+          # ./postgres-init bind is needed at deploy time either.
+          #
           # Ephemeral Postgres so DB-gated tests (migrations, scheduler
           # idempotency, refresh rotation, region seed) actually run instead
           # of skipping. Torn down even when tests fail.
           NET="vg-ci-$BUILD_NUMBER"
           PG="vg-ci-pg-$BUILD_NUMBER"
+          IMG="vg-ci-server-$BUILD_NUMBER"
           # Drop leftovers from an aborted earlier run, then start fresh.
           docker rm -f "$PG" >/dev/null 2>&1 || true
           docker network rm "$NET" >/dev/null 2>&1 || true
+          docker rmi -f "$IMG" >/dev/null 2>&1 || true
           docker network create "$NET" >/dev/null
           docker run -d --name "$PG" --network "$NET" \
             -e POSTGRES_USER=postgres \
@@ -82,13 +93,14 @@ pipeline {
           # `|| STATUS=$?` (not bare set -e): a failing suite must still
           # reach the cleanup below instead of leaking pg containers.
           STATUS=0
+          docker build -t "$IMG" -f server/Dockerfile.ci server/ >/dev/null
           docker run --rm --network "$NET" \
-            -v "$WORKSPACE/server:/src" -w /src \
             -e DATABASE_URL="host=$PG user=postgres password=postgres dbname=ci_test port=5432 sslmode=disable" \
-            golang:1.26-alpine \
+            "$IMG" \
             sh -c "go vet ./... && go test ./... && go run golang.org/x/vuln/cmd/govulncheck@latest ./..." || STATUS=$?
           docker rm -f "$PG" >/dev/null 2>&1 || true
           docker network rm "$NET" >/dev/null 2>&1 || true
+          docker rmi -f "$IMG" >/dev/null 2>&1 || true
           exit $STATUS
         '''
       }
@@ -98,10 +110,14 @@ pipeline {
       steps {
         sh '''
           set -e
-          docker run --rm \
-            -v "$WORKSPACE/agent:/src" -w /src \
-            golang:1.26-alpine \
-            sh -c "go vet ./... && go test ./... && go run golang.org/x/vuln/cmd/govulncheck@latest ./..."
+          IMG="vg-ci-agent-$BUILD_NUMBER"
+          docker rmi -f "$IMG" >/dev/null 2>&1 || true
+          docker build -t "$IMG" -f agent/Dockerfile.ci agent/ >/dev/null
+          STATUS=0
+          docker run --rm "$IMG" \
+            sh -c "go vet ./... && go test ./... && go run golang.org/x/vuln/cmd/govulncheck@latest ./..." || STATUS=$?
+          docker rmi -f "$IMG" >/dev/null 2>&1 || true
+          exit $STATUS
         '''
       }
     }
@@ -125,11 +141,18 @@ pipeline {
           #     signtool Authenticode sign + timestamp ->
           #     dist/windows package -> release
           # Existing stages above are untouched.
+          # DooD-safe: sources are baked into the throwaway image (see
+          # Test (server) comment) instead of -v mounting $WORKSPACE.
+          IMG="vg-ci-agent-$BUILD_NUMBER"
+          docker rmi -f "$IMG" >/dev/null 2>&1 || true
+          docker build -t "$IMG" -f agent/Dockerfile.ci agent/ >/dev/null
+          STATUS=0
           docker run --rm \
-            -v "$WORKSPACE/agent:/src" -w /src \
             -e GOOS=windows -e GOARCH=amd64 -e CGO_ENABLED=0 \
-            golang:1.26-alpine \
-            sh -c "go build -trimpath -o dist/windows/VaultGuard-Agent.exe ./cmd/agent && go run ./cmd/verify-artifact --arch amd64 --min-bytes 5000000 dist/windows/VaultGuard-Agent.exe && go build -trimpath -o dist/windows/VaultGuard-Agent-Setup-Console.exe ./cmd/agent-setup && go run ./cmd/verify-artifact --arch amd64 --min-bytes 100000 dist/windows/VaultGuard-Agent-Setup-Console.exe"
+            "$IMG" \
+            sh -c "go build -trimpath -o /tmp/VaultGuard-Agent.exe ./cmd/agent && go run ./cmd/verify-artifact --arch amd64 --min-bytes 5000000 /tmp/VaultGuard-Agent.exe && go build -trimpath -o /tmp/VaultGuard-Agent-Setup-Console.exe ./cmd/agent-setup && go run ./cmd/verify-artifact --arch amd64 --min-bytes 100000 /tmp/VaultGuard-Agent-Setup-Console.exe" || STATUS=$?
+          docker rmi -f "$IMG" >/dev/null 2>&1 || true
+          exit $STATUS
         '''
       }
     }
@@ -139,10 +162,15 @@ pipeline {
       steps {
         sh '''
           set -e
-          docker run --rm \
-            -v "$WORKSPACE/client:/app" -w /app \
-            node:20-alpine \
-            sh -c "npm ci --no-audit --no-fund && npm run lint && npm run test && npm audit --audit-level=high"
+          # DooD-safe: bake sources in (see Test (server) comment).
+          IMG="vg-ci-client-$BUILD_NUMBER"
+          docker rmi -f "$IMG" >/dev/null 2>&1 || true
+          docker build -t "$IMG" -f client/Dockerfile.ci client/ >/dev/null
+          STATUS=0
+          docker run --rm "$IMG" \
+            sh -c "npm ci --no-audit --no-fund && npm run lint && npm run test && npm audit --audit-level=high" || STATUS=$?
+          docker rmi -f "$IMG" >/dev/null 2>&1 || true
+          exit $STATUS
         '''
       }
     }
