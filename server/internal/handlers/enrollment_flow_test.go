@@ -408,6 +408,19 @@ func TestEnrollFlow_TokenRevoke(t *testing.T) {
 	if rec.Code != http.StatusUnauthorized {
 		t.Errorf("revoked token enroll: %d, want 401", rec.Code)
 	}
+	revokedMsg := decodeBody(t, rec)["error"]
+	rec = doReq(t, f.router, "POST", "/vaultguard/api/agents/enroll",
+		enrollBody("no-such-token"), nil)
+	if rec.Code != http.StatusUnauthorized || decodeBody(t, rec)["error"] != revokedMsg {
+		t.Error("revoked vs invalid must share one generic 401 message (no oracle)")
+	}
+	// Auditability: the revoked row is kept with revoked_at, not deleted.
+	var kept models.EnrollmentToken
+	if err := f.db.Where("token_hash = ?", sha256HexLocal(raw)).First(&kept).Error; err != nil {
+		t.Errorf("revoked token row must be retained: %v", err)
+	} else if kept.RevokedAt == nil {
+		t.Error("revoked token row must carry revoked_at")
+	}
 	rec = doReq(t, f.router, "DELETE", tokPath, nil, userAuth(f.jwt))
 	if rec.Code != http.StatusNotFound {
 		t.Errorf("repeat revoke: %d, want 404", rec.Code)
@@ -472,6 +485,27 @@ func TestEnrollFlow_OrgIsolation(t *testing.T) {
 	// Org A's own token still enrolls fine (cross-check the flow wasn't broken).
 	if rec := doReq(t, fa.router, "POST", "/vaultguard/api/agents/enroll", enrollBody(rawA), nil); rec.Code != http.StatusOK {
 		t.Errorf("org A enroll: %d", rec.Code)
+	}
+}
+
+// --- enrollment rate limiting (brute-force/enumeration backstop) ---
+
+func TestEnrollFlow_RateLimited(t *testing.T) {
+	f := setupEnrollFixture(t, "Rate Org", "ratelimit@test.com")
+	limited := false
+	for i := 0; i < 25; i++ {
+		rec := doReq(t, f.router, "POST", "/vaultguard/api/agents/enroll",
+			enrollBody("nope-not-a-token"), nil)
+		if rec.Code == http.StatusTooManyRequests {
+			limited = true
+			break
+		}
+		if rec.Code != http.StatusUnauthorized {
+			t.Fatalf("attempt %d: %d, want 401-or-429", i, rec.Code)
+		}
+	}
+	if !limited {
+		t.Error("expected 429s after exceeding the enroll budget")
 	}
 }
 

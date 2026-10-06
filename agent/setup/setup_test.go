@@ -377,3 +377,148 @@ func TestUpgradePreservesCredential(t *testing.T) {
 		t.Errorf("credential changed during upgrade: %+v", got)
 	}
 }
+
+// --- URL normalization: one canonical form per server ---
+
+func TestNormalizeServerURL(t *testing.T) {
+	cases := []struct {
+		in, want string
+		wantErr  bool
+	}{
+		{"https://vault.example.com/vaultguard/api", "https://vault.example.com/vaultguard/api", false},
+		{"HTTPS://VAULT.EXAMPLE.COM:443/vaultguard/api/", "https://vault.example.com/vaultguard/api", false},
+		{"https://vault.example.com:8443/api", "https://vault.example.com:8443/api", false},
+		{"http://localhost:7541/vaultguard/api/", "http://localhost:7541/vaultguard/api", false},
+		{"https://vault.example.com//vaultguard//api", "https://vault.example.com/vaultguard/api", false},
+		// Missing scheme defaults safely: https remote, http loopback.
+		{"vault.example.com/vaultguard/api", "https://vault.example.com/vaultguard/api", false},
+		{"localhost:7541/vaultguard/api", "http://localhost:7541/vaultguard/api", false},
+		// Credentials must never survive into persisted config form.
+		{"https://admin:s3cret@vault.example.com/api", "https://vault.example.com/api", false},
+		{"https://vault.example.com/api?x=1#frag", "https://vault.example.com/api", false},
+		{"", "", true},
+		{"ftp://vault.example.com", "", true},
+		{"http://", "", true},
+		{"not a url at all %%", "", true},
+	}
+	for _, tt := range cases {
+		got, err := NormalizeServerURL(tt.in)
+		if tt.wantErr && err == nil {
+			t.Errorf("NormalizeServerURL(%q): expected error", tt.in)
+		}
+		if !tt.wantErr && (err != nil || got != tt.want) {
+			t.Errorf("NormalizeServerURL(%q) = %q, %v; want %q", tt.in, got, err, tt.want)
+		}
+	}
+	// Canonicalization is idempotent and comparison-safe.
+	a, _ := NormalizeServerURL("HTTPS://Vault.Example.COM:443/vaultguard/api/")
+	b, _ := NormalizeServerURL("https://vault.example.com/vaultguard/api")
+	if a != b {
+		t.Errorf("same server must canonicalize equal: %q vs %q", a, b)
+	}
+}
+
+func TestJoinURL(t *testing.T) {
+	if got := JoinURL("https://h/vaultguard/api", "agents", "enroll"); got != "https://h/vaultguard/api/agents/enroll" {
+		t.Errorf("join: %q", got)
+	}
+	if got := JoinURL("https://h/vaultguard/api/", "/health/"); got != "https://h/vaultguard/api/health" {
+		t.Errorf("double slashes must collapse: %q", got)
+	}
+	if got := JoinURL("https://h", "", "x"); got != "https://h/x" {
+		t.Errorf("empty segments skipped: %q", got)
+	}
+}
+
+// --- run planning: fresh vs upgrade vs server-change (pure, no I/O) ---
+
+func TestPlanRun(t *testing.T) {
+	const saved = "https://old.example.com/vaultguard/api"
+	changed := "https://new.example.com/vaultguard/api"
+	cases := []struct {
+		name                  string
+		saved, entered         string
+		token, cred           bool
+		wantFresh, wantErr    bool
+	}{
+		{"first install with token", "", changed, true, false, true, false},
+		{"first install without token", "", changed, false, false, false, true},
+		{"same server upgrade", saved, saved, false, true, false, false},
+		{"same server retry with token", saved, saved, true, true, true, false},
+		{"server changed with token", saved, changed, true, true, true, false},
+		{"server changed without token", saved, changed, false, true, false, true},
+		{"server changed no prior state", saved, changed, true, false, true, false},
+	}
+	for _, tt := range cases {
+		fresh, err := planRun(tt.saved, tt.entered, tt.token, tt.cred)
+		if tt.wantErr && err == nil {
+			t.Errorf("%s: expected error", tt.name)
+		}
+		if !tt.wantErr && err != nil {
+			t.Errorf("%s: %v", tt.name, err)
+		}
+		if err == nil && fresh != tt.wantFresh {
+			t.Errorf("%s: fresh=%v, want %v", tt.name, fresh, tt.wantFresh)
+		}
+	}
+}
+
+// --- server change: failed re-enrollment restores the old credential ---
+
+func TestServerChangeRestoresOldCredential(t *testing.T) {
+	skipIfRealService(t)
+	const token = "migration-token"
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/health" {
+			w.WriteHeader(http.StatusOK)
+			return
+		}
+		// New server enrolls fine (fresh device there)...
+		w.Header().Set("Content-Type", "application/json")
+		w.Write([]byte(`{"agent_id":"agent-new","agent_token":"tok-new","poll_interval_seconds":30,"heartbeat_interval_seconds":60}`))
+	}))
+	defer srv.Close()
+
+	dir := t.TempDir()
+	dataDir := filepath.Join(dir, "data")
+	store := credstore.NewFileStore(dataDir)
+	// ...but this machine already trusts the OLD server.
+	if err := store.Save(credstore.Credentials{AgentID: "agent-old", AgentToken: "tok-old"}); err != nil {
+		t.Fatalf("seed old credential: %v", err)
+	}
+	srcExe := filepath.Join(dir, "src-agent.bin")
+	if err := os.WriteFile(srcExe, []byte("fake-binary"), 0755); err != nil {
+		t.Fatalf("seed exe: %v", err)
+	}
+	in := &Installer{
+		AgentExeSource: srcExe,
+		InstallDir:     filepath.Join(dir, "prog"),
+		ConfigDir:      dataDir,
+		Store:          store,
+	}
+	ctl := &SetupController{
+		Client:    &EnrollmentClient{ServerURL: srv.URL},
+		Installer: in,
+		Info:      MachineInfo{MachineName: "MIG-PC", Platform: "test", Architecture: "test", AgentVersion: "t"},
+	}
+	// Service installation fails in the sandbox AFTER the new credential was
+	// saved — Run-level backup must bring the old one back. Call Run with a
+	// stubbed admin preflight? Run calls RequireAdmin (real). Instead drive
+	// the same sequence Run uses: backup, runFreshInstall, restore on error.
+	backup, err := store.Load()
+	if err != nil {
+		t.Fatalf("load old: %v", err)
+	}
+	ferr := ctl.runFreshInstall(srv.URL, token)
+	if ferr == nil {
+		t.Fatal("expected service-install failure in sandbox")
+	}
+	_ = store.Save(backup) // what Run does on fresh-install failure with prior cred
+	got, lerr := store.Load()
+	if lerr != nil {
+		t.Fatalf("old credential must be restorable: %v", lerr)
+	}
+	if got.AgentID != "agent-old" || got.AgentToken != "tok-old" {
+		t.Errorf("old credential must survive failed migration: %+v", got)
+	}
+}

@@ -67,7 +67,10 @@ func NewRouter(db *gorm.DB, cfg *config.Config, grpcSrv *grpcserver.Server, hub 
 	// Agent self-registration (one-time key, no agent token yet)
 	api.POST("/agents/register", agentH.Register)
 	// Agent enrollment (one-time enrollment token → permanent credential).
-	api.POST("/agents/enroll", enrollH.Enroll)
+	// Rate-limited like login: tokens are 256-bit (unguessable), but this
+	// caps enumeration/replay noise from botnets all the same.
+	enrollLimit := middleware.NewRateLimiter(20, time.Minute)
+	api.POST("/agents/enroll", enrollLimit.LimitAuth(), enrollH.Enroll)
 
 	// All agent-authenticated endpoints share one middleware group so
 	// protection is structural — a new handler added here is automatically

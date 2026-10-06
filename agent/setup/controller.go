@@ -43,24 +43,80 @@ func (s *SetupController) progress(step, detail string) {
 // (service → binary → config, in reverse); the saved credential is
 // deliberately PRESERVED so a retry needs no new token (upgrade path picks
 // it up). Upgrade never generates a new Agent: ID and credential survive.
+//
+// Server identity is compared canonically. A changed URL forces the token
+// path: the existing credential belongs to the old server and is never sent
+// to the new one; on failed re-enrollment the previous credential is
+// restored so the old setup keeps working.
 func (s *SetupController) Run(serverURL, token string) error {
 	if s.Client == nil || s.Installer == nil {
 		return fmt.Errorf("setup controller not configured")
 	}
-	serverURL = strings.TrimSpace(serverURL)
-	if err := ValidateServerURL(serverURL); err != nil {
+	canonical, err := NormalizeServerURL(serverURL)
+	if err != nil {
+		return err
+	}
+	if err := ValidateServerURL(canonical); err != nil {
 		return err
 	}
 	// Privilege preflight before touching anything: no partial installs.
 	if err := RequireAdmin(); err != nil {
 		return err
 	}
-	s.Client.ServerURL = serverURL
+	s.Client.ServerURL = canonical
 
-	if strings.TrimSpace(token) == "" {
-		return s.runUpgrade(serverURL)
+	saved := SavedServerURL()
+	hasToken := strings.TrimSpace(token) != ""
+	fresh, err := planRun(saved, canonical, hasToken, s.Installer.HasCredential())
+	if err != nil {
+		return err
 	}
-	return s.runFreshInstall(serverURL, strings.TrimSpace(token))
+	if !fresh {
+		return s.runUpgrade(canonical)
+	}
+	// Fresh path with a prior credential (server change or token retry):
+	// a failed run must restore — never strand — the old setup.
+	if s.Installer.HasCredential() {
+		return s.withCredentialBackup(func() error {
+			return s.runFreshInstall(canonical, strings.TrimSpace(token))
+		})
+	}
+	return s.runFreshInstall(canonical, strings.TrimSpace(token))
+}
+
+// withCredentialBackup runs fn; on failure it restores the pre-existing
+// credential (best effort) so a failed re-enrollment never destroys the
+// working setup it was meant to replace.
+func (s *SetupController) withCredentialBackup(fn func() error) error {
+	var backup *credstore.Credentials
+	if c, err := s.Installer.Store.Load(); err == nil {
+		backup = &c
+	} else {
+		return fn()
+	}
+	if err := fn(); err != nil {
+		_ = s.Installer.Store.Save(*backup) // best effort
+		return fmt.Errorf("%v Previous credential restored — the agent still points at the old server", err)
+	}
+	return nil
+}
+
+// planRun decides fresh-install vs upgrade without side effects (unit
+// tested). savedCanonical is "" on first install.
+func planRun(savedCanonical, enteredCanonical string, hasToken, hasCredential bool) (fresh bool, err error) {
+	if savedCanonical != "" && savedCanonical != enteredCanonical {
+		if !hasToken {
+			return false, fmt.Errorf("the server URL has changed — this agent must be re-enrolled with the new server, so an enrollment token is required (the existing credential belongs to the previous server and was left untouched)")
+		}
+		return true, nil
+	}
+	if hasToken {
+		return true, nil
+	}
+	if hasCredential {
+		return false, nil
+	}
+	return false, fmt.Errorf("no existing agent credential found — paste an enrollment token for first-time setup")
 }
 
 // runUpgrade refreshes the binary + config and restarts the service,

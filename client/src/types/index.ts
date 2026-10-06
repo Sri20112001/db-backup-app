@@ -53,6 +53,7 @@ export interface EnrollmentTokenInfo {
   agent_id: string
   expires_at: string
   used_at: string | null
+  revoked_at: string | null
   created_at: string
 }
 

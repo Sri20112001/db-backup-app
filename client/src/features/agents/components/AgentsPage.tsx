@@ -105,7 +105,8 @@ const AgentsPage = () => {
     if (!currentOrg) return
     try {
       const toks = await agentApi.listTokens(currentOrg.id)
-      setPendingTokens(toks.filter((t) => !t.used_at && new Date(t.expires_at).getTime() > Date.now()))
+      const now = Date.now()
+      setPendingTokens(toks.filter((t) => !t.used_at && !t.revoked_at && new Date(t.expires_at).getTime() > now))
     } catch {
       // Token management is auxiliary; the modal works without the list.
       setPendingTokens([])

@@ -142,6 +142,7 @@ type EnrollmentToken struct {
 	TokenHash      string     `gorm:"uniqueIndex;not null" json:"-"`
 	ExpiresAt      time.Time  `gorm:"not null;index" json:"expires_at"`
 	UsedAt         *time.Time `json:"used_at,omitempty"`
+	RevokedAt      *time.Time `json:"revoked_at,omitempty"`
 	CreatedBy      *uuid.UUID `gorm:"type:uuid" json:"-"`
 }
 

@@ -33,7 +33,7 @@ func (c *EnrollmentClient) CheckConnectivity() error {
 	if client == nil {
 		client = &http.Client{Timeout: 15 * time.Second}
 	}
-	resp, err := client.Get(strings.TrimSuffix(c.ServerURL, "/") + "/health")
+	resp, err := client.Get(JoinURL(c.ServerURL, "health"))
 	if err != nil {
 		return fmt.Errorf("cannot reach VaultGuard server: %s", sanitizeError(err.Error()))
 	}
@@ -61,7 +61,7 @@ func (c *EnrollmentClient) Enroll(token string, info MachineInfo) (agentID, agen
 	if client == nil {
 		client = &http.Client{Timeout: 30 * time.Second}
 	}
-	resp, err := client.Post(strings.TrimSuffix(c.ServerURL, "/")+"/agents/enroll", "application/json", bytes.NewReader(body))
+	resp, err := client.Post(JoinURL(c.ServerURL, "agents", "enroll"), "application/json", bytes.NewReader(body))
 	if err != nil {
 		return "", "", fmt.Errorf("enrollment request failed: %s", sanitizeError(err.Error()))
 	}

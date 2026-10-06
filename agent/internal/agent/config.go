@@ -225,7 +225,14 @@ type FileSettings struct {
 	// AgentID is informational (which agent this install is). It is NOT a
 	// credential — authentication needs the stored token, never this ID.
 	AgentID string `json:"agent_id,omitempty"`
+	// ConfigVersion marks the schema generation for forward compatibility:
+	// readers must tolerate unknown fields and higher versions (best effort),
+	// writers stamp the version they understand. Current: 1.
+	ConfigVersion int `json:"config_version,omitempty"`
 }
+
+// CurrentConfigVersion is stamped by installers writing config.json.
+const CurrentConfigVersion = 1
 
 // DefaultConfigDir is the platform config/data directory for the agent.
 // Mutable data lives here — never inside Program Files.

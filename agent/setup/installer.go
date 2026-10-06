@@ -74,15 +74,21 @@ func (in *Installer) CopyExecutable() error {
 }
 
 // WriteAgentConfig writes non-secret settings (server URL, hostname,
-// agent ID). Credentials are never written here — see SaveCredential.
+// agent ID). The URL is canonicalized first so config.json always holds one
+// comparable form. Credentials are never written here — see SaveCredential.
 func (in *Installer) WriteAgentConfig(serverURL, hostname, agentID string) error {
-	if err := ValidateServerURL(serverURL); err != nil {
+	canonical, err := NormalizeServerURL(serverURL)
+	if err != nil {
+		return err
+	}
+	if err := ValidateServerURL(canonical); err != nil {
 		return err
 	}
 	return agent.WriteConfigFile(filepath.Join(in.ConfigDir, "config.json"), agent.FileSettings{
-		ServerURL: serverURL,
-		Hostname:  hostname,
-		AgentID:   agentID,
+		ServerURL:     canonical,
+		Hostname:      hostname,
+		AgentID:       agentID,
+		ConfigVersion: agent.CurrentConfigVersion,
 	})
 }
 

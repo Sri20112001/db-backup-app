@@ -12,7 +12,6 @@ package setup
 import (
 	"os"
 	"runtime"
-	"strings"
 
 	"github.com/backup-saas/agent/internal/agent"
 )
@@ -37,23 +36,4 @@ func DetectMachine() MachineInfo {
 		AgentVersion: agent.Version,
 		OS:           runtime.GOOS,
 	}
-}
-
-// ValidateServerURL checks the VaultGuard server URL before any network use.
-// Plain HTTP is allowed only for loopback (lab); anything else must be HTTPS.
-func ValidateServerURL(raw string) error {
-	u, err := parseURL(raw)
-	if err != nil {
-		return err
-	}
-	if u.Scheme != "http" && u.Scheme != "https" {
-		return errInvalidScheme
-	}
-	if u.Scheme == "http" && !isLoopback(u.Hostname()) {
-		return errInsecureRemote
-	}
-	if strings.TrimSpace(u.Host) == "" {
-		return errMissingHost
-	}
-	return nil
 }

@@ -155,7 +155,7 @@ func (h *EnrollmentHandler) Enroll(c *gin.Context) {
 	}
 
 	var tok models.EnrollmentToken
-	if err := h.db.Where("token_hash = ?", sha256Hex(strings.TrimSpace(req.EnrollmentToken))).First(&tok).Error; err != nil {
+	if err := h.db.Where("token_hash = ? AND revoked_at IS NULL", sha256Hex(strings.TrimSpace(req.EnrollmentToken))).First(&tok).Error; err != nil {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "invalid enrollment token"})
 		return
 	}
@@ -180,9 +180,10 @@ func (h *EnrollmentHandler) Enroll(c *gin.Context) {
 	now := time.Now()
 	err = h.db.Transaction(func(tx *gorm.DB) error {
 		// Claim the token: exactly one concurrent enrollment can flip
-		// used_at from NULL. RowsAffected==0 means we lost the race (or a
-		// replay) — abort without issuing a second credential.
-		claimed := tx.Model(&models.EnrollmentToken{}).Where("id = ? AND used_at IS NULL", tok.ID).
+		// used_at from NULL. RowsAffected==0 means we lost the race, hit a
+		// replay, or the token was revoked mid-flight — abort without
+		// issuing a second credential.
+		claimed := tx.Model(&models.EnrollmentToken{}).Where("id = ? AND used_at IS NULL AND revoked_at IS NULL", tok.ID).
 			Update("used_at", time.Now())
 		if claimed.Error != nil {
 			return claimed.Error
@@ -297,14 +298,16 @@ func (h *EnrollmentHandler) ListTokens(c *gin.Context) {
 			"agent_id":        agentIDString(t.AgentID),
 			"expires_at":      t.ExpiresAt,
 			"used_at":         t.UsedAt,
+			"revoked_at":      t.RevokedAt,
 			"created_at":      t.CreatedAt,
 		})
 	}
 	c.JSON(http.StatusOK, out)
 }
 
-// RevokeToken deletes an unused enrollment token so it can never enroll.
-// Used, expired, missing, or other-org tokens all answer 404 (no oracle).
+// RevokeToken marks an unused enrollment token revoked so it can never
+// enroll. The row is kept for audit (revoked_at) rather than deleted. Used,
+// revoked, expired, missing, or other-org tokens all answer 404 (no oracle).
 func (h *EnrollmentHandler) RevokeToken(c *gin.Context) {
 	orgID := c.MustGet("org_id").(uuid.UUID)
 	id, err := uuid.Parse(c.Param("id"))
@@ -312,8 +315,10 @@ func (h *EnrollmentHandler) RevokeToken(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid id"})
 		return
 	}
-	res := h.db.Where("id = ? AND organization_id = ? AND used_at IS NULL", id, orgID).
-		Delete(&models.EnrollmentToken{})
+	now := time.Now()
+	res := h.db.Model(&models.EnrollmentToken{}).
+		Where("id = ? AND organization_id = ? AND used_at IS NULL AND revoked_at IS NULL", id, orgID).
+		Update("revoked_at", &now)
 	if res.Error != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "revoke failed"})
 		return
