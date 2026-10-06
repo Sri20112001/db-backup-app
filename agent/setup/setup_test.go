@@ -267,7 +267,31 @@ func TestFreshInstallRollback(t *testing.T) {
 	}
 }
 
-// --- upgrade: existing credential, no token → no new agent, restart attempted ---
+// --- saved server URL prefill (asked once, then kept) ---
+
+func TestSavedServerURL(t *testing.T) {
+	if got := savedServerURLFrom(filepath.Join(t.TempDir(), "missing.json")); got != "" {
+		t.Errorf("missing config must yield no default, got %q", got)
+	}
+	dir := t.TempDir()
+	path := filepath.Join(dir, "config.json")
+	if err := agent.WriteConfigFile(path, agent.FileSettings{ServerURL: "https://vault.example.com/vaultguard/api", Hostname: "PC"}); err != nil {
+		t.Fatalf("seed config: %v", err)
+	}
+	fs, err := agent.ReadConfigFile(path)
+	if err != nil {
+		t.Fatalf("read back: %v", err)
+	}
+	if fs.ServerURL != "https://vault.example.com/vaultguard/api" {
+		t.Errorf("roundtrip lost server URL: %+v", fs)
+	}
+	if _, err := agent.ReadConfigFile(filepath.Join(dir, "missing.json")); err == nil {
+		t.Error("missing file must error")
+	}
+	if got := savedServerURLFrom(filepath.Join(dir, "config.json")); got != "https://vault.example.com/vaultguard/api" {
+		t.Errorf("prefill must read saved URL, got %q", got)
+	}
+}
 
 func TestUpgradeNeedsCredential(t *testing.T) {
 	dir := t.TempDir()

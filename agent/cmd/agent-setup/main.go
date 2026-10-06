@@ -20,6 +20,7 @@ import (
 	"os"
 	"strings"
 
+	"github.com/backup-saas/agent/internal/agent"
 	"github.com/backup-saas/agent/setup"
 )
 
@@ -39,7 +40,19 @@ func main() {
 
 	server := strings.TrimSpace(*flagServer)
 	if server == "" {
-		server = promptLine("Server URL: ")
+		// Prefill from a previous install: the URL is asked once, then kept.
+		saved := ""
+		if fs, err := agent.ReadConfigFile(agent.DefaultConfigFile()); err == nil {
+			saved = strings.TrimSpace(fs.ServerURL)
+		}
+		if saved != "" {
+			server = promptLine("Server URL [" + saved + "]: ")
+			if server == "" {
+				server = saved
+			}
+		} else {
+			server = promptLine("Server URL: ")
+		}
 	}
 	token := *flagToken
 	if token == "" && !flagPassed("token") {

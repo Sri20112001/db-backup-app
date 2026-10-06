@@ -293,6 +293,21 @@ func WriteConfigFile(path string, fs FileSettings) error {
 	return os.WriteFile(path, data, 0644)
 }
 
+// ReadConfigFile loads non-secret settings, reporting missing/unparseable
+// files to the caller. Setup wizards use it to prefill the server URL from
+// a previous install so it is asked once, not every run.
+func ReadConfigFile(path string) (FileSettings, error) {
+	var fs FileSettings
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return fs, err
+	}
+	if err := json.Unmarshal(data, &fs); err != nil {
+		return fs, err
+	}
+	return fs, nil
+}
+
 func jobTimeout() time.Duration {
 	if v := os.Getenv("AGENT_JOB_TIMEOUT"); v != "" {
 		if d, err := time.ParseDuration(v); err == nil && d > 0 {

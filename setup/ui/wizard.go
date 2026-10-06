@@ -31,12 +31,16 @@ type Wizard struct {
 	result     *agentsetup.SetupResult
 }
 
-// NewWizard builds the wizard with auto-detected machine info.
+// NewWizard builds the wizard with auto-detected machine info, prefilling
+// the server URL from a previous install when present (asked once, kept).
 func NewWizard(w fyne.Window) *Wizard {
 	w.Resize(fyne.NewSize(540, 420))
 
 	server := widget.NewEntry()
 	server.SetPlaceHolder("https://vaultguard.example.com/vaultguard/api")
+	if saved := agentsetup.SavedServerURL(); saved != "" {
+		server.SetText(saved)
+	}
 
 	token := widget.NewPasswordEntry()
 	token.SetPlaceHolder("Paste enrollment token from dashboard")
