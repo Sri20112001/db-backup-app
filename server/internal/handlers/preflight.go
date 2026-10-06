@@ -37,7 +37,7 @@ func (h *PreflightHandler) Preflight(c *gin.Context) {
 	}
 
 	var job models.BackupJob
-	if err := h.db.Preload("Agent").Preload("StorageTarget").
+	if err := h.db.Preload("Agent").Preload("StorageTarget").Preload("Policy").
 		Where("id = ? AND organization_id = ?", jobID, orgID).First(&job).Error; err != nil {
 		c.JSON(http.StatusNotFound, gin.H{"error": "job not found"})
 		return
@@ -132,7 +132,7 @@ func (h *PreflightHandler) checkDiskSpace(job models.BackupJob) preflightCheck {
 }
 
 func (h *PreflightHandler) checkEncryptionKey(job models.BackupJob) preflightCheck {
-	if !job.Encrypted {
+	if !models.EffectivePolicy(&job).Encrypted {
 		return preflightCheck{Name: "Encryption key", Status: "OK", Detail: "Encryption not enabled for this job"}
 	}
 	// The server holds the wrapped key; if ENCRYPTION_KEY env is set the

@@ -132,16 +132,23 @@ const JobDetailPage = () => {
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 p-5 rounded-xl bg-surface-container-lowest border border-surface-variant shadow-sm">
         <div className="flex items-center gap-4">
           <StatusBadge status={job.enabled ? 'ONLINE' : 'OFFLINE'} />
-          <div>
-            <h1 className="text-[20px] font-semibold text-on-surface">{job.name}</h1>
-            <div className="flex items-center gap-2 mt-1">
-              <span className="px-2 py-0.5 rounded bg-surface-container-high text-on-surface-variant text-[11px] font-medium uppercase">
-                {job.source_type.replace('_', ' ')}
-              </span>
-              <span className="text-[12px] text-outline">{job.agent?.name}</span>
-              <span className="text-[12px] text-outline">→ {job.storage_target?.name}</span>
+            <div>
+              <h1 className="text-[20px] font-semibold text-on-surface">{job.name}</h1>
+              <div className="flex items-center gap-2 mt-1 flex-wrap">
+                <span className="px-2 py-0.5 rounded bg-surface-container-high text-on-surface-variant text-[11px] font-medium uppercase">
+                  {job.source_type.replace('_', ' ')}
+                </span>
+                {job.policy ? (
+                  <span className="px-2 py-0.5 rounded bg-primary-container text-on-primary-container text-[11px] font-medium" title={`Schedule: ${job.policy.cron_expr || 'manual'} · Retention: ${job.policy.retention_days}d${job.policy.max_retries > 0 ? ` · Retries: ${job.policy.max_retries}` : ''}`}>
+                    Policy: {job.policy.name}
+                  </span>
+                ) : (
+                  <span className="text-[11px] text-outline">Job-specific settings</span>
+                )}
+                <span className="text-[12px] text-outline">{job.agent?.name}</span>
+                <span className="text-[12px] text-outline">→ {job.storage_target?.name}</span>
+              </div>
             </div>
-          </div>
         </div>
         <div className="flex items-center gap-2 shrink-0">
           <label className="relative inline-flex items-center cursor-pointer">

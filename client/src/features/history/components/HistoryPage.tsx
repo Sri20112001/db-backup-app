@@ -150,7 +150,14 @@ const HistoryPage = () => {
                   className={`hover:bg-surface-container-low/50 transition-colors cursor-pointer ${run.status === 'FAILED' ? 'bg-error-container/10' : ''}`}
                 >
                   <td className="py-3 px-4"><StatusBadge status={run.status} size="sm" /></td>
-                  <td className="py-3 px-4 font-medium">{run.backup_job?.name ?? '—'}</td>
+                  <td className="py-3 px-4 font-medium">
+                    {run.backup_job?.name ?? '—'}
+                    {run.retry_attempt > 0 && (
+                      <span className="ml-1.5 px-1.5 py-0.5 rounded bg-surface-container-high text-on-surface-variant font-mono text-[10px]" title={run.retry_of_run_id ? `Retry of run ${run.retry_of_run_id.slice(0, 8)}` : 'Automatic retry'}>
+                        ↻{run.retry_attempt}
+                      </span>
+                    )}
+                  </td>
                   <td className="py-3 px-4">
                     <span className="px-1.5 py-0.5 rounded bg-surface-container-high text-on-surface-variant font-mono text-[11px]">
                       {run.source_type || run.backup_job?.source_type || '—'}

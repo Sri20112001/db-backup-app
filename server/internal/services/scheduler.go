@@ -66,7 +66,7 @@ func (s *Scheduler) tick(now time.Time) {
 	s.lastTick = now
 
 	var jobs []models.BackupJob
-	if err := s.db.Preload("Schedule").
+	if err := s.db.Preload("Schedule").Preload("Policy").
 		Where("enabled = ?", true).Find(&jobs).Error; err != nil {
 		log.Warn().Err(err).Msg("scheduler: list jobs failed")
 		return
@@ -74,10 +74,23 @@ func (s *Scheduler) tick(now time.Time) {
 
 	for i := range jobs {
 		job := &jobs[i]
-		if job.Schedule == nil || job.Schedule.CronExpr == "" {
+		// Effective schedule: policy cron wins when attached (and can also
+		// disable scheduling via policy), else the job's own schedule row.
+		// Policy-less jobs behave exactly as before (zero migration).
+		eff := models.EffectivePolicy(job)
+		if !eff.Enabled {
 			continue
 		}
-		boundary, ok := s.boundary(job, prev, now)
+		// Retries are schedule-independent: a manual job's failed run
+		// refires too. Disabled policies/jobs never retry.
+		if err := s.maybeFire(job, eff, prev, now); err != nil {
+			log.Warn().Err(err).Str("job_id", job.ID.String()).
+				Msg("scheduler: retry check failed")
+		}
+		if eff.CronExpr == "" {
+			continue
+		}
+		boundary, ok := s.boundaryFor(eff.CronExpr, eff.Timezone, job.ID, prev, now)
 		if !ok {
 			continue
 		}
@@ -93,17 +106,32 @@ func (s *Scheduler) due(job *models.BackupJob, prev, now time.Time) bool {
 
 // boundary returns the exact cron instant crossed between prev and now.
 // The instant doubles as the run's idempotency key (see fire).
+// Kept for the job-inline path and existing tests; tick() resolves the
+// effective schedule first and calls boundaryFor.
 func (s *Scheduler) boundary(job *models.BackupJob, prev, now time.Time) (time.Time, bool) {
-	sched, err := s.parser.Parse(job.Schedule.CronExpr)
+	if job.Schedule == nil {
+		return time.Time{}, false
+	}
+	return s.boundaryFor(job.Schedule.CronExpr, job.Schedule.Timezone, job.ID, prev, now)
+}
+
+// boundaryFor is the schedule-agnostic core: jobs resolve their effective
+// cron/timezone (policy or inline) before calling it, so the firing math
+// lives in exactly one place.
+func (s *Scheduler) boundaryFor(cronExpr, timezone string, jobID uuid.UUID, prev, now time.Time) (time.Time, bool) {
+	if cronExpr == "" {
+		return time.Time{}, false
+	}
+	sched, err := s.parser.Parse(cronExpr)
 	if err != nil {
-		log.Warn().Str("job_id", job.ID.String()).
-			Str("cron", job.Schedule.CronExpr).
+		log.Warn().Str("job_id", jobID.String()).
+			Str("cron", cronExpr).
 			Msg("scheduler: invalid cron expression, skipping")
 		return time.Time{}, false
 	}
 	loc := time.UTC
-	if job.Schedule.Timezone != "" {
-		if l, err := time.LoadLocation(job.Schedule.Timezone); err == nil {
+	if timezone != "" {
+		if l, err := time.LoadLocation(timezone); err == nil {
 			loc = l
 		}
 	}
@@ -112,6 +140,89 @@ func (s *Scheduler) boundary(job *models.BackupJob, prev, now time.Time) (time.T
 		return time.Time{}, false
 	}
 	return next, true
+}
+
+// maybeFire refires the latest FAILED run as a NEW linked PENDING run when
+// the effective policy allows retries. Terminal states never transition out,
+// so a retry is a fresh run carrying RetryOfRunID/RetryAttempt (observable
+// in history and the run detail drawer). All conditions must hold:
+//   - policy enabled with MaxRetries > 0
+//   - nothing currently in flight (same guard as fire)
+//   - the latest run is FAILED with attempts remaining
+//   - the failure is older than the retry delay (no hot loops)
+//   - the failed run is still the latest (fresh scheduled work wins)
+//
+// Like fire, dispatch is best-effort: polling agents pick up PENDING runs
+// regardless of the gRPC nudge.
+func (s *Scheduler) maybeFire(job *models.BackupJob, eff models.ResolvedPolicy, prev, now time.Time) error {
+	if !eff.Enabled || eff.MaxRetries <= 0 {
+		return nil
+	}
+	var inflight int64
+	if err := s.db.Model(&models.BackupRun{}).
+		Where("backup_job_id = ? AND status IN ?", job.ID,
+			[]models.BackupRunStatus{
+				models.RunPending, models.RunRunning,
+				models.RunUploading, models.RunVerifying,
+			}).
+		Count(&inflight).Error; err != nil {
+		return err
+	}
+	if inflight > 0 {
+		return nil
+	}
+	var latest models.BackupRun
+	if err := s.db.Where("backup_job_id = ?", job.ID).
+		Order("created_at DESC").First(&latest).Error; err != nil {
+		if err == gorm.ErrRecordNotFound {
+			return nil
+		}
+		return err
+	}
+	if latest.Status != models.RunFailed {
+		return nil
+	}
+	if latest.RetryAttempt >= eff.MaxRetries {
+		return nil
+	}
+	delay := eff.RetryDelaySeconds
+	if delay <= 0 {
+		delay = 300
+	}
+	if latest.CompletedAt == nil || now.Sub(*latest.CompletedAt) < time.Duration(delay)*time.Second {
+		return nil
+	}
+	retryID := latest.ID
+	run := models.BackupRun{
+		Base:            models.Base{ID: uuid.New()},
+		OrganizationID:  job.OrganizationID,
+		BackupJobID:     job.ID,
+		AgentID:         job.AgentID,
+		StorageTargetID: job.StorageTargetID,
+		Status:          models.RunPending,
+		SourceType:      string(job.SourceType),
+		// ScheduledFor stays NULL (like RunNow): retries are ad-hoc refires,
+		// not cron boundaries, so they can never collide on the idempotency
+		// unique index.
+		RetryOfRunID: &retryID,
+		RetryAttempt: latest.RetryAttempt + 1,
+	}
+	if err := s.db.Create(&run).Error; err != nil {
+		return err
+	}
+	log.Info().Str("job_id", job.ID.String()).Str("run_id", run.ID.String()).
+		Int("attempt", run.RetryAttempt).Msg("scheduler: fired retry run")
+	if s.dispatch != nil {
+		s.dispatch.SendCommand(job.AgentID.String(), &pb.ServerCommand{
+			Command: &pb.ServerCommand_RunBackup{
+				RunBackup: &pb.RunBackupCommand{
+					RunId: run.ID.String(),
+					JobId: job.ID.String(),
+				},
+			},
+		})
+	}
+	return nil
 }
 
 // fire creates a PENDING run unless one is already in flight for the job,

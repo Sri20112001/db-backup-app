@@ -69,6 +69,14 @@ func (h *RestoreHandler) Create(c *gin.Context) {
 		return
 	}
 
+	// Only COMPLETED runs are restore candidates. Failed, partial, cancelled
+	// or still-running backups must never become restore sources: they have
+	// no trustworthy artifact to replay.
+	if run.Status != models.RunCompleted {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "only COMPLETED runs can be restored (status: " + string(run.Status) + ")"})
+		return
+	}
+
 	// Database restores reuse the backup job's saved connection so the same
 	// securely-stored credential is resolved agent-side. The restore must
 	// run on the connection's agent (the host with database access).

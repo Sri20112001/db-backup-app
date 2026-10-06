@@ -43,6 +43,7 @@ const (
 	TypePresence = "presence" // agent ONLINE/OFFLINE flip
 	TypeAlert    = "alert"    // new alert row
 	TypeJobs     = "jobs"     // backup job created/updated/deleted/toggled
+	TypePolicies = "policies" // backup policy created/updated/deleted
 	TypeRestores = "restores" // restore created/finished
 	TypeAgents   = "agents"   // agent registered/removed
 	TypeLog      = "log"      // agent lifecycle/error line for a run

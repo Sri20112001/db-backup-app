@@ -103,6 +103,16 @@ func NewRouter(db *gorm.DB, cfg *config.Config, grpcSrv *grpcserver.Server, hub 
 
 	org.GET("", orgH.Get)
 
+	// Backup policies: reusable how-to-back-up (schedule, processing,
+	// retention, verification, retry). Jobs attach via policy_id; NULL =
+	// job-inline settings (backward compatible).
+	policyH := handlers.NewBackupPolicyHandler(db)
+	org.GET("/backup-policies", policyH.List)
+	org.POST("/backup-policies", middleware.RequireRole(models.RoleOwner, models.RoleAdmin, models.RoleOperator), policyH.Create)
+	org.GET("/backup-policies/:id", policyH.Get)
+	org.PUT("/backup-policies/:id", middleware.RequireRole(models.RoleOwner, models.RoleAdmin, models.RoleOperator), policyH.Update)
+	org.DELETE("/backup-policies/:id", middleware.RequireRole(models.RoleOwner, models.RoleAdmin), policyH.Delete)
+
 	// Members
 	org.GET("/members", userH.ListMembers)
 	org.POST("/members", middleware.RequireRole(models.RoleOwner, models.RoleAdmin), userH.InviteMember)

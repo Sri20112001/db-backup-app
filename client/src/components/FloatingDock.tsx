@@ -6,13 +6,14 @@ import { alertApi } from '../services/api'
 import { useRealtimeStore } from '../stores/realtimeStore'
 import {
   Shield, Archive, History, RotateCcw, Server,
-  Database, Bell, Settings, LogOut, Building2, Sun, Moon, PlugZap
+  Database, Bell, Settings, LogOut, Building2, Sun, Moon, PlugZap, SlidersHorizontal
 } from 'lucide-react'
 import { Logo } from './ui/Logo'
 
 const navItems = [
   { path: '/', icon: Shield, label: 'Command Center', exact: true },
   { path: '/jobs', icon: Archive, label: 'Backup Jobs' },
+  { path: '/policies', icon: SlidersHorizontal, label: 'Backup Policies' },
   { path: '/history', icon: History, label: 'History & Runs' },
   { path: '/restores', icon: RotateCcw, label: 'Restores' },
   { path: '/agents', icon: Server, label: 'Agents & Nodes' },

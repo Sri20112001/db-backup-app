@@ -242,12 +242,16 @@ func (h *AgentWorkHandler) ClaimRun(c *gin.Context) {
 	}
 
 	var run models.BackupRun
-	if err := h.db.Preload("BackupJob.StorageTarget").Preload("BackupJob.Connection").
+	if err := h.db.Preload("BackupJob.StorageTarget").Preload("BackupJob.Connection").Preload("BackupJob.Policy").
 		Where("id = ?", runID).First(&run).Error; err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to load run"})
 		return
 	}
 	publishRun(run, models.RunRunning, 0, 0, 0, "", "", "")
+
+	// Execution settings resolve policy-first so attached jobs run with
+	// policy mode/encryption/retention; legacy jobs use inline settings.
+	eff := models.EffectivePolicy(&run.BackupJob)
 
 	connID := ""
 	if run.BackupJob.ConnectionID != nil {
@@ -271,9 +275,9 @@ func (h *AgentWorkHandler) ClaimRun(c *gin.Context) {
 			SourceDatabase:  run.BackupJob.SourceDatabase,
 			IncludePatterns: run.BackupJob.IncludePatterns,
 			ExcludePatterns: run.BackupJob.ExcludePatterns,
-			Mode:            string(run.BackupJob.Mode),
-			Encrypted:       run.BackupJob.Encrypted,
-			RetentionDays:   run.BackupJob.RetentionDays,
+			Mode:            string(eff.Mode),
+			Encrypted:       eff.Encrypted,
+			RetentionDays:   eff.RetentionDays,
 			ExportFormat:    run.BackupJob.ExportFormat,
 			Connection:      connectionFor(run.BackupJob, h.encKey),
 			StorageType:     string(run.BackupJob.StorageTarget.Type),

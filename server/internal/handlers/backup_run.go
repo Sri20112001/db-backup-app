@@ -277,6 +277,18 @@ func (h *BackupRunHandler) UpdateStatus(c *gin.Context) {
 	h.db.Select("cancel_requested").Where("id = ?", run.ID).First(&fresh)
 	publishRun(run, req.Status, req.BytesRead, req.BytesCompressed, req.BytesUploaded, req.Checksum, req.ErrorMessage, req.StoragePath)
 
+	// COMPLETED is only reported by the agent after its own HEAD/size/sha256
+	// verification of the stored object (see agent runner). That makes the
+	// run's artifacts verified-by-construction: record it so retention,
+	// restore eligibility, and the UI can rely on persisted state instead
+	// of inferring it.
+	if req.Status == models.RunCompleted {
+		now := time.Now()
+		h.db.Model(&models.BackupArtifact{}).
+			Where("backup_run_id = ? AND verification_status = ?", run.ID, models.ArtifactUnverified).
+			Updates(map[string]interface{}{"verification_status": models.ArtifactVerified, "verified_at": &now})
+	}
+
 	// First FAILED report for a run raises an alert + email. Terminal states
 	// never transition out, so exactly one FAILED report exists per run.
 	if req.Status == models.RunFailed {
@@ -347,7 +359,12 @@ func (h *BackupRunHandler) Verify(c *gin.Context) {
 		c.JSON(http.StatusBadGateway, gin.H{"error": "could not read stored file: " + err.Error()})
 		return
 	}
+	// Persist the outcome on the artifacts so retention/restore/UI share one
+	// source of truth instead of re-deriving it per request.
+	now := time.Now()
 	if sum != strings.ToLower(run.Checksum) {
+		h.db.Model(&models.BackupArtifact{}).Where("backup_run_id = ?", run.ID).
+			Updates(map[string]interface{}{"verification_status": models.ArtifactVerifyFail, "verified_at": &now})
 		jobID := run.BackupJobID
 		alert := models.Alert{
 			OrganizationID: run.OrganizationID,
@@ -366,6 +383,8 @@ func (h *BackupRunHandler) Verify(c *gin.Context) {
 		c.JSON(http.StatusOK, gin.H{"match": false, "expected": run.Checksum, "actual": sum})
 		return
 	}
+	h.db.Model(&models.BackupArtifact{}).Where("backup_run_id = ?", run.ID).
+		Updates(map[string]interface{}{"verification_status": models.ArtifactVerified, "verified_at": &now})
 	c.JSON(http.StatusOK, gin.H{"match": true, "checksum": sum})
 }
 

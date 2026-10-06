@@ -239,6 +239,7 @@ const RestoresPage = () => {
               {wizardStep === 0 && (
                 <>
                   <h3 className="text-[14px] font-semibold text-on-surface">Select Recovery Point</h3>
+                  <p className="text-[12px] text-outline -mt-2">Only successfully completed backups are listed — failed or partial runs can never be restored.</p>
                   <div className="flex flex-col gap-2 max-h-96 overflow-y-auto">
                     {recentRuns.map((run) => (
                       <button key={run.id} type="button" onClick={() => selectRun(run)}

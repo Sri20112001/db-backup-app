@@ -138,6 +138,10 @@ func (h *HealthMonitor) checkMissedBackups() {
 // targets. S3/SMB targets have no server-side client yet, so their files are
 // left in place and flagged loudly: configure bucket lifecycle/Object Lock
 // expiry there until remote deletion lands.
+//
+// What gets deleted once past cutoff: FAILED and CANCELLED runs (never valid
+// recovery points) and COMPLETED runs (whose retention window elapsed).
+// In-flight runs are never touched; other statuses don't occur past cutoff.
 func (h *HealthMonitor) enforceRetention() {
 	var jobs []models.BackupJob
 	h.db.Where("retention_days > 0").Find(&jobs)
@@ -149,6 +153,15 @@ func (h *HealthMonitor) enforceRetention() {
 		var expiredRuns []models.BackupRun
 		h.db.Where("backup_job_id = ? AND status = ? AND completed_at < ?",
 			job.ID, models.RunCompleted, cutoff).Find(&expiredRuns)
+
+		// Failed/cancelled runs are never recovery points: expire them on the
+		// same schedule so history doesn't accumulate noise forever. (Alerts
+		// and audit logs already recorded the failure separately.)
+		var deadRuns []models.BackupRun
+		h.db.Where("backup_job_id = ? AND status IN ? AND completed_at < ?",
+			job.ID, []models.BackupRunStatus{models.RunFailed, models.RunCancelled},
+			cutoff).Find(&deadRuns)
+		expiredRuns = append(expiredRuns, deadRuns...)
 
 		for _, run := range expiredRuns {
 			h.deleteRunFiles(run)
@@ -162,6 +175,7 @@ func (h *HealthMonitor) enforceRetention() {
 			h.db.Delete(&run)
 			log.Info().Str("run_id", run.ID.String()).
 				Str("job_id", job.ID.String()).
+				Str("status", string(run.Status)).
 				Msg("retention: deleted expired backup run")
 		}
 	}

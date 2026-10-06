@@ -15,6 +15,7 @@ import AgentsPage from './features/agents/components/AgentsPage'
 import AgentDetailPage from './features/agents/components/AgentDetailPage'
 import StoragePage from './features/storage/components/StoragePage'
 import ConnectionsPage from './features/connections/components/ConnectionsPage'
+import PoliciesPage from './features/policies/components/PoliciesPage'
 import AlertsPage from './features/alerts/components/AlertsPage'
 import SettingsPage from './features/settings/components/SettingsPage'
 
@@ -61,6 +62,7 @@ const App = () => {
         <Route index element={<DashboardPage />} />
         <Route path="jobs" element={<JobsPage />} />
         <Route path="jobs/:id" element={<JobDetailPage />} />
+        <Route path="policies" element={<PoliciesPage />} />
         <Route path="history" element={<HistoryPage />} />
         <Route path="restores" element={<RestoresPage />} />
         <Route path="agents" element={<AgentsPage />} />

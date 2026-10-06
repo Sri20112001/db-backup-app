@@ -34,6 +34,7 @@ func Migrate(db *gorm.DB) error {
 		&models.DatabaseConnection{},
 		&models.BackupJob{},
 		&models.BackupSchedule{},
+		&models.BackupPolicy{},
 		&models.BackupRun{},
 		&models.BackupArtifact{},
 		&models.BackupChunk{},

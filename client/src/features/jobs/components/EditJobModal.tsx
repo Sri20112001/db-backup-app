@@ -1,8 +1,8 @@
 import { useEffect, useState } from 'react'
-import { jobApi, agentApi, storageApi } from '@/services/api'
+import { jobApi, agentApi, storageApi, policyApi } from '@/services/api'
 import { useAuthStore } from '@/store/authStore'
 import { useUIStore } from '@/store/uiStore'
-import type { Agent, StorageTarget, BackupSourceType, BackupMode } from '@/types'
+import type { Agent, StorageTarget, BackupSourceType, BackupMode, BackupPolicy } from '@/types'
 import { X, Loader2 } from 'lucide-react'
 
 interface Props {
@@ -29,6 +29,7 @@ const EditJobModal = ({ jobId, onClose, onSaved }: Props) => {
     exclude_patterns: '',
     agent_id: '',
     storage_target_id: '',
+    policy_id: '',
     cron_expr: '',
     timezone: 'UTC',
     mode: 'COMPRESSED' as BackupMode,
@@ -36,6 +37,7 @@ const EditJobModal = ({ jobId, onClose, onSaved }: Props) => {
     retention_days: 30,
     export_format: 'ARCHIVE',
   })
+  const [policies, setPolicies] = useState<BackupPolicy[]>([])
 
   useEffect(() => {
     if (!currentOrg || !jobId) return
@@ -43,10 +45,12 @@ const EditJobModal = ({ jobId, onClose, onSaved }: Props) => {
       jobApi.get(currentOrg.id, jobId),
       agentApi.list(currentOrg.id),
       storageApi.list(currentOrg.id),
+      policyApi.list(currentOrg.id),
     ])
-      .then(([job, a, s]) => {
+      .then(([job, a, s, p]) => {
         setAgents(a)
         setStorageTargets(s)
+        setPolicies(p)
         setForm({
           name: job.name,
           source_type: job.source_type,
@@ -56,6 +60,7 @@ const EditJobModal = ({ jobId, onClose, onSaved }: Props) => {
           exclude_patterns: job.exclude_patterns ?? '',
           agent_id: job.agent_id,
           storage_target_id: job.storage_target_id,
+          policy_id: job.policy_id ?? '',
           cron_expr: job.schedule?.cron_expr ?? '',
           timezone: job.schedule?.timezone ?? 'UTC',
           mode: job.mode,
@@ -76,9 +81,11 @@ const EditJobModal = ({ jobId, onClose, onSaved }: Props) => {
     setIsSubmitting(true)
     try {
       // export_format is MongoDB-only server-side: strip it for every other
-      // source type (the form keeps an ARCHIVE fallback).
+      // source type (the form keeps an ARCHIVE fallback). Empty policy_id
+      // means "leave attached policy unchanged".
       const payload: Record<string, unknown> = { ...form }
       if (payload.source_type !== 'MONGODB') delete payload.export_format
+      if (!payload.policy_id) delete payload.policy_id
       await jobApi.update(currentOrg.id, jobId, payload)
       addToast('success', `${form.name} updated`)
       onSaved()
@@ -205,6 +212,19 @@ const EditJobModal = ({ jobId, onClose, onSaved }: Props) => {
                 </select>
               </Field>
             </div>
+
+            <Field label="Backup Policy (optional — governs schedule, processing, retention, retry)">
+              <select
+                value={form.policy_id}
+                onChange={(e) => update('policy_id', e.target.value)}
+                className="w-full h-9 px-3 rounded-lg border border-surface-variant bg-surface-container-low text-[14px] text-on-surface focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all"
+              >
+                <option value="">Job-specific settings (no policy)</option>
+                {policies.filter((p) => p.enabled).map((p) => (
+                  <option key={p.id} value={p.id}>{p.name} · {p.cron_expr || 'manual'}</option>
+                ))}
+              </select>
+            </Field>
 
             <div className="grid grid-cols-3 gap-4">
               <Field label="Retention (days)">

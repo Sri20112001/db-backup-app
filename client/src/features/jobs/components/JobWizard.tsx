@@ -1,9 +1,9 @@
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { jobApi, agentApi, storageApi, connectionsApi } from '@/services/api'
+import { jobApi, agentApi, storageApi, connectionsApi, policyApi } from '@/services/api'
 import { useAuthStore } from '@/store/authStore'
 import { useUIStore } from '@/store/uiStore'
-import type { Agent, StorageTarget, BackupSourceType, BackupMode, DatabaseConnection, ConnectionType } from '@/types'
+import type { Agent, StorageTarget, BackupSourceType, BackupMode, BackupPolicy, DatabaseConnection, ConnectionType } from '@/types'
 import { ChevronRight, Check, Server, CloudUpload, FolderOpen, HardDrive, Loader2 } from 'lucide-react'
 import ConnectionDatabasePicker from './ConnectionDatabasePicker'
 import Action3DButton from '@/components/ui/Action3DButton'
@@ -37,12 +37,14 @@ const JobWizard = ({ onClose, onSaved }: { onClose?: () => void; onSaved?: () =>
   const [agents, setAgents] = useState<Agent[]>([])
   const [storageTargets, setStorageTargets] = useState<StorageTarget[]>([])
   const [connections, setConnections] = useState<DatabaseConnection[]>([])
+  const [policies, setPolicies] = useState<BackupPolicy[]>([])
   const [isSubmitting, setIsSubmitting] = useState(false)
 
   const [form, setForm] = useState({
     name: '',
     source_type: 'FILESYSTEM' as BackupSourceType,
     connection_id: '',
+    policy_id: '',
     source_path: '',
     source_database: '',
     include_patterns: '',
@@ -59,8 +61,8 @@ const JobWizard = ({ onClose, onSaved }: { onClose?: () => void; onSaved?: () =>
 
   const loadResources = () => {
     if (!currentOrg) return
-    Promise.all([agentApi.list(currentOrg.id), storageApi.list(currentOrg.id), connectionsApi.list(currentOrg.id)])
-      .then(([a, s, c]) => { setAgents(a); setStorageTargets(s); setConnections(c) })
+    Promise.all([agentApi.list(currentOrg.id), storageApi.list(currentOrg.id), connectionsApi.list(currentOrg.id), policyApi.list(currentOrg.id)])
+      .then(([a, s, c, p]) => { setAgents(a); setStorageTargets(s); setConnections(c); setPolicies(p) })
       .catch(() => addToast('error', 'Failed to load resources'))
   }
 
@@ -86,6 +88,12 @@ const JobWizard = ({ onClose, onSaved }: { onClose?: () => void; onSaved?: () =>
   }
 
   const isDatabaseSource = connectionType !== undefined
+  const selectedPolicy = policies.find((p) => p.id === form.policy_id)
+  const policyGoverns = (field: 'schedule' | 'processing') => {
+    if (!selectedPolicy) return false
+    if (field === 'schedule') return selectedPolicy.cron_expr !== ''
+    return true
+  }
 
   const canAdvance = () => {
     if (step === 0) {
@@ -115,6 +123,7 @@ const JobWizard = ({ onClose, onSaved }: { onClose?: () => void; onSaved?: () =>
       const payload: Record<string, unknown> = { ...form }
       if (payload.source_type !== 'MONGODB') delete payload.export_format
       if (!payload.connection_id) delete payload.connection_id
+      if (!payload.policy_id) delete payload.policy_id
       if (payload.source_type === 'FILESYSTEM' || payload.source_type === 'DBF') delete payload.connection_id
       await jobApi.create(currentOrg.id, payload)
       addToast('success', `${form.name} created successfully`)
@@ -341,13 +350,19 @@ const JobWizard = ({ onClose, onSaved }: { onClose?: () => void; onSaved?: () =>
         {step === 2 && (
           <div className="flex flex-col gap-4">
             <h2 className="text-[16px] font-semibold text-on-surface">Schedule</h2>
+            {policyGoverns('schedule') && selectedPolicy && (
+              <p className="text-[12px] text-on-surface-variant bg-primary-container/20 border border-primary/30 rounded-lg px-3 py-2">
+                Schedule comes from policy <span className="font-semibold">{selectedPolicy.name}</span> ({selectedPolicy.cron_expr}). Change or detach the policy in Processing to edit it here.
+              </p>
+            )}
             <div className="flex flex-wrap gap-2">
               {PRESETS.map((p) => (
                 <button
                   key={p.cron}
                   type="button"
+                  disabled={policyGoverns('schedule')}
                   onClick={() => update('cron_expr', p.cron)}
-                  className={`px-3 h-8 rounded-lg text-[12px] font-medium transition-colors ${
+                  className={`px-3 h-8 rounded-lg text-[12px] font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed ${
                     form.cron_expr === p.cron ? 'bg-primary text-on-primary' : 'bg-surface-container-low text-on-surface-variant hover:bg-surface-container-high'
                   }`}
                 >
@@ -360,16 +375,18 @@ const JobWizard = ({ onClose, onSaved }: { onClose?: () => void; onSaved?: () =>
               <input
                 type="text"
                 value={form.cron_expr}
+                disabled={policyGoverns('schedule')}
                 onChange={(e) => update('cron_expr', e.target.value)}
-                className="w-full h-9 px-3 rounded-lg border border-surface-variant bg-surface-container-low font-mono text-[13px] text-on-surface focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all"
+                className="w-full h-9 px-3 rounded-lg border border-surface-variant bg-surface-container-low font-mono text-[13px] text-on-surface focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all disabled:opacity-50"
               />
             </div>
             <div>
               <label className="block text-[13px] font-medium text-on-surface-variant mb-1.5">Timezone</label>
               <select
                 value={form.timezone}
+                disabled={policyGoverns('schedule')}
                 onChange={(e) => update('timezone', e.target.value)}
-                className="w-full h-9 px-3 rounded-lg border border-surface-variant bg-surface-container-low text-[14px] text-on-surface focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all"
+                className="w-full h-9 px-3 rounded-lg border border-surface-variant bg-surface-container-low text-[14px] text-on-surface focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all disabled:opacity-50"
               >
                 {['UTC', 'America/New_York', 'America/Chicago', 'America/Los_Angeles', 'Europe/London', 'Europe/Berlin', 'Asia/Tokyo'].map((tz) => (
                   <option key={tz} value={tz}>{tz}</option>
@@ -384,20 +401,41 @@ const JobWizard = ({ onClose, onSaved }: { onClose?: () => void; onSaved?: () =>
           <div className="flex flex-col gap-4">
             <h2 className="text-[16px] font-semibold text-on-surface">Processing & Storage</h2>
 
+            <div>
+              <label className="block text-[13px] font-medium text-on-surface-variant mb-1.5">Backup Policy (optional)</label>
+              <select
+                value={form.policy_id}
+                onChange={(e) => update('policy_id', e.target.value)}
+                className="w-full h-9 px-3 rounded-lg border border-surface-variant bg-surface-container-low text-[14px] text-on-surface focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all"
+              >
+                <option value="">Job-specific settings (no policy)</option>
+                {policies.filter((p) => p.enabled).map((p) => (
+                  <option key={p.id} value={p.id}>
+                    {p.name} · {p.cron_expr || 'manual'} · {p.retention_days}d{p.max_retries > 0 ? ` · ↻${p.max_retries}` : ''}
+                  </option>
+                ))}
+              </select>
+              {selectedPolicy && (
+                <p className="text-[11px] text-outline mt-1.5">
+                  {selectedPolicy.name} governs{selectedPolicy.cron_expr ? ' schedule,' : ' (manual — job schedule kept),'} compression, encryption, retention ({selectedPolicy.retention_days}d), verification{selectedPolicy.max_retries > 0 ? ` and ${selectedPolicy.max_retries} retries` : ', no retries'}. Detach by choosing job-specific settings.
+                </p>
+              )}
+            </div>
+
             <div className="flex flex-col gap-3">
               {[
                 { key: 'mode', label: 'Compression', desc: 'Zstandard — reduces storage by up to 60%', value: form.mode === 'COMPRESSED', toggle: (v: boolean) => update('mode', v ? 'COMPRESSED' : 'NORMAL') },
                 { key: 'encrypted', label: 'Encryption', desc: 'AES-256-GCM — data encrypted before leaving your machine', value: form.encrypted, toggle: (v: boolean) => update('encrypted', v) },
               ].map((t) => (
-                <div key={t.key} className="flex items-center justify-between p-4 rounded-xl border border-surface-variant bg-surface-container-low">
+                <div key={t.key} className={`flex items-center justify-between p-4 rounded-xl border border-surface-variant bg-surface-container-low ${policyGoverns('processing') ? 'opacity-50' : ''}`}>
                   <div>
                     <p className="text-[14px] font-medium text-on-surface">{t.label}</p>
-                    <p className="text-[12px] text-outline">{t.desc}</p>
+                    <p className="text-[12px] text-outline">{policyGoverns('processing') && selectedPolicy ? `Managed by policy ${selectedPolicy.name}` : t.desc}</p>
                   </div>
                   <NeoToggle
                     id={`toggle-${t.key}`}
-                    checked={t.value}
-                    onChange={(checked) => t.toggle(checked)}
+                    checked={policyGoverns('processing') && selectedPolicy ? (t.key === 'mode' ? selectedPolicy.mode === 'COMPRESSED' : selectedPolicy.encrypted) : t.value}
+                    onChange={(checked) => { if (!policyGoverns('processing')) t.toggle(checked) }}
                   />
                 </div>
               ))}
@@ -435,14 +473,15 @@ const JobWizard = ({ onClose, onSaved }: { onClose?: () => void; onSaved?: () =>
             </div>
 
             <div>
-              <label className="block text-[13px] font-medium text-on-surface-variant mb-1.5">Retention (days)</label>
+              <label className="block text-[13px] font-medium text-on-surface-variant mb-1.5">Retention (days){policyGoverns('processing') && selectedPolicy ? ` — managed by ${selectedPolicy.name}` : ''}</label>
               <input
                 type="number"
-                value={form.retention_days}
+                value={policyGoverns('processing') && selectedPolicy ? selectedPolicy.retention_days : form.retention_days}
+                disabled={policyGoverns('processing')}
                 onChange={(e) => update('retention_days', parseInt(e.target.value))}
                 min={1}
                 max={365}
-                className="w-32 h-9 px-3 rounded-lg border border-surface-variant bg-surface-container-low text-[14px] text-on-surface focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all"
+                className="w-32 h-9 px-3 rounded-lg border border-surface-variant bg-surface-container-low text-[14px] text-on-surface focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all disabled:opacity-50"
               />
             </div>
           </div>
@@ -464,12 +503,15 @@ const JobWizard = ({ onClose, onSaved }: { onClose?: () => void; onSaved?: () =>
                   ? [{ label: 'Export Format', value: form.export_format || 'ARCHIVE' }]
                   : []),
                 { label: 'Agent', value: selectedAgent?.name ?? '—' },
-                { label: 'Schedule', value: form.cron_expr, mono: true },
-                { label: 'Timezone', value: form.timezone },
-                { label: 'Compression', value: form.mode === 'COMPRESSED' ? 'Zstandard' : 'Disabled' },
-                { label: 'Encryption', value: form.encrypted ? 'AES-256-GCM' : 'Disabled' },
+                ...(selectedPolicy
+                  ? [{ label: 'Policy', value: `${selectedPolicy.name} (schedule, processing & retry managed)` }]
+                  : []),
+                { label: 'Schedule', value: policyGoverns('schedule') && selectedPolicy ? selectedPolicy.cron_expr : form.cron_expr, mono: true },
+                { label: 'Timezone', value: policyGoverns('schedule') && selectedPolicy ? selectedPolicy.timezone : form.timezone },
+                { label: 'Compression', value: policyGoverns('processing') && selectedPolicy ? (selectedPolicy.mode === 'COMPRESSED' ? 'Zstandard (policy)' : 'Disabled (policy)') : (form.mode === 'COMPRESSED' ? 'Zstandard' : 'Disabled') },
+                { label: 'Encryption', value: policyGoverns('processing') && selectedPolicy ? (selectedPolicy.encrypted ? 'AES-256-GCM (policy)' : 'Disabled (policy)') : (form.encrypted ? 'AES-256-GCM' : 'Disabled') },
                 { label: 'Storage', value: selectedStorage?.name ?? '—' },
-                { label: 'Retention', value: `${form.retention_days} days` },
+                { label: 'Retention', value: policyGoverns('processing') && selectedPolicy ? `${selectedPolicy.retention_days} days (policy)` : `${form.retention_days} days` },
               ].map((r) => (
                 <div key={r.label} className="flex flex-col gap-0.5">
                   <span className="text-[11px] font-semibold uppercase tracking-wider text-outline">{r.label}</span>

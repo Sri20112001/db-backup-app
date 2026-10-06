@@ -146,6 +146,9 @@ const RunDetailDrawer = ({ runId }: { runId: string }) => {
               <div className="flex flex-col gap-1.5 text-[13px]">
                 {[
                   { label: 'Job', value: run.backup_job?.name },
+                  ...(run.retry_attempt > 0
+                    ? [{ label: 'Retry', value: `Attempt ${run.retry_attempt} of an automatic retry${run.retry_of_run_id ? ` (of ${run.retry_of_run_id.slice(0, 8)}…)` : ''}` }]
+                    : []),
                   { label: 'Started', value: formatDate(run.started_at) },
                   { label: 'Completed', value: formatDate(run.completed_at) },
                   { label: 'Source Type', value: run.source_type || run.backup_job?.source_type },
@@ -180,7 +183,15 @@ const RunDetailDrawer = ({ runId }: { runId: string }) => {
                   {artifacts.map((a) => (
                     <div key={a.id} className="flex items-center justify-between p-2.5 rounded-lg bg-surface-container-low border border-surface-variant">
                       <div className="min-w-0">
-                        <p className="text-[13px] font-medium text-on-surface truncate">{a.name}</p>
+                        <p className="text-[13px] font-medium text-on-surface truncate">
+                          {a.name}
+                          {a.verification_status === 'VERIFIED' && (
+                            <span className="ml-1.5 px-1.5 py-0.5 rounded bg-primary-container text-on-primary-container text-[10px] font-medium">Verified</span>
+                          )}
+                          {a.verification_status === 'FAILED' && (
+                            <span className="ml-1.5 px-1.5 py-0.5 rounded bg-error-container text-error text-[10px] font-medium">Failed</span>
+                          )}
+                        </p>
                         <p className="font-mono text-[11px] text-outline">{truncate(a.checksum, 8)}</p>
                       </div>
                       <span className="text-[12px] font-mono text-on-surface-variant shrink-0 ml-3">{formatBytes(a.size)}</span>

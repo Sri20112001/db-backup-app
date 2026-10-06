@@ -1,5 +1,5 @@
 import type {
-  AuthTokens, BackupJob, BackupRun, BackupArtifact,
+  AuthTokens, BackupJob, BackupRun, BackupArtifact, BackupPolicy,
   Agent, Machine, StorageTarget, RestoreJob, Alert,
   DashboardOverview, JobHealth, OrganizationMember,
   Organization, PaginatedResponse, PreflightResult, S3Region, User,
@@ -245,6 +245,23 @@ export const jobApi = {
     request(`/organizations/${orgId}/backup-jobs/${id}/disable`, { method: 'POST' }),
   preflight: (orgId: string, id: string) =>
     request<PreflightResult>(`/organizations/${orgId}/backup-jobs/${id}/preflight`),
+}
+
+// Backup Policies
+export const policyApi = {
+  list: (orgId: string) => request<BackupPolicy[]>(`/organizations/${orgId}/backup-policies`),
+  get: (orgId: string, id: string) =>
+    request<{ policy: BackupPolicy; attached_jobs: number }>(`/organizations/${orgId}/backup-policies/${id}`),
+  create: (orgId: string, data: Record<string, unknown>) =>
+    request<BackupPolicy>(`/organizations/${orgId}/backup-policies`, {
+      method: 'POST', body: JSON.stringify(data),
+    }),
+  update: (orgId: string, id: string, data: Record<string, unknown>) =>
+    request<BackupPolicy>(`/organizations/${orgId}/backup-policies/${id}`, {
+      method: 'PUT', body: JSON.stringify(data),
+    }),
+  delete: (orgId: string, id: string) =>
+    request(`/organizations/${orgId}/backup-policies/${id}`, { method: 'DELETE' }),
 }
 
 // Backup Runs

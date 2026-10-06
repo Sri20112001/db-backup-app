@@ -45,6 +45,9 @@ type createJobRequest struct {
 	ExportFormat     string                  `json:"export_format"`
 	CronExpr         string                  `json:"cron_expr"`
 	Timezone         string                  `json:"timezone"`
+	// PolicyID optionally attaches a BackupPolicy (how to back up). Empty =
+	// job-inline settings (backward compatible, no migration needed).
+	PolicyID         string                  `json:"policy_id"`
 	SLATargetMinutes int                     `json:"sla_target_minutes"`
 	RPOTargetMinutes int                     `json:"rpo_target_minutes"`
 	RTOTargetMinutes int                     `json:"rto_target_minutes"`
@@ -73,7 +76,7 @@ func normalizeExportFormat(sourceType models.BackupSourceType, raw string) (stri
 
 func (h *BackupJobHandler) List(c *gin.Context) {	orgID := c.MustGet("org_id").(uuid.UUID)
 	var jobs []models.BackupJob
-	h.db.Preload("Schedule").Preload("Agent").Preload("StorageTarget").Preload("Connection").
+	h.db.Preload("Schedule").Preload("Policy").Preload("Agent").Preload("StorageTarget").Preload("Connection").
 		Where("organization_id = ?", orgID).Find(&jobs)
 	c.JSON(http.StatusOK, asArray(jobs))
 }
@@ -136,11 +139,29 @@ func (h *BackupJobHandler) Create(c *gin.Context) {
 		return
 	}
 
+	// Resolve optional policy reference: must belong to this org. Policies
+	// are source-agnostic by design (how, not what), so no compat check.
+	var policyID *uuid.UUID
+	if strings.TrimSpace(req.PolicyID) != "" {
+		parsed, err := uuid.Parse(req.PolicyID)
+		if err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "invalid policy_id"})
+			return
+		}
+		var policy models.BackupPolicy
+		if err := h.db.Where("id = ? AND organization_id = ?", parsed, orgID).First(&policy).Error; err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "policy not found in this organization"})
+			return
+		}
+		policyID = &parsed
+	}
+
 	job := models.BackupJob{
 		Base:             models.Base{ID: uuid.New()},
 		OrganizationID:   orgID,
 		AgentID:          agentID,
 		StorageTargetID:  storageID,
+		PolicyID:         policyID,
 		Name:             req.Name,
 		SourceType:       req.SourceType,
 		ConnectionID:     connID,
@@ -174,7 +195,7 @@ func (h *BackupJobHandler) Create(c *gin.Context) {
 		})
 	}
 
-	h.db.Preload("Schedule").Preload("Agent").Preload("StorageTarget").Preload("Connection").First(&job, job.ID)
+	h.db.Preload("Schedule").Preload("Policy").Preload("Agent").Preload("StorageTarget").Preload("Connection").First(&job, job.ID)
 	publishEntity(orgID.String(), realtime.TypeJobs, "created", job.ID.String())
 	c.JSON(http.StatusCreated, job)
 }
@@ -187,7 +208,7 @@ func (h *BackupJobHandler) Get(c *gin.Context) {
 		return
 	}
 	var job models.BackupJob
-	if err := h.db.Preload("Schedule").Preload("Agent").Preload("StorageTarget").Preload("Connection").
+	if err := h.db.Preload("Schedule").Preload("Policy").Preload("Agent").Preload("StorageTarget").Preload("Connection").
 		Where("id = ? AND organization_id = ?", jobID, orgID).First(&job).Error; err != nil {
 		c.JSON(http.StatusNotFound, gin.H{"error": "not found"})
 		return
@@ -258,6 +279,22 @@ func (h *BackupJobHandler) Update(c *gin.Context) {
 		updates["connection_id"] = parsed
 	}
 
+	// Policy attach/change; empty leaves it unchanged. Detach happens via
+	// policy DELETE (which falls attached jobs back to inline settings).
+	if strings.TrimSpace(req.PolicyID) != "" {
+		parsed, err := uuid.Parse(req.PolicyID)
+		if err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "invalid policy_id"})
+			return
+		}
+		var policy models.BackupPolicy
+		if err := h.db.Where("id = ? AND organization_id = ?", parsed, orgID).First(&policy).Error; err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "policy not found in this organization"})
+			return
+		}
+		updates["policy_id"] = parsed
+	}
+
 	h.db.Model(&job).Updates(updates)
 
 	if req.CronExpr != "" {
@@ -274,7 +311,7 @@ func (h *BackupJobHandler) Update(c *gin.Context) {
 		}
 	}
 
-	h.db.Preload("Schedule").Preload("Agent").Preload("StorageTarget").Preload("Connection").First(&job, job.ID)
+	h.db.Preload("Schedule").Preload("Policy").Preload("Agent").Preload("StorageTarget").Preload("Connection").First(&job, job.ID)
 	publishEntity(orgID.String(), realtime.TypeJobs, "updated", job.ID.String())
 	c.JSON(http.StatusOK, job)
 }

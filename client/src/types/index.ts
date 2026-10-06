@@ -171,12 +171,35 @@ export interface BackupSchedule {
   timezone: string
 }
 
+export interface BackupPolicy {
+  id: string
+  organization_id: string
+  name: string
+  strategy: string
+  cron_expr: string
+  timezone: string
+  enabled: boolean
+  mode: BackupMode
+  encrypted: boolean
+  retention_days: number
+  verification_enabled: boolean
+  max_retries: number
+  retry_delay_seconds: number
+  sla_target_minutes: number
+  rpo_target_minutes: number
+  rto_target_minutes: number
+  created_at: string
+  updated_at?: string
+}
+
 export interface BackupJob {
   id: string
   organization_id: string
   agent_id: string
   storage_target_id: string
   connection_id?: string | null
+  policy_id?: string | null
+  policy?: BackupPolicy | null
   name: string
   source_type: BackupSourceType
   source_path: string
@@ -224,6 +247,8 @@ export interface BackupRun {
   failure_category: string
   storage_path: string
   checksum: string
+  retry_of_run_id?: string | null
+  retry_attempt: number
   backup_job: BackupJob
   created_at: string
 }
@@ -235,6 +260,8 @@ export interface BackupArtifact {
   size: number
   checksum: string
   storage_path: string
+  verification_status: string
+  verified_at?: string | null
 }
 
 export type RestoreStatus = 'PENDING' | 'RUNNING' | 'COMPLETED' | 'FAILED'
