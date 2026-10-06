@@ -63,6 +63,14 @@ func (h *RestoreHandler) Create(c *gin.Context) {
 		return
 	}
 
+	// The agent is part of the authorization boundary: a foreign agent ID
+	// must not be smuggled in (claims would be inert, but fail fast here).
+	var agent models.Agent
+	if err := h.db.Where("id = ? AND organization_id = ?", agentID, orgID).First(&agent).Error; err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "agent not found in this organization"})
+		return
+	}
+
 	var run models.BackupRun
 	if err := h.db.Preload("BackupJob").Where("id = ? AND organization_id = ?", runID, orgID).First(&run).Error; err != nil {
 		c.JSON(http.StatusNotFound, gin.H{"error": "backup run not found"})
@@ -101,6 +109,15 @@ func (h *RestoreHandler) Create(c *gin.Context) {
 		Status:          models.RestorePending,
 		DestinationPath: req.DestinationPath,
 		TargetDatabase:  req.TargetDatabase,
+	}
+	// Duplicate guard: a double-submitted restore (double-click, retried
+	// request after a lost response) returns the live one instead of
+	// queueing the same destructive operation twice.
+	var live models.RestoreJob
+	if err := h.db.Where("backup_run_id = ? AND agent_id = ? AND destination_path = ? AND target_database = ? AND status = ?",
+		runID, agentID, req.DestinationPath, req.TargetDatabase, models.RestorePending).First(&live).Error; err == nil {
+		c.JSON(http.StatusOK, live)
+		return
 	}
 	h.db.Create(&job)
 	publishEntity(orgID.String(), realtime.TypeRestores, "created", job.ID.String())

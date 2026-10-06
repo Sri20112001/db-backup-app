@@ -208,3 +208,34 @@ func TestSchedulerRetryDisabledPolicy(t *testing.T) {
 		t.Fatalf("disabled policy must never retry, got %d runs", n)
 	}
 }
+
+// --- tick-level: policy cron fires with no job schedule row ---
+
+func TestSchedulerTickFiresPolicyCron(t *testing.T) {
+	s, job, _ := retryFixture(t, 0, 60)
+	// Attach a due every-minute policy; the job itself has no schedule row.
+	if err := s.db.Model(&models.BackupPolicy{}).Where("id = ?", job.PolicyID).
+		Updates(map[string]interface{}{"cron_expr": "* * * * *", "enabled": true}).Error; err != nil {
+		t.Fatal(err)
+	}
+	now := time.Now().UTC().Truncate(time.Minute)
+	s.lastTick = now.Add(-70 * time.Second)
+	s.tick(now)
+	if n := countRuns(t, s, job.ID); n != 1 {
+		t.Fatalf("policy cron must fire through tick, got %d runs", n)
+	}
+}
+
+func TestSchedulerTickSkipsDisabledPolicyCron(t *testing.T) {
+	s, job, _ := retryFixture(t, 0, 60)
+	if err := s.db.Model(&models.BackupPolicy{}).Where("id = ?", job.PolicyID).
+		Updates(map[string]interface{}{"cron_expr": "* * * * *", "enabled": false}).Error; err != nil {
+		t.Fatal(err)
+	}
+	now := time.Now().UTC().Truncate(time.Minute)
+	s.lastTick = now.Add(-70 * time.Second)
+	s.tick(now)
+	if n := countRuns(t, s, job.ID); n != 0 {
+		t.Fatalf("disabled policy cron must not fire, got %d runs", n)
+	}
+}

@@ -124,6 +124,12 @@ func (h *BackupRunHandler) Cancel(c *gin.Context) {
 		c.JSON(http.StatusNotFound, gin.H{"error": "not found"})
 		return
 	}
+	// Idempotent: an already-cancelled run reports success (double-clicks,
+	// retried requests) instead of an error.
+	if run.Status == models.RunCancelled {
+		c.JSON(http.StatusOK, gin.H{"status": models.RunCancelled})
+		return
+	}
 	if !models.CanTransition(run.Status, models.RunCancelled) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "cannot cancel run in status: " + string(run.Status)})
 		return
@@ -403,7 +409,9 @@ func sha256File(path string) (string, error) {
 }
 
 // RegisterArtifact lets the agent record a backup artifact for a run.
-// Auth is handled by AgentAuth middleware; agent is read from context.
+// Idempotent on (backup_run_id, name): if the agent retries after a network
+// timeout that arrived post-commit, the existing row is returned instead of
+// duplicating the recovery point. Auth via AgentAuth middleware.
 func (h *BackupRunHandler) RegisterArtifact(c *gin.Context) {
 	agent := c.MustGet("agent").(*models.Agent)
 
@@ -440,7 +448,24 @@ func (h *BackupRunHandler) RegisterArtifact(c *gin.Context) {
 		StoragePath:     req.StoragePath,
 		StorageTargetID: run.StorageTargetID,
 	}
-	h.db.Create(&artifact)
+	// Repeat registration (same run + name) returns the existing row: the
+	// caller's retry after a lost response must not fork the artifact set.
+	var existing models.BackupArtifact
+	if err := h.db.Where("backup_run_id = ? AND name = ?", runID, req.Name).First(&existing).Error; err == nil {
+		c.JSON(http.StatusOK, existing)
+		return
+	}
+	if err := h.db.Create(&artifact).Error; err != nil {
+		// Lost race with a concurrent duplicate: return the winner instead
+		// of surfacing a constraint error (unique idx_artifacts_run_name).
+		var winner models.BackupArtifact
+		if herr := h.db.Where("backup_run_id = ? AND name = ?", runID, req.Name).First(&winner).Error; herr == nil {
+			c.JSON(http.StatusOK, winner)
+			return
+		}
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to register artifact"})
+		return
+	}
 	c.JSON(http.StatusCreated, artifact)
 }
 

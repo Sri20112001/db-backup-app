@@ -162,7 +162,35 @@ func (h *BackupPolicyHandler) Create(c *gin.Context) {
 	}
 	p.Base = models.Base{ID: uuid.New()}
 	p.OrganizationID = orgID
+	// Snapshot the validated values BEFORE Create: GORM omits zero-valued
+	// `default:`-tagged fields from the INSERT and then fills the struct
+	// back from the DB defaults via RETURNING, so by the time Create
+	// returns an explicit `false` has already been lost.
+	want := p
 	if err := h.db.Create(&p).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "create failed"})
+		return
+	}
+	// Repair zero-value columns swallowed by `gorm:"default:..."`: on
+	// Create, GORM omits zero-valued default-tagged fields (e.g.
+	// Enabled=false) and the DB default silently flips them back (false
+	// would become true). A map UPDATE always persists zero values, so
+	// the validated values win verbatim and a disabled policy stays
+	// disabled.
+	if err := h.db.Model(&models.BackupPolicy{}).Where("id = ?", p.ID).Updates(map[string]interface{}{
+		"name": want.Name, "strategy": want.Strategy,
+		"cron_expr": want.CronExpr, "timezone": want.Timezone, "enabled": want.Enabled,
+		"mode": want.Mode, "encrypted": want.Encrypted, "retention_days": want.RetentionDays,
+		"verification_enabled": want.VerificationEnabled,
+		"max_retries": want.MaxRetries, "retry_delay_seconds": want.RetryDelaySeconds,
+		"sla_target_minutes": want.SLATargetMinutes,
+		"rpo_target_minutes": want.RPOTargetMinutes,
+		"rto_target_minutes": want.RTOTargetMinutes,
+	}).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "create failed"})
+		return
+	}
+	if err := h.db.Where("id = ?", p.ID).First(&p).Error; err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "create failed"})
 		return
 	}

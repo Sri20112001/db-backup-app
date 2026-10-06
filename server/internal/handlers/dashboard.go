@@ -68,17 +68,19 @@ func (h *DashboardHandler) Overview(c *gin.Context) {
 }
 
 // countSLABreaches returns the number of completed runs in the window that
-// exceeded their job's SLATargetMinutes (start-to-completion duration).
+// exceeded their effective SLATargetMinutes (start-to-completion duration).
 func (h *DashboardHandler) countSLABreaches(orgID uuid.UUID, since time.Time) int {
 	var jobs []models.BackupJob
-	h.db.Where("organization_id = ? AND sla_target_minutes > 0", orgID).Find(&jobs)
+	h.db.Preload("Policy").Where("organization_id = ?", orgID).Find(&jobs)
 	breaches := 0
 	for _, job := range jobs {
-		var runs []models.BackupRun
-		h.db.Where("backup_job_id = ? AND status = ? AND completed_at > ?", job.ID, models.RunCompleted, since).Find(&runs)
-		for _, r := range runs {
-			if r.DurationSeconds > int64(job.SLATargetMinutes)*60 {
-				breaches++
+		if target := models.EffectivePolicy(&job).SLATargetMinutes; target > 0 {
+			var runs []models.BackupRun
+			h.db.Where("backup_job_id = ? AND status = ? AND completed_at > ?", job.ID, models.RunCompleted, since).Find(&runs)
+			for _, r := range runs {
+				if r.DurationSeconds > int64(target)*60 {
+					breaches++
+				}
 			}
 		}
 	}
@@ -138,7 +140,7 @@ func (h *DashboardHandler) BackupHealth(c *gin.Context) {
 	orgID := c.MustGet("org_id").(uuid.UUID)
 
 	var jobs []models.BackupJob
-	h.db.Preload("Schedule").Where("organization_id = ? AND enabled = true", orgID).Find(&jobs)
+	h.db.Preload("Schedule").Preload("Policy").Where("organization_id = ? AND enabled = true", orgID).Find(&jobs)
 
 	type jobHealth struct {
 		JobID            uuid.UUID  `json:"job_id"`
@@ -166,6 +168,13 @@ func (h *DashboardHandler) BackupHealth(c *gin.Context) {
 
 	result := make([]jobHealth, 0, len(jobs))
 	for _, job := range jobs {
+		// Effective settings: a disabled policy pauses health tracking just
+		// like a disabled job; schedule and SLA/RPO/RTO targets resolve
+		// policy-first so the dashboard never reports stale inline values.
+		eff := models.EffectivePolicy(&job)
+		if !eff.Enabled {
+			continue
+		}
 		var lastSuccess, lastFailure models.BackupRun
 		h.db.Where("backup_job_id = ? AND status = ?", job.ID, models.RunCompleted).
 			Order("completed_at DESC").First(&lastSuccess)
@@ -188,11 +197,11 @@ func (h *DashboardHandler) BackupHealth(c *gin.Context) {
 
 		// Next scheduled run
 		var nextRun *time.Time
-		if job.Schedule != nil && job.Schedule.CronExpr != "" {
-			if sched, err := cronParser.Parse(job.Schedule.CronExpr); err == nil {
+		if eff.CronExpr != "" {
+			if sched, err := cronParser.Parse(eff.CronExpr); err == nil {
 				loc := time.UTC
-				if job.Schedule.Timezone != "" {
-					if l, err := time.LoadLocation(job.Schedule.Timezone); err == nil {
+				if eff.Timezone != "" {
+					if l, err := time.LoadLocation(eff.Timezone); err == nil {
 						loc = l
 					}
 				}
@@ -203,8 +212,8 @@ func (h *DashboardHandler) BackupHealth(c *gin.Context) {
 
 		// SLA tracking
 		slaStatus := "UNKNOWN"
-		if job.SLATargetMinutes > 0 && lastSuccess.ID != uuid.Nil {
-			if lastSuccess.DurationSeconds > int64(job.SLATargetMinutes)*60 {
+		if eff.SLATargetMinutes > 0 && lastSuccess.ID != uuid.Nil {
+			if lastSuccess.DurationSeconds > int64(eff.SLATargetMinutes)*60 {
 				slaStatus = "BREACH"
 			} else {
 				slaStatus = "OK"
@@ -216,8 +225,8 @@ func (h *DashboardHandler) BackupHealth(c *gin.Context) {
 		rpoStatus := "UNKNOWN"
 		if lastSuccess.CompletedAt != nil {
 			actualRPO = int(time.Since(*lastSuccess.CompletedAt).Minutes())
-			if job.RPOTargetMinutes > 0 {
-				if actualRPO > job.RPOTargetMinutes {
+			if eff.RPOTargetMinutes > 0 {
+				if actualRPO > eff.RPOTargetMinutes {
 					rpoStatus = "BREACH"
 				} else {
 					rpoStatus = "OK"
@@ -235,8 +244,8 @@ func (h *DashboardHandler) BackupHealth(c *gin.Context) {
 			First(&lastRestore)
 		if lastRestore.ID != uuid.Nil {
 			lastRestoreSecs = lastRestore.DurationSeconds
-			if job.RTOTargetMinutes > 0 {
-				if lastRestoreSecs > int64(job.RTOTargetMinutes)*60 {
+			if eff.RTOTargetMinutes > 0 {
+				if lastRestoreSecs > int64(eff.RTOTargetMinutes)*60 {
 					rtoStatus = "BREACH"
 				} else {
 					rtoStatus = "OK"
@@ -264,13 +273,13 @@ func (h *DashboardHandler) BackupHealth(c *gin.Context) {
 			Status:           status,
 			RecoveryPoints:   count,
 			NextRunAt:        nextRun,
-			SLATargetMinutes: job.SLATargetMinutes,
+			SLATargetMinutes: eff.SLATargetMinutes,
 			LastDurationSecs: lastSuccess.DurationSeconds,
 			SLAStatus:        slaStatus,
-			RPOTargetMinutes: job.RPOTargetMinutes,
+			RPOTargetMinutes: eff.RPOTargetMinutes,
 			ActualRPOMinutes: actualRPO,
 			RPOStatus:        rpoStatus,
-			RTOTargetMinutes: job.RTOTargetMinutes,
+			RTOTargetMinutes: eff.RTOTargetMinutes,
 			LastRestoreSecs:  lastRestoreSecs,
 			RTOStatus:        rtoStatus,
 			SizeAnomalyPct:   sizeAnomalyPct,

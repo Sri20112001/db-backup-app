@@ -343,6 +343,22 @@ func (h *BackupJobHandler) RunNow(c *gin.Context) {
 		return
 	}
 
+	// Same in-flight guard as the scheduler: a double-clicked Run Now (or a
+	// retried request after a lost response) must not fork a second run
+	// while one is already active. Cancel the live run first, then retry.
+	var inflight int64
+	h.db.Model(&models.BackupRun{}).
+		Where("backup_job_id = ? AND status IN ?", job.ID,
+			[]models.BackupRunStatus{
+				models.RunPending, models.RunRunning,
+				models.RunUploading, models.RunVerifying,
+			}).
+		Count(&inflight)
+	if inflight > 0 {
+		c.JSON(http.StatusConflict, gin.H{"error": "a run for this job is already in progress"})
+		return
+	}
+
 	run := models.BackupRun{
 		Base:            models.Base{ID: uuid.New()},
 		OrganizationID:  orgID,

@@ -37,6 +37,7 @@ func (h *HealthMonitor) run() {
 		select {
 		case <-ticker.C:
 			h.checkAgents()
+			h.checkStaleRuns()
 			h.checkMissedBackups()
 			h.enforceRetention()
 			h.updateSizeBaselines()
@@ -86,18 +87,102 @@ func (h *HealthMonitor) checkAgents() {
 	}
 }
 
+// Stale-run thresholds: a claimed run is dead only when BOTH hold, with
+// wide margins over the agent's 5-second progress cadence and the 3-minute
+// agent-staleness rule. A slow-but-alive agent (fresh heartbeat, recent
+// progress) can never trip this.
+const (
+	staleRunAfter  = 15 * time.Minute
+	agentGoneAfter = 3 * time.Minute
+)
+
+// checkStaleRuns fails claimed runs whose agent vanished mid-execution.
+// Without this, a dead agent leaves its run in RUNNING forever and the
+// scheduler's in-flight guard wedges the whole job (no future scheduled or
+// retry runs fire). Runs fail — never complete — and honor a pending user
+// cancel by flipping to CANCELLED instead. PENDING runs are left alone:
+// only their owning agent may claim them, and cancel handles them.
+func (h *HealthMonitor) checkStaleRuns() {
+	var runs []models.BackupRun
+	h.db.Where("status IN ? AND updated_at < ?",
+		[]models.BackupRunStatus{models.RunRunning, models.RunUploading, models.RunVerifying},
+		time.Now().Add(-staleRunAfter)).Find(&runs)
+	for _, run := range runs {
+		var agent models.Agent
+		if err := h.db.Where("id = ?", run.AgentID).First(&agent).Error; err != nil {
+			continue
+		}
+		if agent.LastSeenAt != nil && time.Since(*agent.LastSeenAt) < agentGoneAfter {
+			continue
+		}
+		now := time.Now()
+		status := models.RunFailed
+		errMsg := "agent stopped reporting; run marked failed by health monitor"
+		if run.CancelRequested {
+			status = models.RunCancelled
+			errMsg = "agent stopped reporting after a cancel request; run marked cancelled"
+		}
+		if err := h.db.Model(&models.BackupRun{}).
+			Where("id = ? AND status = ?", run.ID, run.Status).
+			Updates(map[string]interface{}{
+				"status":           status,
+				"completed_at":     &now,
+				"error_message":    errMsg,
+				"failure_category": "AGENT_OFFLINE",
+				"duration_seconds": runDuration(run.StartedAt, now),
+			}).Error; err != nil {
+			log.Warn().Err(err).Str("run_id", run.ID.String()).Msg("stale run transition failed")
+			continue
+		}
+		jobID := run.BackupJobID
+		alert := models.Alert{
+			OrganizationID: run.OrganizationID,
+			Type:           models.AlertBackupFailed,
+			Title:          "Backup Failed: agent lost",
+			Message:        errMsg + " (job run " + run.ID.String() + ")",
+			BackupJobID:    &jobID,
+			AgentID:        &run.AgentID,
+		}
+		h.db.Create(&alert)
+		realtime.Publish(realtime.DefaultHub, run.OrganizationID.String(), realtime.Event{
+			Type:    realtime.TypeAlert,
+			Payload: alert,
+		})
+		realtime.Publish(realtime.DefaultHub, run.OrganizationID.String(), realtime.Event{
+			Type: realtime.TypeRun,
+			Payload: map[string]interface{}{
+				"id": run.ID.String(), "backup_job_id": run.BackupJobID.String(),
+				"status": string(status),
+			},
+		})
+		log.Warn().Str("run_id", run.ID.String()).Str("status", string(status)).
+			Msg("stale run finalized after agent loss")
+	}
+}
+
+func runDuration(started *time.Time, now time.Time) int64 {
+	if started == nil {
+		return 0
+	}
+	return int64(now.Sub(*started).Seconds())
+}
+
 func (h *HealthMonitor) checkMissedBackups() {
 	var jobs []models.BackupJob
-	h.db.Preload("Schedule").Where("enabled = true").Find(&jobs)
+	h.db.Preload("Schedule").Preload("Policy").Where("enabled = true").Find(&jobs)
 
 	for _, job := range jobs {
-		if job.Schedule == nil {
+		// Effective schedule: a policy cron (or disabled policy) governs
+		// here exactly as in the firing path, or missed alerts would use
+		// a schedule the scheduler itself ignores.
+		eff := models.EffectivePolicy(&job)
+		if !eff.Enabled || eff.CronExpr == "" {
 			continue
 		}
 
 		// Use 2x the expected interval as the missed-backup window.
 		// Default to 25h if we can't parse the cron expression.
-		window := missedWindow(job.Schedule.CronExpr)
+		window := missedWindow(eff.CronExpr)
 		since := time.Now().Add(-window)
 
 		var count int64
