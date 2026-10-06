@@ -202,6 +202,13 @@ func (h *BackupRunHandler) UpdateStatus(c *gin.Context) {
 		return
 	}
 
+	// Counters are agent-reported telemetry: negatives are never valid and
+	// would corrupt duration/size baselines and the dashboard.
+	if req.BytesRead < 0 || req.BytesCompressed < 0 || req.BytesUploaded < 0 {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "byte counters must be >= 0"})
+		return
+	}
+
 	var run models.BackupRun
 	if err := h.db.Where("id = ? AND agent_id = ?", runID, agent.ID).First(&run).Error; err != nil {
 		c.JSON(http.StatusNotFound, gin.H{"error": "run not found"})
@@ -210,16 +217,24 @@ func (h *BackupRunHandler) UpdateStatus(c *gin.Context) {
 
 	if !models.CanTransition(run.Status, req.Status) {
 		// Same-status progress reports (e.g. RUNNING → RUNNING heartbeats)
-		// are idempotent: refresh counters without failing.
+		// are idempotent, but only while the run is still active: a
+		// terminal run must never accept counter writes (COMPLETED →
+		// COMPLETED would silently mutate a sealed record).
 		if req.Status == run.Status {
-			h.db.Model(&run).Updates(map[string]interface{}{
-				"bytes_read":       req.BytesRead,
-				"bytes_compressed": req.BytesCompressed,
-				"bytes_uploaded":   req.BytesUploaded,
-			})
-			publishRun(run, req.Status, req.BytesRead, req.BytesCompressed, req.BytesUploaded, run.Checksum, run.ErrorMessage, run.StoragePath)
-			c.JSON(http.StatusOK, gin.H{"updated": true})
-			return
+			switch run.Status {
+			case models.RunRunning, models.RunUploading, models.RunVerifying:
+				h.db.Model(&run).Updates(map[string]interface{}{
+					"bytes_read":       req.BytesRead,
+					"bytes_compressed": req.BytesCompressed,
+					"bytes_uploaded":   req.BytesUploaded,
+				})
+				publishRun(run, req.Status, req.BytesRead, req.BytesCompressed, req.BytesUploaded, run.Checksum, run.ErrorMessage, run.StoragePath)
+				c.JSON(http.StatusOK, gin.H{"updated": true})
+				return
+			default:
+				c.JSON(http.StatusConflict, gin.H{"error": "run is already terminal: " + string(run.Status)})
+				return
+			}
 		}
 		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid status transition: " + string(run.Status) + " → " + string(req.Status)})
 		return
@@ -438,6 +453,10 @@ func (h *BackupRunHandler) RegisterArtifact(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
+	if req.Size < 0 {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "size must be >= 0"})
+		return
+	}
 
 	artifact := models.BackupArtifact{
 		Base:            models.Base{ID: uuid.New()},
@@ -501,6 +520,10 @@ func (h *BackupRunHandler) RegisterChunk(c *gin.Context) {
 	}
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+	if req.Index < 0 || req.Size < 0 {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "index and size must be >= 0"})
 		return
 	}
 

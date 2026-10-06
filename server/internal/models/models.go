@@ -645,7 +645,11 @@ const (
 
 type BackupChunk struct {
 	Base
-	ArtifactID  uuid.UUID `gorm:"type:uuid;not null;index" json:"artifact_id"`
+	// Idempotency key is (artifact_id, index): chunk N of one artifact.
+	// Both columns share one composite unique index — a single-column
+	// unique on index alone would collide chunk N across different
+	// artifacts of the same run.
+	ArtifactID  uuid.UUID `gorm:"type:uuid;not null;uniqueIndex:idx_chunk_artifact_index" json:"artifact_id"`
 	Index       int       `gorm:"not null;uniqueIndex:idx_chunk_artifact_index" json:"index"`
 	Size        int64     `json:"size"`
 	Checksum    string    `json:"checksum"`
@@ -663,6 +667,20 @@ const (
 	RestoreCompleted RestoreStatus = "COMPLETED"
 	RestoreFailed    RestoreStatus = "FAILED"
 )
+
+// CanRestoreTransition returns true if moving from → to is a valid restore
+// state transition. Terminal states never transition out; a repeated report
+// of the current state is idempotent at the handler layer (same payload
+// echoed back), not a transition.
+func CanRestoreTransition(from, to RestoreStatus) bool {
+	switch from {
+	case RestorePending:
+		return to == RestoreRunning || to == RestoreFailed
+	case RestoreRunning:
+		return to == RestoreCompleted || to == RestoreFailed
+	}
+	return false
+}
 
 type RestoreJob struct {
 	Base

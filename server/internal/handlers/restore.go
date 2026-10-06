@@ -119,7 +119,20 @@ func (h *RestoreHandler) Create(c *gin.Context) {
 		c.JSON(http.StatusOK, live)
 		return
 	}
-	h.db.Create(&job)
+	// Lost-race safe insert (see partial unique idx_restores_pending_dedupe).
+	if err := h.db.Create(&job).Error; err != nil {
+		// Lost a concurrent duplicate race (partial unique on live
+		// PENDING restores): return the winner instead of a constraint
+		// error, mirroring the pre-check above.
+		var winner models.RestoreJob
+		if herr := h.db.Where("backup_run_id = ? AND agent_id = ? AND destination_path = ? AND target_database = ? AND status = ?",
+			runID, agentID, req.DestinationPath, req.TargetDatabase, models.RestorePending).First(&winner).Error; herr == nil {
+			c.JSON(http.StatusOK, winner)
+			return
+		}
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to create restore"})
+		return
+	}
 	publishEntity(orgID.String(), realtime.TypeRestores, "created", job.ID.String())
 
 	// Dispatch to agent
@@ -179,6 +192,17 @@ func (h *RestoreHandler) UpdateStatus(c *gin.Context) {
 		return
 	}
 
+	// Terminal reports are idempotent: a retried COMPLETED/FAILED report
+	// (lost response) echoes the recorded outcome instead of erroring.
+	if req.Status == job.Status && (job.Status == models.RestoreCompleted || job.Status == models.RestoreFailed) {
+		c.JSON(http.StatusOK, gin.H{"updated": true})
+		return
+	}
+	if !models.CanRestoreTransition(job.Status, req.Status) {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid restore transition: " + string(job.Status) + " → " + string(req.Status)})
+		return
+	}
+
 	updates := map[string]interface{}{"status": req.Status}
 	if req.ErrorMessage != "" {
 		updates["error_message"] = req.ErrorMessage
@@ -196,7 +220,7 @@ func (h *RestoreHandler) UpdateStatus(c *gin.Context) {
 	}
 
 	h.db.Model(&models.RestoreJob{}).
-		Where("id = ? AND agent_id = ?", id, agent.ID).
+		Where("id = ? AND agent_id = ? AND status = ?", id, agent.ID, job.Status).
 		Updates(updates)
 	publishEntity(agent.OrganizationID.String(), realtime.TypeRestores, "updated", id.String())
 
