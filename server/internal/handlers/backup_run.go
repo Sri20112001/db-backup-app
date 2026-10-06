@@ -232,7 +232,9 @@ func (h *BackupRunHandler) UpdateStatus(c *gin.Context) {
 				c.JSON(http.StatusOK, gin.H{"updated": true})
 				return
 			default:
-				c.JSON(http.StatusConflict, gin.H{"error": "run is already terminal: " + string(run.Status)})
+				// Terminal same-status reports (e.g. retried COMPLETED report)
+				// are idempotent echos — return 200 without mutating counters.
+				c.JSON(http.StatusOK, gin.H{"updated": true})
 				return
 			}
 		}
