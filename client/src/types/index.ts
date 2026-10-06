@@ -46,6 +46,16 @@ export interface EnrollmentTokenResult {
   expires_at: string
 }
 
+// EnrollmentTokenInfo is list metadata only — hashes never reach the client.
+export interface EnrollmentTokenInfo {
+  id: string
+  organization_id: string
+  agent_id: string
+  expires_at: string
+  used_at: string | null
+  created_at: string
+}
+
 export interface Machine {
   id: string
   organization_id: string

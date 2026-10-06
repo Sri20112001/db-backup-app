@@ -3,7 +3,8 @@ import { useNavigate } from 'react-router-dom'
 import { agentApi } from '@/services/api'
 import { useAuthStore } from '@/store/authStore'
 import { useUIStore } from '@/store/uiStore'
-import type { Agent, AgentLifecycle, EnrollmentTokenResult } from '@/types'
+import type { Agent, AgentLifecycle, EnrollmentTokenInfo, EnrollmentTokenResult } from '@/types'
+import { maskEnrollmentToken } from '@/utils/format'
 import StatusBadge from '@/components/StatusBadge'
 import EmptyState from '@/components/EmptyState'
 import ConfirmDialog from '@/components/ConfirmDialog'
@@ -40,6 +41,8 @@ const AgentsPage = () => {
   const [enroll, setEnroll] = useState<EnrollmentTokenResult | null>(null)
   const [isGenerating, setIsGenerating] = useState(false)
   const [copied, setCopied] = useState(false)
+  const [pendingTokens, setPendingTokens] = useState<EnrollmentTokenInfo[]>([])
+  const [revokingTokenId, setRevokingTokenId] = useState<string | null>(null)
   const [deleteId, setDeleteId] = useState<string | null>(null)
   const [revokeId, setRevokeId] = useState<string | null>(null)
   const [search, setSearch] = useState('')
@@ -95,6 +98,32 @@ const AgentsPage = () => {
     setAgentName('')
     setEnroll(null)
     setShowRegister(true)
+    void loadPendingTokens()
+  }
+
+  const loadPendingTokens = async () => {
+    if (!currentOrg) return
+    try {
+      const toks = await agentApi.listTokens(currentOrg.id)
+      setPendingTokens(toks.filter((t) => !t.used_at && new Date(t.expires_at).getTime() > Date.now()))
+    } catch {
+      // Token management is auxiliary; the modal works without the list.
+      setPendingTokens([])
+    }
+  }
+
+  const handleRevokeToken = async (id: string) => {
+    if (!currentOrg) return
+    setRevokingTokenId(id)
+    try {
+      await agentApi.revokeToken(currentOrg.id, id)
+      addToast('success', 'Enrollment token revoked')
+      setPendingTokens((prev) => prev.filter((t) => t.id !== id))
+    } catch {
+      addToast('error', 'Failed to revoke token')
+    } finally {
+      setRevokingTokenId(null)
+    }
   }
 
   const handleGenerateToken = async () => {
@@ -103,6 +132,7 @@ const AgentsPage = () => {
     try {
       const token = await agentApi.enrollmentToken(currentOrg.id, { name: agentName.trim() || undefined })
       setEnroll(token)
+      void loadPendingTokens()
     } catch { addToast('error', 'Failed to generate enrollment token') }
     finally { setIsGenerating(false) }
   }
@@ -303,7 +333,9 @@ const AgentsPage = () => {
             {enroll ? (
               <>
                 <div className="flex items-center gap-2 p-3 rounded-lg bg-surface-container-low border border-surface-variant mb-2">
-                  <code className="flex-1 font-mono text-[12px] text-on-surface break-all">{enroll.enrollment_token}</code>
+                  <code className="flex-1 font-mono text-[12px] text-on-surface break-all" title="Full token hidden — use Copy">
+                    {maskEnrollmentToken(enroll.enrollment_token)}
+                  </code>
                   <button
                     type="button"
                     onClick={handleCopy}
@@ -315,7 +347,7 @@ const AgentsPage = () => {
                 <p className="text-[12px] text-outline mb-1">
                   Expires: {new Date(enroll.expires_at).toLocaleString()} · Single-use.
                 </p>
-                <p className="text-[12px] text-outline mb-4">This token will never be shown again. Permanent agent credentials are never displayed.</p>
+                <p className="text-[12px] text-outline mb-4">Copy it now — only the masked form stays on screen, and the full token will never be shown again. Permanent agent credentials are never displayed.</p>
               </>
             ) : (
               <>
@@ -345,6 +377,30 @@ const AgentsPage = () => {
             >
               Done
             </button>
+            {pendingTokens.length > 0 && (
+              <div className="mt-4 pt-4 border-t border-surface-variant">
+                <p className="text-[12px] font-semibold text-on-surface-variant mb-2">
+                  Outstanding tokens ({pendingTokens.length})
+                </p>
+                <div className="flex flex-col gap-1.5 max-h-32 overflow-y-auto">
+                  {pendingTokens.map((t) => (
+                    <div key={t.id} className="flex items-center justify-between gap-2 px-2.5 py-1.5 rounded-lg bg-surface-container-low border border-surface-variant">
+                      <span className="font-mono text-[11px] text-on-surface-variant truncate" title={`Agent ${t.agent_id}`}>
+                        agent {t.agent_id.slice(0, 8)}… · expires {new Date(t.expires_at).toLocaleString()}
+                      </span>
+                      <button
+                        type="button"
+                        disabled={revokingTokenId === t.id}
+                        onClick={() => void handleRevokeToken(t.id)}
+                        className="text-[11px] font-medium text-error hover:underline disabled:opacity-50 shrink-0"
+                      >
+                        {revokingTokenId === t.id ? 'Revoking…' : 'Revoke'}
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
         </div>
       )}

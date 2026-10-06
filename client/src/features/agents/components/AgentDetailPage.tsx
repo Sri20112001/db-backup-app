@@ -10,7 +10,7 @@ import Pagination from '@/components/Pagination'
 import { usePagination } from '@/hooks/usePagination'
 import NewJobModal from '@/features/jobs/components/NewJobModal'
 import { formatRelative } from '@/utils/format'
-import { ChevronRight, Server, Loader2, Monitor, Archive } from 'lucide-react'
+import { ChevronRight, Server, Loader2, Monitor, Archive, Pencil, Check, X } from 'lucide-react'
 
 const AgentDetailPage = () => {
   const { id } = useParams<{ id: string }>()
@@ -23,6 +23,9 @@ const AgentDetailPage = () => {
   const [isLoading, setIsLoading] = useState(true)
   const [showNew, setShowNew] = useState(false)
   const [reloadKey, setReloadKey] = useState(0)
+  const [editingName, setEditingName] = useState(false)
+  const [draftName, setDraftName] = useState('')
+  const [isRenaming, setIsRenaming] = useState(false)
   const pagedMachines = usePagination(machines, 4, id)
   const pagedJobs = usePagination(jobs, 4, id)
 
@@ -42,6 +45,21 @@ const AgentDetailPage = () => {
       .catch(() => addToast('error', 'Failed to load agent'))
       .finally(() => setIsLoading(false))
   }, [currentOrg, id, reloadKey])
+
+  const handleRename = async () => {
+    if (!currentOrg || !id || !draftName.trim()) return
+    setIsRenaming(true)
+    try {
+      const updated = await agentApi.rename(currentOrg.id, id, draftName.trim())
+      setAgent(updated)
+      setEditingName(false)
+      addToast('success', 'Agent renamed')
+    } catch {
+      addToast('error', 'Failed to rename agent')
+    } finally {
+      setIsRenaming(false)
+    }
+  }
 
   if (isLoading) {
     return (
@@ -71,7 +89,40 @@ const AgentDetailPage = () => {
             <Server size={24} />
           </div>
           <div>
-            <h1 className="text-[20px] font-semibold text-on-surface">{agent.name}</h1>
+            <h1 className="text-[20px] font-semibold text-on-surface flex items-center gap-2">
+              {editingName ? (
+                <>
+                  <input
+                    value={draftName}
+                    onChange={(e) => setDraftName(e.target.value)}
+                    maxLength={100}
+                    autoFocus
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') void handleRename()
+                      if (e.key === 'Escape') setEditingName(false)
+                    }}
+                    className="h-8 px-2 rounded-lg border border-surface-variant bg-surface-container-low text-[16px] text-on-surface focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary"
+                  />
+                  <button type="button" disabled={isRenaming} onClick={() => void handleRename()} aria-label="Save name"
+                    className="p-1 rounded text-primary hover:bg-surface-container-high disabled:opacity-50">
+                    {isRenaming ? <Loader2 size={15} className="animate-spin" /> : <Check size={15} />}
+                  </button>
+                  <button type="button" onClick={() => setEditingName(false)} aria-label="Cancel rename"
+                    className="p-1 rounded text-on-surface-variant hover:bg-surface-container-high">
+                    <X size={15} />
+                  </button>
+                </>
+              ) : (
+                <>
+                  {agent.name}
+                  <button type="button" aria-label="Rename agent"
+                    onClick={() => { setDraftName(agent.name); setEditingName(true) }}
+                    className="p-1 rounded text-outline hover:text-primary hover:bg-surface-container-high transition-colors">
+                    <Pencil size={14} />
+                  </button>
+                </>
+              )}
+            </h1>
             <div className="flex items-center gap-2 mt-1">
               <StatusBadge status={agent.status} size="sm" />
               <span className="font-mono text-[12px] text-outline">v{agent.version || '—'}</span>

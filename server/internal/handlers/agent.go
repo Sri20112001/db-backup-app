@@ -4,6 +4,7 @@ import (
 	"crypto/rand"
 	"encoding/hex"
 	"net/http"
+	"strings"
 	"time"
 
 	"github.com/backup-saas/server/internal/models"
@@ -158,6 +159,41 @@ func (h *AgentHandler) Delete(c *gin.Context) {
 	}
 	publishEntity(orgID.String(), realtime.TypeAgents, "deleted", agentID.String())
 	c.JSON(http.StatusNoContent, nil)
+}
+
+// Rename updates only the display name. The field whitelist is deliberate:
+// identity, credentials, and lifecycle flags are never user-editable here.
+func (h *AgentHandler) Rename(c *gin.Context) {
+	orgID := c.MustGet("org_id").(uuid.UUID)
+	agentID, err := uuid.Parse(c.Param("id"))
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid id"})
+		return
+	}
+	var req struct {
+		Name string `json:"name"`
+	}
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+	name := strings.TrimSpace(req.Name)
+	if name == "" || len(name) > 100 {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "name must be 1-100 characters"})
+		return
+	}
+	var agent models.Agent
+	if err := h.db.Where("id = ? AND organization_id = ?", agentID, orgID).First(&agent).Error; err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "not found"})
+		return
+	}
+	if err := h.db.Model(&agent).Update("name", name).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "rename failed"})
+		return
+	}
+	h.db.Where("id = ?", agent.ID).First(&agent)
+	publishEntity(orgID.String(), realtime.TypeAgents, "renamed", agent.ID.String())
+	c.JSON(http.StatusOK, agentWithLifecycle(agent))
 }
 
 // RotateToken issues a new agent token, immediately invalidating the old one.

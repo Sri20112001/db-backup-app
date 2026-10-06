@@ -115,7 +115,9 @@ type Agent struct {
 }
 
 // Lifecycle returns the effective enrollment-aware state. ONLINE is derived
-// from heartbeat recency, never trusted blindly from the stored flag.
+// from heartbeat recency, never trusted blindly from the stored flag (the
+// health monitor reconciles the stored flag within minutes; this makes the
+// API truthful immediately, including for agents that never heartbeated).
 func (a *Agent) Lifecycle() string {
 	if a.RevokedAt != nil {
 		return LifecycleRevoked
@@ -124,9 +126,6 @@ func (a *Agent) Lifecycle() string {
 		return LifecyclePending
 	}
 	if a.LastSeenAt != nil && time.Since(*a.LastSeenAt) < OnlineThreshold {
-		return LifecycleOnline
-	}
-	if a.Status == AgentOnline {
 		return LifecycleOnline
 	}
 	return LifecycleOffline

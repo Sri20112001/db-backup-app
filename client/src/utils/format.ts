@@ -5,6 +5,14 @@ export function formatBytes(bytes: number): string {
   return `${(bytes / Math.pow(1024, i)).toFixed(1)} ${units[i]}`
 }
 
+// maskEnrollmentToken shows first4…last4 so an operator can match a token
+// without the full secret sitting readable on screen. The full value is
+// only ever exposed via explicit copy, once, at generation time.
+export function maskEnrollmentToken(token: string): string {
+  if (!token || token.length <= 10) return '••••••'
+  return `${token.slice(0, 4)}…${token.slice(-4)}`
+}
+
 export function formatDuration(seconds: number): string {
   if (!seconds || seconds === 0) return '—'
   if (seconds < 60) return `${seconds}s`

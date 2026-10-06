@@ -4,7 +4,8 @@ import type {
   DashboardOverview, JobHealth, OrganizationMember,
   Organization, PaginatedResponse, PreflightResult, S3Region, User,
   DatabaseConnection, CreateConnectionRequest, TestConnectionResult,
-  DatabaseListResult, TableListResult, EnrollmentTokenResult
+  DatabaseListResult, TableListResult, EnrollmentTokenResult,
+  EnrollmentTokenInfo
 } from '../types'
 
 import { useAuthStore } from '../store/authStore'
@@ -153,6 +154,14 @@ export const agentApi = {
     }),
   revoke: (orgId: string, id: string) =>
     request<{ revoked: boolean }>(`/organizations/${orgId}/agents/${id}/revoke`, { method: 'POST' }),
+  rename: (orgId: string, id: string, name: string) =>
+    request<Agent>(`/organizations/${orgId}/agents/${id}`, {
+      method: 'PUT', body: JSON.stringify({ name }),
+    }),
+  listTokens: (orgId: string) =>
+    request<EnrollmentTokenInfo[]>(`/organizations/${orgId}/agents/enrollment-tokens`),
+  revokeToken: (orgId: string, id: string) =>
+    request(`/organizations/${orgId}/agents/enrollment-tokens/${id}`, { method: 'DELETE' }),
   delete: (orgId: string, id: string) =>
     request(`/organizations/${orgId}/agents/${id}`, { method: 'DELETE' }),
 }

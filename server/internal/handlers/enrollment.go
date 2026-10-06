@@ -237,14 +237,24 @@ func (h *EnrollmentHandler) Enroll(c *gin.Context) {
 }
 
 // Heartbeat is the explicit liveness signal (agent-token auth). It updates
-// last_seen_at; ONLINE/OFFLINE is derived from recency, never set blindly.
+// last_seen_at and the reported agent version; ONLINE/OFFLINE is derived
+// from recency, never set blindly. Empty/missing body is accepted (legacy
+// agents post no payload).
 func (h *EnrollmentHandler) Heartbeat(c *gin.Context) {
 	agent := c.MustGet("agent").(*models.Agent)
+	var req struct {
+		AgentVersion string `json:"agent_version"`
+	}
+	_ = c.ShouldBindJSON(&req) // optional payload; ignore bind errors
 	now := time.Now()
-	h.db.Model(agent).Updates(map[string]interface{}{
+	updates := map[string]interface{}{
 		"status":       models.AgentOnline,
 		"last_seen_at": &now,
-	})
+	}
+	if v := strings.TrimSpace(req.AgentVersion); v != "" && len(v) <= 32 {
+		updates["version"] = v
+	}
+	h.db.Model(agent).Updates(updates)
 	c.JSON(http.StatusOK, gin.H{"status": "ok", "server_time": now})
 }
 
@@ -270,6 +280,57 @@ func (h *EnrollmentHandler) Revoke(c *gin.Context) {
 	h.grpc.DisconnectAgent(agent.ID.String())
 	publishEntity(orgID.String(), realtime.TypeAgents, "revoked", agent.ID.String())
 	c.JSON(http.StatusOK, gin.H{"revoked": true})
+}
+
+// ListTokens lists enrollment tokens for the org — metadata only (expiry,
+// usage, linked agent). Hashes never leave the server; the plaintext token
+// exists only in the create response.
+func (h *EnrollmentHandler) ListTokens(c *gin.Context) {
+	orgID := c.MustGet("org_id").(uuid.UUID)
+	var toks []models.EnrollmentToken
+	h.db.Where("organization_id = ?", orgID).Order("created_at DESC").Find(&toks)
+	out := make([]gin.H, 0, len(toks))
+	for _, t := range toks {
+		out = append(out, gin.H{
+			"id":              t.ID.String(),
+			"organization_id": t.OrganizationID.String(),
+			"agent_id":        agentIDString(t.AgentID),
+			"expires_at":      t.ExpiresAt,
+			"used_at":         t.UsedAt,
+			"created_at":      t.CreatedAt,
+		})
+	}
+	c.JSON(http.StatusOK, out)
+}
+
+// RevokeToken deletes an unused enrollment token so it can never enroll.
+// Used, expired, missing, or other-org tokens all answer 404 (no oracle).
+func (h *EnrollmentHandler) RevokeToken(c *gin.Context) {
+	orgID := c.MustGet("org_id").(uuid.UUID)
+	id, err := uuid.Parse(c.Param("id"))
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid id"})
+		return
+	}
+	res := h.db.Where("id = ? AND organization_id = ? AND used_at IS NULL", id, orgID).
+		Delete(&models.EnrollmentToken{})
+	if res.Error != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "revoke failed"})
+		return
+	}
+	if res.RowsAffected == 0 {
+		c.JSON(http.StatusNotFound, gin.H{"error": "not found"})
+		return
+	}
+	publishEntity(orgID.String(), realtime.TypeAgents, "token-revoked", id.String())
+	c.JSON(http.StatusNoContent, nil)
+}
+
+func agentIDString(id *uuid.UUID) string {
+	if id == nil {
+		return ""
+	}
+	return id.String()
 }
 
 // agentWithLifecycle enriches an agent with its effective lifecycle state.

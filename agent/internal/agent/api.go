@@ -237,10 +237,14 @@ func sanitizeClientError(err error) error {
 	return errors.New(msg)
 }
 
-// Heartbeat posts the explicit liveness signal. The server derives
-// ONLINE/OFFLINE from recency; a 401 here means revoked/invalid credential.
+// Heartbeat posts the explicit liveness signal, including the running
+// binary version so the dashboard never shows a stale one. The server
+// derives ONLINE/OFFLINE from recency; a 401 here means revoked/invalid
+// credential.
 func (c *Client) Heartbeat() error {
-	_, _, err := c.do("POST", "/agent/heartbeat", nil, true)
+	_, _, err := c.do("POST", "/agent/heartbeat", map[string]string{
+		"agent_version": Version,
+	}, true)
 	return err
 }
 
