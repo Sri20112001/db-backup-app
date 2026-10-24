@@ -1,7 +1,7 @@
 #!/bin/sh
 # Creates the least-privilege backup role used by the VaultGuard agent.
 # Runs automatically on FIRST database init (fresh volume only). For an
-# EXISTING volume, run the same statements manually — see SOP.md
+# EXISTING volume, run the same statements manually — see docs/SOP.md
 # ("Backup database role"). Idempotent: safe to re-run by hand.
 set -e
 

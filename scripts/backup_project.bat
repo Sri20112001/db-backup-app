@@ -1,7 +1,8 @@
 @echo off
 setlocal
 
-set PROJECT_DIR=%~dp0
+rem Script lives in scripts\ — back up the repo root (its parent).
+for %%I in ("%~dp0..") do set "PROJECT_DIR=%%~fI"
 set BACKUP_DIR=%USERPROFILE%\Desktop\backup-saas-backups
 set TIMESTAMP=%DATE:~10,4%%DATE:~4,2%%DATE:~7,2%_%TIME:~0,2%%TIME:~3,2%%TIME:~6,2%
 set TIMESTAMP=%TIMESTAMP: =0%

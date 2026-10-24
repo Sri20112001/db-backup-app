@@ -5,13 +5,13 @@ rem           Fyne setup GUI (needs network for modules + MinGW-w64 gcc for cgo)
 rem   Output: dist\windows\VaultGuard-Agent.exe
 rem           dist\windows\VaultGuard-Agent-Setup-Console.exe
 rem           dist\windows\VaultGuard-Agent-Setup.exe  (Fyne GUI + UAC manifest)
-rem Usage: build-windows.bat  (run from the repository root)
+rem Usage: scripts\build-windows.bat  (works from any directory)
 setlocal EnableDelayedExpansion
 
-set "ROOT=%~dp0"
-rem %~dp0 ends with a backslash, which would escape the closing quote below.
-if "%ROOT:~-1%"=="\" set "ROOT=%ROOT:~0,-1%"
+rem Script lives in scripts\ — repo root is its parent.
+set "ROOT=%~dp0.."
 cd /d "%ROOT%" || exit /b 1
+for %%I in (".") do set "ROOT=%%~fI"
 
 where go >nul 2>&1
 if errorlevel 1 (
