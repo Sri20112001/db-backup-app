@@ -55,6 +55,8 @@ client/dist/
 client/dist-ssr/
 client/coverage/
 **/.vite/
+# Local design mockups (PNG/HTML exports) — too heavy for the repo.
+client/src/designs/
 *.tsbuildinfo
 client/*.local
 **/*.local
