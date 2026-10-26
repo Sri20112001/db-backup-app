@@ -43,7 +43,6 @@ const FolderBrowser = ({ initialPath = '', onSelect, onClose }: Props) => {
   }, [])
 
   useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect -- intentional fetch-on-mount for modal data
     void load(initialPath)
   }, [load, initialPath])
 

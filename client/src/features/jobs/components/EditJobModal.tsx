@@ -88,7 +88,7 @@ const EditJobModal = ({ jobId, onClose, onSaved }: Props) => {
       })
       .catch(() => addToast('error', 'Failed to load job'))
       .finally(() => setIsLoading(false))
-  }, [currentOrg, jobId])
+  }, [currentOrg, jobId, addToast])
 
   const update = (key: string, value: unknown) => setForm((f) => ({ ...f, [key]: value }))
 

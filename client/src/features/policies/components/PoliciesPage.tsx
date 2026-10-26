@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { policyApi, jobApi } from '@/services/api'
 import { useAuthStore } from '@/store/authStore'
 import { useUIStore } from '@/store/uiStore'
@@ -36,7 +36,9 @@ const PoliciesPage = () => {
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [deleteId, setDeleteId] = useState<string | null>(null)
 
-  const load = () => {
+  // Wrapped so the fetch effect can depend on it; identity only changes when
+  // the org (or toast fn) does.
+  const load = useCallback(() => {
     if (!currentOrg) return
     setIsLoading(true)
     Promise.all([policyApi.list(currentOrg.id), jobApi.list(currentOrg.id, { limit: 200 })])
@@ -50,9 +52,9 @@ const PoliciesPage = () => {
       })
       .catch(() => addToast('error', 'Failed to load policies'))
       .finally(() => setIsLoading(false))
-  }
+  }, [currentOrg, addToast])
 
-  useEffect(() => { load() }, [currentOrg])
+  useEffect(() => { load() }, [load])
 
   const openAdd = () => {
     setEditing(null)

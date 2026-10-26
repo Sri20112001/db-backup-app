@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { storageApi } from '@/services/api'
 import { useAuthStore } from '@/store/authStore'
 import { useUIStore } from '@/store/uiStore'
@@ -68,15 +68,17 @@ const StoragePage = () => {
     }
   }
 
-  const loadTargets = () => {
+  // Wrapped so the fetch effect can depend on it; identity only changes when
+  // the org (or toast fn) does.
+  const loadTargets = useCallback(() => {
     if (!currentOrg) return
     setIsLoading(true)
     storageApi.list(currentOrg.id).then(setTargets).catch(() => addToast('error', 'Failed to load storage')).finally(() => setIsLoading(false))
-  }
+  }, [currentOrg, addToast])
 
   useEffect(() => {
     loadTargets()
-  }, [currentOrg])
+  }, [loadTargets])
 
   const handleCreate = async (data: Record<string, unknown>) => {
     if (!currentOrg) return

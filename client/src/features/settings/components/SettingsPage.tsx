@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { memberApi, authApi } from '@/services/api'
 import { useAuthStore } from '@/store/authStore'
 import { useUIStore } from '@/store/uiStore'
@@ -31,13 +31,15 @@ const SettingsPage = () => {
   const [pwForm, setPwForm] = useState({ current: '', next: '', confirm: '' })
   const [isPwLoading, setIsPwLoading] = useState(false)
 
-  const loadMembers = () => {
+  // Wrapped so the fetch effect can depend on it; identity only changes when
+  // the org (or toast fn) does.
+  const loadMembers = useCallback(() => {
     if (!currentOrg) return
     setIsLoading(true)
     memberApi.list(currentOrg.id).then(setMembers).catch(() => addToast('error', 'Failed to load members')).finally(() => setIsLoading(false))
-  }
+  }, [currentOrg, addToast])
 
-  useEffect(() => { if (tab === 1) loadMembers() }, [tab, currentOrg])
+  useEffect(() => { if (tab === 1) loadMembers() }, [tab, loadMembers])
 
   const handleInvite = async (e: React.FormEvent) => {
     e.preventDefault()

@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { runApi } from '@/services/api'
 import { useAuthStore } from '@/store/authStore'
 import { useUIStore } from '@/store/uiStore'
@@ -50,7 +50,9 @@ const HistoryPage = () => {
     setPage(1)
   }
 
-  const loadHistory = () => {
+  // Wrapped so the fetch effects can depend on it; identity changes when any
+  // query input changes.
+  const loadHistory = useCallback(() => {
     if (!currentOrg) return
     setIsLoading(true)
     runApi.list(currentOrg.id, {
@@ -64,9 +66,9 @@ const HistoryPage = () => {
       .then((res) => { setRuns(res.data); setTotal(res.total) })
       .catch(() => addToast('error', 'Failed to load history'))
       .finally(() => setIsLoading(false))
-  }
+  }, [currentOrg, statusFilter, page, debouncedSearch, sortKey, sortDir, limit, addToast])
 
-  useEffect(() => { loadHistory() }, [currentOrg, statusFilter, page, debouncedSearch, sortKey, sortDir])
+  useEffect(() => { loadHistory() }, [loadHistory])
 
   // Live patches: merge known rows in place, refetch when an unseen run
   // appears (new scheduled/manual run on page 1).

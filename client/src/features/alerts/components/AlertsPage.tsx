@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { alertApi } from '@/services/api'
 import { useAuthStore } from '@/store/authStore'
 import { useUIStore } from '@/store/uiStore'
@@ -86,7 +86,9 @@ const AlertsPage = () => {
   const alertTick = useRealtimeStore((s) => s.alertTick)
   const debouncedSearch = useDebouncedValue(search)
 
-  const loadAlerts = () => {
+  // Wrapped so the fetch effects can depend on it; identity changes when any
+  // query input changes.
+  const loadAlerts = useCallback(() => {
     if (!currentOrg) return
     setIsLoading(true)
     alertApi.list(currentOrg.id, {
@@ -102,9 +104,9 @@ const AlertsPage = () => {
       .then((res) => { setAlerts(res.data); setTotal(res.total) })
       .catch(() => addToast('error', 'Failed to load alerts'))
       .finally(() => setIsLoading(false))
-  }
+  }, [currentOrg, unreadOnly, page, debouncedSearch, oldestFirst, typeFilter, statusFilter, severityFilter, limit, addToast])
 
-  useEffect(() => { loadAlerts() }, [currentOrg, unreadOnly, page, debouncedSearch, oldestFirst, typeFilter, statusFilter, severityFilter])
+  useEffect(() => { loadAlerts() }, [loadAlerts])
 
   // New alerts pushed over the socket refresh the list (toast included).
   useEffect(() => {

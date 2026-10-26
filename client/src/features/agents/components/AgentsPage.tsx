@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { agentApi } from '@/services/api'
 import { useAuthStore } from '@/store/authStore'
@@ -68,12 +68,9 @@ const AgentsPage = () => {
     )
   }, [presence])
 
-  useEffect(() => {
-    loadAgents()
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [agentsSeq])
-
-  const loadAgents = () => {
+  // Wrapped so the fetch effects can depend on it; identity changes when any
+  // query input changes.
+  const loadAgents = useCallback(() => {
     if (!currentOrg) return
     setIsLoading(true)
     const sortParams = SORT_PARAMS[sort] ?? SORT_PARAMS['name-asc']
@@ -91,9 +88,14 @@ const AgentsPage = () => {
       })
       .catch(() => addToast('error', 'Failed to load agents'))
       .finally(() => setIsLoading(false))
-  }
+  }, [currentOrg, page, debouncedSearch, statusFilter, sort, addToast])
 
-  useEffect(() => { loadAgents() }, [currentOrg, page, debouncedSearch, statusFilter, sort])
+  useEffect(() => {
+    loadAgents()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [agentsSeq])
+
+  useEffect(() => { loadAgents() }, [loadAgents])
 
   // Any filter change resets to the first page.
   useEffect(() => { setPage(1) }, [debouncedSearch, statusFilter, sort])

@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 
 interface CountUpProps {
   value: number
@@ -14,10 +14,13 @@ export const CountUp = ({
   className = '',
 }: CountUpProps) => {
   const [displayValue, setDisplayValue] = useState(0)
+  // Mirror of displayValue for the animation's start point: kept in a ref so
+  // the effect below doesn't re-run on every animation frame.
+  const displayRef = useRef(0)
 
   useEffect(() => {
     let startTimestamp: number | null = null
-    const startValue = displayValue
+    const startValue = displayRef.current
 
     const step = (timestamp: number) => {
       if (!startTimestamp) startTimestamp = timestamp
@@ -27,11 +30,13 @@ export const CountUp = ({
       const easeOutProgress = 1 - Math.pow(1 - progress, 3)
       const current = startValue + (value - startValue) * easeOutProgress
 
+      displayRef.current = current
       setDisplayValue(current)
 
       if (progress < 1) {
         requestAnimationFrame(step)
       } else {
+        displayRef.current = value
         setDisplayValue(value)
       }
     }

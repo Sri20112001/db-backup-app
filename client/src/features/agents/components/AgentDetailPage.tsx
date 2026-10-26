@@ -44,7 +44,7 @@ const AgentDetailPage = () => {
       })
       .catch(() => addToast('error', 'Failed to load agent'))
       .finally(() => setIsLoading(false))
-  }, [currentOrg, id, reloadKey])
+  }, [currentOrg, id, reloadKey, addToast])
 
   const handleRename = async () => {
     if (!currentOrg || !id || !draftName.trim()) return

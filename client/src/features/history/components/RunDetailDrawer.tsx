@@ -36,7 +36,7 @@ const RunDetailDrawer = ({ runId }: { runId: string }) => {
       .then(([r, a]) => { setRun(r); setArtifacts(a) })
       .catch(() => addToast('error', 'Failed to load run details'))
       .finally(() => setIsLoading(false))
-  }, [runId, currentOrg])
+  }, [runId, currentOrg, addToast])
 
   // Live patches for the open run (progress bytes, status flips).
   useEffect(() => {

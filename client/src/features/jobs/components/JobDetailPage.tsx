@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { jobApi, runApi } from '@/services/api'
 import { useAuthStore } from '@/store/authStore'
@@ -44,21 +44,9 @@ const JobDetailPage = () => {
   }
   const lastRunEvent = useRealtimeStore((s) => s.lastRunEvent)
 
-  // Live patches for this job's runs; unseen runs trigger a refetch.
-  const runsRef = useRef(runs)
-  useEffect(() => { runsRef.current = runs })
-  useEffect(() => {
-    if (!lastRunEvent) return
-    if (lastRunEvent.backup_job_id && lastRunEvent.backup_job_id !== id) return
-    if (!runsRef.current.some((r) => r.id === lastRunEvent.id)) {
-      if (page === 1) loadData()
-      return
-    }
-    setRuns((prev) => mergeRunPatch(prev, lastRunEvent))
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [lastRunEvent])
-
-  const loadData = () => {
+  // Wrapped so the fetch effect can depend on it; identity changes when any
+  // query input changes.
+  const loadData = useCallback(() => {
     if (!currentOrg || !id) return
     setIsLoading(true)
     Promise.all([
@@ -75,9 +63,23 @@ const JobDetailPage = () => {
       .then(([j, r]) => { setJob(j); setRuns(r.data); setTotal(r.total) })
       .catch(() => addToast('error', 'Failed to load job'))
       .finally(() => setIsLoading(false))
-  }
+  }, [currentOrg, id, page, runStatusFilter, sortKey, sortDir, addToast])
 
-  useEffect(() => { loadData() }, [currentOrg, id, page, runStatusFilter, sortKey, sortDir])
+  // Live patches for this job's runs; unseen runs trigger a refetch.
+  const runsRef = useRef(runs)
+  useEffect(() => { runsRef.current = runs })
+  useEffect(() => {
+    if (!lastRunEvent) return
+    if (lastRunEvent.backup_job_id && lastRunEvent.backup_job_id !== id) return
+    if (!runsRef.current.some((r) => r.id === lastRunEvent.id)) {
+      if (page === 1) loadData()
+      return
+    }
+    setRuns((prev) => mergeRunPatch(prev, lastRunEvent))
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [lastRunEvent])
+
+  useEffect(() => { loadData() }, [loadData])
 
   const handleRunNow = async () => {
     if (!currentOrg || !job) return

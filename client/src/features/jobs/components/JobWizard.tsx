@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { jobApi, agentApi, storageApi, connectionsApi, policyApi } from '@/services/api'
 import { useAuthStore } from '@/store/authStore'
@@ -53,16 +53,18 @@ const JobWizard = ({ onClose, onSaved, onCancel }: { onClose?: () => void; onSav
     export_format: 'ARCHIVE',
   })
 
-  const loadResources = () => {
+  // Wrapped so the fetch effect can depend on it; identity only changes when
+  // the org (or toast fn) does, so the wizard loads once per org.
+  const loadResources = useCallback(() => {
     if (!currentOrg) return
     Promise.all([agentApi.list(currentOrg.id, { limit: 200 }), storageApi.list(currentOrg.id), connectionsApi.list(currentOrg.id, { limit: 200 }), policyApi.list(currentOrg.id)])
       .then(([a, s, c, p]) => { setAgents(a.data); setStorageTargets(s); setConnections(c.data); setPolicies(p) })
       .catch(() => addToast('error', 'Failed to load resources'))
-  }
+  }, [currentOrg, addToast])
 
   useEffect(() => {
     loadResources()
-  }, [currentOrg])
+  }, [loadResources])
 
   const update = (key: string, value: unknown) => setForm((f) => ({ ...f, [key]: value }))
 
