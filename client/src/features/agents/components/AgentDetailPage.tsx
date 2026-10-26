@@ -35,12 +35,12 @@ const AgentDetailPage = () => {
     Promise.all([
       agentApi.get(currentOrg.id, id),
       machineApi.list(currentOrg.id),
-      jobApi.list(currentOrg.id),
+      jobApi.list(currentOrg.id, { limit: 200 }),
     ])
       .then(([a, m, j]) => {
         setAgent(a)
         setMachines(m.filter((machine) => machine.agent_id === id))
-        setJobs(j.filter((job) => job.agent_id === id))
+        setJobs(j.data.filter((job) => job.agent_id === id))
       })
       .catch(() => addToast('error', 'Failed to load agent'))
       .finally(() => setIsLoading(false))
@@ -85,7 +85,7 @@ const AgentDetailPage = () => {
       {/* Header card */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 p-5 rounded-xl bg-surface-container-lowest border border-surface-variant shadow-sm">
         <div className="flex items-center gap-4">
-          <div className={`w-12 h-12 rounded-xl flex items-center justify-center ${agent.status === 'ONLINE' ? 'bg-primary-container/40 text-on-primary-container' : 'bg-surface-variant text-outline'}`}>
+          <div className={`w-12 h-12 rounded-xl flex items-center justify-center ${agent.status === 'ONLINE' ? 'bg-primary-container/40 text-on-primary-container' : 'bg-surface-variant text-on-surface-variant'}`}>
             <Server size={24} />
           </div>
           <div>
@@ -117,7 +117,7 @@ const AgentDetailPage = () => {
                   {agent.name}
                   <button type="button" aria-label="Rename agent"
                     onClick={() => { setDraftName(agent.name); setEditingName(true) }}
-                    className="p-1 rounded text-outline hover:text-primary hover:bg-surface-container-high transition-colors">
+                    className="p-1 rounded text-on-surface-variant hover:text-primary hover:bg-surface-container-high transition-colors">
                     <Pencil size={14} />
                   </button>
                 </>
@@ -125,8 +125,8 @@ const AgentDetailPage = () => {
             </h1>
             <div className="flex items-center gap-2 mt-1">
               <StatusBadge status={agent.status} size="sm" />
-              <span className="font-mono text-[12px] text-outline">v{agent.version || '—'}</span>
-              <span className="text-[12px] text-outline">Last seen: {formatRelative(agent.last_seen_at)}</span>
+              <span className="font-mono text-[12px] text-on-surface-variant">v{agent.version || '—'}</span>
+              <span className="text-[12px] text-on-surface-variant">Last seen: {formatRelative(agent.last_seen_at)}</span>
             </div>
           </div>
         </div>
@@ -140,7 +140,7 @@ const AgentDetailPage = () => {
             Registered Machines ({machines.length})
           </h2>
           {machines.length === 0 ? (
-            <div className="p-5 rounded-xl bg-surface-container-lowest border border-surface-variant text-center text-[13px] text-outline">
+            <div className="p-5 rounded-xl bg-surface-container-lowest border border-surface-variant text-center text-[13px] text-on-surface-variant">
               No machines registered for this agent yet.
             </div>
           ) : (
@@ -149,9 +149,9 @@ const AgentDetailPage = () => {
                 <div key={m.id} className="p-4 rounded-xl bg-surface-container-lowest border border-surface-variant shadow-sm">
                   <div className="flex items-center justify-between">
                     <p className="text-[14px] font-semibold text-on-surface">{m.hostname}</p>
-                    <span className="font-mono text-[11px] text-outline">{m.ip_address}</span>
+                    <span className="font-mono text-[11px] text-on-surface-variant">{m.ip_address}</span>
                   </div>
-                  <p className="text-[12px] text-outline mt-0.5">{m.os || '—'}</p>
+                  <p className="text-[12px] text-on-surface-variant mt-0.5">{m.os || '—'}</p>
                 </div>
               ))}
               <Pagination
@@ -172,7 +172,7 @@ const AgentDetailPage = () => {
             Assigned Backup Jobs ({jobs.length})
           </h2>
           {jobs.length === 0 ? (
-            <div className="p-5 rounded-xl bg-surface-container-lowest border border-surface-variant text-center text-[13px] text-outline">
+            <div className="p-5 rounded-xl bg-surface-container-lowest border border-surface-variant text-center text-[13px] text-on-surface-variant">
               No backup jobs assigned to this agent.{' '}
               <button type="button" onClick={() => setShowNew(true)} className="text-primary hover:underline">
                 Create one
@@ -189,7 +189,7 @@ const AgentDetailPage = () => {
                 >
                   <div>
                     <p className="text-[14px] font-semibold text-on-surface">{job.name}</p>
-                    <p className="text-[12px] text-outline mt-0.5">
+                    <p className="text-[12px] text-on-surface-variant mt-0.5">
                       {job.source_type.replace('_', ' ')} · {job.schedule?.cron_expr ?? 'No schedule'}
                     </p>
                   </div>
@@ -219,7 +219,7 @@ const AgentDetailPage = () => {
             { label: 'Registered', value: formatRelative(agent.created_at) },
           ].map((item) => (
             <div key={item.label}>
-              <p className="text-[11px] font-semibold uppercase tracking-wider text-outline mb-0.5">{item.label}</p>
+              <p className="text-[11px] font-semibold uppercase tracking-wider text-on-surface-variant mb-0.5">{item.label}</p>
               <p className={`text-on-surface break-all ${item.mono ? 'font-mono text-[11px]' : 'font-medium'}`}>
                 {item.value}
               </p>

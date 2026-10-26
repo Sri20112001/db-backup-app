@@ -1,4 +1,5 @@
 import type { SVGProps, ImgHTMLAttributes } from 'react'
+import { Database } from 'lucide-react'
 import filesystemSvg from '@/icons/filesystem.svg'
 import mssqlSvg from '@/icons/mssql.svg'
 import postgresSvg from '@/icons/postgres.svg'
@@ -47,3 +48,31 @@ export const DbfIcon = ({ size = 20, className = '', ...props }: SVGProps<SVGSVG
     </text>
   </svg>
 )
+
+// The engine's own mark for a connection or job source type. Falls back to a
+// neutral database glyph so an unknown type still renders something sensible.
+export const DbTypeIcon = ({
+  type,
+  size = 20,
+  className = '',
+}: {
+  type: string
+  size?: number | string
+  className?: string
+}) => {
+  switch (type) {
+    case 'POSTGRES':
+      return <PostgresIcon size={size} className={className} />
+    case 'MONGODB':
+      return <MongoDbIcon size={size} className={className} />
+    case 'MSSQL':
+    case 'MSSQL_SERVER':
+      return <MssqlServerIcon size={size} className={className} />
+    case 'FILESYSTEM':
+      return <FileSystemIcon size={size} className={className} />
+    case 'DBF':
+      return <DbfIcon size={size} className={className} />
+    default:
+      return <Database size={size} className={className} aria-hidden="true" />
+  }
+}

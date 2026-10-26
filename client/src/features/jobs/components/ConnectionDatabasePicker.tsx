@@ -56,7 +56,7 @@ const ConnectionDatabasePicker = ({
       <div className="flex flex-col gap-2">
         <label className="block text-[13px] font-medium text-on-surface-variant">Database Name *</label>
         <input type="text" value={database} onChange={(e) => onDatabaseChange(e.target.value)} placeholder="mydb" className={`${inputCls} font-mono`} />
-        <p className="text-[11px] text-outline">
+        <p className="text-[11px] text-on-surface-variant">
           No saved connections of this type yet — create one under Connections for reusable, credential-free jobs.
           This legacy path uses the agent's environment credentials.
         </p>
@@ -77,7 +77,7 @@ const ConnectionDatabasePicker = ({
           ))}
         </select>
         {selected && (
-          <p className="text-[11px] text-outline mt-1">
+          <p className="text-[11px] text-on-surface-variant mt-1">
             {selected.username}@{selected.host}:{selected.port}
             {agent ? ` · Agent: ${agent.name} (${agent.status})` : ''}
             {selected.status === 'ERROR' ? ' · Last check failed' : ''}
@@ -95,7 +95,7 @@ const ConnectionDatabasePicker = ({
           )}
         </div>
         {!selected ? (
-          <p className="text-[12px] text-outline">Select a connection to list databases.</p>
+          <p className="text-[12px] text-on-surface-variant">Select a connection to list databases.</p>
         ) : agentOffline ? (
           <div className="flex flex-col gap-2">
             <input type="text" value={database} onChange={(e) => onDatabaseChange(e.target.value)} placeholder="mydb" disabled

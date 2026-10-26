@@ -1,15 +1,21 @@
 import { useEffect, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { connectionsApi, agentApi } from '@/services/api'
 import { useAuthStore } from '@/store/authStore'
 import { useUIStore } from '@/store/uiStore'
 import type { Agent, ConnectionType, DatabaseConnection } from '@/types'
 import EmptyState from '@/components/EmptyState'
 import ConfirmDialog from '@/components/ConfirmDialog'
+import Pagination from '@/components/Pagination'
 import SearchInput from '@/components/ui/SearchInput'
+import SortSelect from '@/components/ui/SortSelect'
+import { useDebouncedValue } from '@/hooks/useDebouncedValue'
 import { Page, PageHeader } from '@/components/Page'
-import { Database, Plus, Pencil, Trash2, RefreshCw, Loader2, Server, CheckCircle2, XCircle, HelpCircle } from 'lucide-react'
+import { DbTypeIcon } from '@/components/ui/SourceIcons'
+import { typeLabel } from '@/components/ui/typeLabel'
+import { Database, Plus, Pencil, Trash2, RefreshCw, Loader2, Server, CheckCircle2, XCircle, HelpCircle, Clock3 } from 'lucide-react'
+import { badgeToneClass, connectionBadge } from '@/utils/connectionStatus'
 import ConnectionModal from './ConnectionModal'
-import ConnectionViewModal from './ConnectionViewModal'
 
 const TYPE_FILTERS: { label: string; value: ConnectionType | '' }[] = [
   { label: 'All', value: '' },
@@ -18,37 +24,76 @@ const TYPE_FILTERS: { label: string; value: ConnectionType | '' }[] = [
   { label: 'SQL Server', value: 'MSSQL' },
 ]
 
-const statusIcon = (s: string) => {
-  if (s === 'CONNECTED') return <CheckCircle2 size={14} className="text-primary" />
-  if (s === 'ERROR') return <XCircle size={14} className="text-error" />
-  return <HelpCircle size={14} className="text-outline" />
+const statusIcon = (badge: ReturnType<typeof connectionBadge>) => {
+  if (badge.tone === 'ok') return <CheckCircle2 size={14} className="text-primary" />
+  if (badge.tone === 'error') return <XCircle size={14} className="text-error" />
+  // Muted = the agent can't reach the database right now (pending/offline/
+  // revoked) or nothing has been checked yet — a clock, never a green check.
+  return badge.label === 'Not checked yet'
+    ? <HelpCircle size={14} className="text-on-surface-variant" />
+    : <Clock3 size={14} className="text-on-surface-variant" />
+}
+
+const PER_PAGE = 8
+
+// Maps the UI sort options onto the server's allowlisted column + direction.
+const SORT_PARAMS: Record<string, { sort: string; order: 'asc' | 'desc' }> = {
+  'name-asc': { sort: 'name', order: 'asc' },
+  'name-desc': { sort: 'name', order: 'desc' },
+  'status': { sort: 'status', order: 'asc' },
 }
 
 const ConnectionsPage = () => {
   const { currentOrg } = useAuthStore()
   const { addToast } = useUIStore()
+  const navigate = useNavigate()
   const [connections, setConnections] = useState<DatabaseConnection[]>([])
   const [agents, setAgents] = useState<Agent[]>([])
   const [search, setSearch] = useState('')
   const [typeFilter, setTypeFilter] = useState<ConnectionType | ''>('')
+  const [sort, setSort] = useState('name-asc')
+  const [page, setPage] = useState(1)
+  const [total, setTotal] = useState(0)
   const [isLoading, setIsLoading] = useState(true)
   const [showModal, setShowModal] = useState(false)
   const [editing, setEditing] = useState<DatabaseConnection | null>(null)
-  const [viewing, setViewing] = useState<DatabaseConnection | null>(null)
   const [deleteId, setDeleteId] = useState<string | null>(null)
   const [testingId, setTestingId] = useState<string | null>(null)
   const [refreshingId, setRefreshingId] = useState<string | null>(null)
 
+  const debouncedSearch = useDebouncedValue(search, 300)
+
+  // Reloads the current page of connections using the active filters.
   const load = () => {
     if (!currentOrg) return
     setIsLoading(true)
-    Promise.all([connectionsApi.list(currentOrg.id), agentApi.list(currentOrg.id)])
-      .then(([c, a]) => { setConnections(c); setAgents(a) })
+    const sortParams = SORT_PARAMS[sort] ?? SORT_PARAMS['name-asc']
+    connectionsApi.list(currentOrg.id, {
+      page,
+      limit: PER_PAGE,
+      search: debouncedSearch || undefined,
+      type: typeFilter || undefined,
+      sort: sortParams.sort,
+      order: sortParams.order,
+    })
+      .then((res) => { setConnections(res.data); setTotal(res.total) })
       .catch(() => addToast('error', 'Failed to load connections'))
       .finally(() => setIsLoading(false))
   }
 
-  useEffect(() => { load() }, [currentOrg])
+  // The agent roster feeds the create/edit modal; loaded once per org.
+  const loadAgents = () => {
+    if (!currentOrg) return
+    agentApi.list(currentOrg.id, { limit: 200 })
+      .then((res) => setAgents(res.data))
+      .catch(() => { /* the modal still works without the roster */ })
+  }
+
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  useEffect(() => { load() }, [currentOrg, page, debouncedSearch, typeFilter, sort])
+  useEffect(() => { setPage(1) }, [debouncedSearch, typeFilter, sort])
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  useEffect(() => { loadAgents() }, [currentOrg])
 
   const agentName = (id: string) => agents.find((a) => a.id === id)?.name ?? '—'
   const agentOnline = (id: string) => agents.find((a) => a.id === id)?.status === 'ONLINE'
@@ -94,28 +139,6 @@ const ConnectionsPage = () => {
     }
   }
 
-  // Refresh scoped to the open detail view: updates the modal instantly,
-  // then reloads the list in the background.
-  const handleViewRefresh = async () => {
-    if (!currentOrg || !viewing) return
-    setRefreshingId(viewing.id)
-    try {
-      const res = await connectionsApi.databases(currentOrg.id, viewing.id)
-      setViewing({ ...viewing, databases: res.databases, database_count: res.databases.length })
-      load()
-    } catch {
-      addToast('error', 'Failed to refresh databases')
-    } finally {
-      setRefreshingId(null)
-    }
-  }
-
-  const filtered = connections.filter((c) => {
-    const matchType = !typeFilter || c.type === typeFilter
-    const q = search.toLowerCase()
-    return matchType && (!search || c.name.toLowerCase().includes(q) || c.host.toLowerCase().includes(q))
-  })
-
   return (
     <Page>
       <PageHeader
@@ -134,6 +157,15 @@ const ConnectionsPage = () => {
 
       <div className="flex items-center gap-2 flex-wrap">
         <SearchInput value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search connections…" />
+        <SortSelect
+          value={sort}
+          onChange={setSort}
+          options={[
+            { label: 'Name A–Z', value: 'name-asc' },
+            { label: 'Name Z–A', value: 'name-desc' },
+            { label: 'Status', value: 'status' },
+          ]}
+        />
         <div className="flex gap-1.5">
           {TYPE_FILTERS.map((f) => (
             <button
@@ -149,8 +181,8 @@ const ConnectionsPage = () => {
       </div>
 
       {isLoading ? (
-        <div className="flex items-center justify-center py-16 text-outline"><Loader2 size={20} className="animate-spin" /></div>
-      ) : filtered.length === 0 ? (
+        <div className="flex items-center justify-center py-16 text-on-surface-variant"><Loader2 size={20} className="animate-spin" /></div>
+      ) : total === 0 ? (
         <EmptyState
           icon={Database}
           title="No connections yet"
@@ -167,26 +199,41 @@ const ConnectionsPage = () => {
         />
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-          {filtered.map((c) => (
-            <div key={c.id} onClick={() => setViewing(c)}
+          {connections.map((c) => {
+            const badge = connectionBadge(c)
+            return (
+            <div key={c.id} onClick={() => navigate(`/connections/${c.id}`)}
               className="bg-surface-container-lowest border border-surface-variant rounded-xl p-4 flex flex-col gap-2.5 shadow-sm cursor-pointer hover:shadow-md transition-shadow">
               <div className="flex items-start justify-between gap-2">
-                <div className="min-w-0">
-                  <p className="text-[14px] font-semibold text-on-surface truncate">{c.name}</p>
-                  <p className="font-mono text-[11px] text-outline">{c.type} · {c.host}:{c.port}</p>
+                <div className="flex items-center gap-3 min-w-0">
+                  <span className="shrink-0 w-9 h-9 rounded-lg bg-surface-container-high/60 border border-surface-variant flex items-center justify-center">
+                    <DbTypeIcon type={c.type} size={18} />
+                  </span>
+                  <div className="min-w-0">
+                    <p className="text-[14px] font-semibold text-on-surface truncate">{c.name}</p>
+                    <p className="font-mono text-[11px] text-on-surface-variant">{typeLabel(c.type)} · {c.host}:{c.port}</p>
+                  </div>
                 </div>
-                <span className="flex items-center gap-1 text-[11px] font-medium text-on-surface-variant shrink-0">
-                  {statusIcon(c.status)}{c.status === 'CONNECTED' ? 'Connected' : c.status === 'ERROR' ? 'Error' : 'Unknown'}
+                <span
+                  title={badge.hint}
+                  className={`flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-medium shrink-0 ${badgeToneClass[badge.tone]}`}
+                >
+                  {statusIcon(badge)}{badge.label}
                 </span>
               </div>
               <div className="flex items-center gap-1.5 text-[12px] text-on-surface-variant">
-                <Server size={13} className="text-outline" />
+                <Server size={13} className="text-on-surface-variant" />
                 <span className="truncate">Agent: {c.agent?.name ?? agentName(c.agent_id)}</span>
-                {!agentOnline(c.agent_id) && <span className="text-error font-medium">· Offline</span>}
-                <span className="text-outline">· {c.database_count} databases</span>
+                {/* Roster cross-check: the chip can only reflect the payload
+                    we fetched, so still flag an offline agent if the roster
+                    disagrees with a "trusted" (agent-online) badge. */}
+                {badge.trusted && !agentOnline(c.agent_id) && (
+                  <span className="text-error font-medium">· Offline</span>
+                )}
+                <span className="text-on-surface-variant">· {c.database_count} databases</span>
               </div>
               {c.last_checked_at && (
-                <p className="text-[11px] text-outline">Last checked: {new Date(c.last_checked_at).toLocaleString()}</p>
+                <p className="text-[11px] text-on-surface-variant">Last checked: {new Date(c.last_checked_at).toLocaleString()}</p>
               )}
               <div className="flex items-center gap-1.5 pt-1 flex-wrap" onClick={(e) => e.stopPropagation()}>
                 <button type="button" onClick={() => void handleTest(c.id)} disabled={testingId === c.id}
@@ -207,21 +254,19 @@ const ConnectionsPage = () => {
                 </button>
               </div>
             </div>
-          ))}
+            )
+          })}
         </div>
       )}
 
-      {viewing && (
-        <ConnectionViewModal
-          connection={viewing}
-          agentName={viewing.agent?.name ?? agentName(viewing.agent_id)}
-          agentOnline={agentOnline(viewing.agent_id)}
-          refreshing={refreshingId === viewing.id}
-          onRefresh={() => void handleViewRefresh()}
-          onEdit={() => { const v = viewing; setViewing(null); setEditing(v); setShowModal(true) }}
-          onClose={() => setViewing(null)}
-        />
-      )}
+      <Pagination
+        page={page}
+        totalPages={Math.max(1, Math.ceil(total / PER_PAGE))}
+        total={total}
+        perPage={PER_PAGE}
+        onPage={setPage}
+      />
+
       {showModal && (
         <ConnectionModal
           agents={agents}

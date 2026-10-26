@@ -63,7 +63,7 @@ const MetricTile = ({
           </div>
           <span
             className={`text-xs font-medium transition-colors ${
-              hasAlert ? 'text-error' : 'text-outline group-hover:text-on-surface-variant'
+              hasAlert ? 'text-error' : 'text-on-surface-variant group-hover:text-on-surface-variant'
             }`}
           >
             {sub}

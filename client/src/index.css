@@ -4,133 +4,129 @@
 
 @theme {
   /* ========================================================
-     SURFACES (Physical Workbench / Paper)
+     SURFACES (Light - Enterprise Neutral Canvas)
      ======================================================== */
-  --color-surface: #faf7f0;
-  --color-surface-dim: #e7e0d3;
+  --color-surface: #ffffff;
+  --color-surface-dim: #f4f4f5;
   --color-surface-bright: #ffffff;
 
   --color-surface-container-lowest: #ffffff;
-  --color-surface-container-low: #f5f0e6;
-  --color-surface-container: #f0ebd9;
-  --color-surface-container-high: #e7e0d3;
-  --color-surface-container-highest: #d6cfc0;
+  --color-surface-container-low: #fafafa;
+  --color-surface-container: #f4f4f5;
+  --color-surface-container-high: #e4e4e7;
+  --color-surface-container-highest: #d4d4d8;
 
   /* ========================================================
-     TEXT
+     TEXT / TYPOGRAPHY TOKENS
      ======================================================== */
-  --color-on-surface: #1c1917;
-  --color-on-surface-variant: #78716c;
+  --color-on-surface: #09090b;
+  --color-on-surface-variant: #71717a;
 
-  --color-inverse-surface: #1c1917;
-  --color-inverse-on-surface: #faf7f0;
+  --color-inverse-surface: #18181b;
+  --color-inverse-on-surface: #fafafa;
 
   /* ========================================================
-     BORDERS
+     DATA & GRID BORDERS
      ======================================================== */
-  --color-outline: #a8a29e;
-  --color-outline-variant: #e7e0d3;
+  --color-outline: #d4d4d8;
+  --color-outline-variant: #e4e4e7;
 
   /* ========================================================
-     PRIMARY (Accent / Orange)
+     PRIMARY (Enterprise Cobalt / Action)
      ======================================================== */
-  --color-surface-tint: #ea580c;
+  --color-surface-tint: #1d4ed8;
 
-  --color-primary: #ea580c;
+  --color-primary: #1d4ed8;
   --color-on-primary: #ffffff;
 
-  --color-primary-container: #ffedd5;
-  --color-on-primary-container: #9a3412;
+  --color-primary-container: #dbeafe;
+  --color-on-primary-container: #1e3a8a;
 
-  --color-inverse-primary: #fdba74;
+  --color-inverse-primary: #60a5fa;
 
   /* ========================================================
-     SECONDARY (Stone / Muted)
+     SECONDARY (Neutral Operations / Controls)
      ======================================================== */
-  --color-secondary: #78716c;
+  --color-secondary: #52525b;
   --color-on-secondary: #ffffff;
 
-  --color-secondary-container: #e7e0d3;
-  --color-on-secondary-container: #1c1917;
+  --color-secondary-container: #f4f4f5;
+  --color-on-secondary-container: #18181b;
 
   /* ========================================================
-     TERTIARY (Amber)
+     TERTIARY (Data Viz & Secondary Anchors)
      ======================================================== */
-  --color-tertiary: #d97706;
+  --color-tertiary: #0f766e;
   --color-on-tertiary: #ffffff;
 
-  --color-tertiary-container: #fef3c7;
-  --color-on-tertiary-container: #92400e;
+  --color-tertiary-container: #ccfbf1;
+  --color-on-tertiary-container: #134e4a;
 
   /* ========================================================
-     ERROR
+     SYSTEM STATUS (Audited for Data Grids & Badges)
      ======================================================== */
+  /* Error / Destructive */
   --color-error: #dc2626;
   --color-on-error: #ffffff;
   --color-error-container: #fee2e2;
-  --color-on-error-container: #7f1d1d;
+  --color-on-error-container: #991b1b;
 
-  /* ========================================================
-     SUCCESS
-     ======================================================== */
-  --color-success: #16a34a;
+  /* Success / Positive Variance */
+  --color-success: #15803d;
+  --color-on-success: #ffffff;
   --color-success-container: #dcfce7;
-  --color-on-success-container: #14532d;
+  --color-on-success-container: #166534;
 
-  /* ========================================================
-     WARNING
-     ======================================================== */
-  --color-warning: #d97706;
+  /* Warning / Pending Review */
+  --color-warning: #b45309;
+  --color-on-warning: #ffffff;
   --color-warning-container: #fef3c7;
   --color-on-warning-container: #78350f;
 
-  /* ========================================================
-     INFO
-     ======================================================== */
-  --color-info: #0ea5e9;
+  /* Info / Audit Logs */
+  --color-info: #0369a1;
+  --color-on-info: #ffffff;
   --color-info-container: #e0f2fe;
-  --color-on-info-container: #0c4a6e;
+  --color-on-info-container: #075985;
+
+  /* Inactive / Disabled Cells & Actions */
+  --color-inactive: #a1a1aa;
+  --color-inactive-container: #f4f4f5;
+  --color-on-inactive-container: #71717a;
 
   /* ========================================================
-     INACTIVE
+     FIXED TOKENS (Static Toolbars & Scaffolding)
      ======================================================== */
-  --color-inactive: #a8a29e;
-  --color-inactive-container: #f5f0e6;
-  --color-on-inactive-container: #44403c;
+  --color-primary-fixed: #dbeafe;
+  --color-primary-fixed-dim: #bfdbfe;
+  --color-on-primary-fixed: #1e3a8a;
+  --color-on-primary-fixed-variant: #1d4ed8;
+
+  --color-secondary-fixed: #e4e4e7;
+  --color-secondary-fixed-dim: #d4d4d8;
+  --color-on-secondary-fixed: #18181b;
+  --color-on-secondary-fixed-variant: #3f3f46;
+
+  --color-tertiary-fixed: #ccfbf1;
+  --color-tertiary-fixed-dim: #99f6e4;
+  --color-on-tertiary-fixed: #134e4a;
+  --color-on-tertiary-fixed-variant: #0f766e;
 
   /* ========================================================
-     FIXED
+     LAYOUT & CANVAS
      ======================================================== */
-  --color-primary-fixed: #ffedd5;
-  --color-primary-fixed-dim: #fdba74;
-  --color-on-primary-fixed: #431407;
-  --color-on-primary-fixed-variant: #9a3412;
-
-  --color-secondary-fixed: #e7e0d3;
-  --color-secondary-fixed-dim: #d6cfc0;
-  --color-on-secondary-fixed: #1c1917;
-  --color-on-secondary-fixed-variant: #44403c;
-
-  --color-tertiary-fixed: #fef3c7;
-  --color-tertiary-fixed-dim: #fcd34d;
-  --color-on-tertiary-fixed: #451a03;
-  --color-on-tertiary-fixed-variant: #92400e;
+  --color-background: #fafafa;
+  --color-on-background: #09090b;
+  --color-surface-variant: #f4f4f5;
 
   /* ========================================================
-     BACKGROUND
+     ENTERPRISE TYPOGRAPHY
      ======================================================== */
-  --color-background: #faf7f0;
-  --color-on-background: #1c1917;
-  --color-surface-variant: #e7e0d3;
+  --font-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  --font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
 
   /* ========================================================
-     TYPOGRAPHY
-     ======================================================== */
-  --font-sans: "Space Grotesk", "Inter", system-ui, sans-serif;
-  --font-mono: "JetBrains Mono", ui-monospace, monospace;
-
-  /* ========================================================
-     RADIUS
+     ENTERPRISE DENSITY RADII
      ======================================================== */
   --radius-sm: 0.125rem;
   --radius: 0.25rem;
@@ -147,11 +143,12 @@
     overscroll-behavior: none;
   }
   body {
-    background-color: var(--color-surface);
+    background-color: var(--color-background);
     color: var(--color-on-surface);
     font-family: var(--font-sans);
-    font-size: 14px;
-    line-height: 20px;
+    font-size: 13px;
+    line-height: 18px;
+    letter-spacing: -0.006em;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
   }
@@ -164,84 +161,91 @@
 }
 
 /* ========================================================
-   DARK THEME (Cyberdeck Night)
+   DARK THEME (Enterprise Console / Low-Glare Workspace)
    ======================================================== */
 .dark {
-  --color-surface: #121316;
-  --color-surface-dim: #0a0b0d;
-  --color-surface-bright: #1b1e22;
+  --color-surface: #121215;
+  --color-surface-dim: #09090b;
+  --color-surface-bright: #1c1c21;
 
-  --color-surface-container-lowest: #0a0b0d;
-  --color-surface-container-low: #15171a;
-  --color-surface-container: #1b1e22;
-  --color-surface-container-high: #24272c;
-  --color-surface-container-highest: #2c3036;
+  --color-surface-container-lowest: #09090b;
+  --color-surface-container-low: #121215;
+  --color-surface-container: #18181b;
+  --color-surface-container-high: #222227;
+  --color-surface-container-highest: #2d2d34;
 
-  --color-on-surface: #ece7df;
-  --color-on-surface-variant: #a39c90;
+  --color-on-surface: #f4f4f5;
+  --color-on-surface-variant: #a1a1aa;
 
-  --color-inverse-surface: #ece7df;
-  --color-inverse-on-surface: #121316;
+  --color-inverse-surface: #fafafa;
+  --color-inverse-on-surface: #09090b;
 
-  --color-outline: #78716c;
-  --color-outline-variant: #2c3036;
+  --color-outline: #3f3f46;
+  --color-outline-variant: #27272a;
 
-  --color-surface-tint: #f59e0b;
+  --color-surface-tint: #3b82f6;
 
-  --color-primary: #f59e0b;
-  --color-on-primary: #251a10;
-  --color-primary-container: #78350f;
-  --color-on-primary-container: #fde68a;
-  --color-inverse-primary: #b45309;
+  /* Primary */
+  --color-primary: #3b82f6;
+  --color-on-primary: #ffffff;
+  --color-primary-container: #1e3a8a;
+  --color-on-primary-container: #dbeafe;
+  --color-inverse-primary: #1d4ed8;
 
-  --color-secondary: #a39c90;
-  --color-on-secondary: #121316;
-  --color-secondary-container: #24272c;
-  --color-on-secondary-container: #ece7df;
+  /* Secondary */
+  --color-secondary: #a1a1aa;
+  --color-on-secondary: #18181b;
+  --color-secondary-container: #27272a;
+  --color-on-secondary-container: #f4f4f5;
 
-  --color-tertiary: #d97706;
-  --color-on-tertiary: #251a10;
-  --color-tertiary-container: #78350f;
-  --color-on-tertiary-container: #fef3c7;
+  /* Tertiary */
+  --color-tertiary: #14b8a6;
+  --color-on-tertiary: #042f2e;
+  --color-tertiary-container: #115e59;
+  --color-on-tertiary-container: #ccfbf1;
 
-  --color-error: #f87171;
+  /* Status Colors (Muted dark backgrounds with high-contrast text) */
+  --color-error: #ef4444;
   --color-on-error: #450a0a;
-  --color-error-container: #7f1d1d;
-  --color-on-error-container: #fecaca;
+  --color-error-container: rgba(239, 68, 68, 0.16);
+  --color-on-error-container: #fca5a5;
 
-  /* Status Colors */
-  --color-success: #4ade80;
-  --color-success-container: rgba(74, 222, 128, 0.15);
+  --color-success: #22c55e;
+  --color-on-success: #052e16;
+  --color-success-container: rgba(34, 197, 94, 0.16);
   --color-on-success-container: #86efac;
 
-  --color-warning: #fbbf24;
-  --color-warning-container: rgba(251, 191, 36, 0.15);
+  --color-warning: #f59e0b;
+  --color-on-warning: #451a03;
+  --color-warning-container: rgba(245, 158, 11, 0.16);
   --color-on-warning-container: #fcd34d;
 
-  --color-info: #38bdf8;
-  --color-info-container: rgba(56, 189, 248, 0.15);
+  --color-info: #0ea5e9;
+  --color-on-info: #082f49;
+  --color-info-container: rgba(14, 165, 233, 0.16);
   --color-on-info-container: #7dd3fc;
 
-  --color-inactive: #a39c90;
-  --color-inactive-container: rgba(163, 156, 144, 0.15);
-  --color-on-inactive-container: #d6cfc0;
+  --color-inactive: #71717a;
+  --color-inactive-container: rgba(113, 113, 122, 0.14);
+  --color-on-inactive-container: #a1a1aa;
 
-  --color-primary-fixed: #fde68a;
-  --color-primary-fixed-dim: #fcd34d;
-  --color-on-primary-fixed: #451a03;
-  --color-on-primary-fixed-variant: #92400e;
+  /* Fixed Overrides */
+  --color-primary-fixed: #dbeafe;
+  --color-primary-fixed-dim: #bfdbfe;
+  --color-on-primary-fixed: #1e3a8a;
+  --color-on-primary-fixed-variant: #1d4ed8;
 
-  --color-secondary-fixed: #e7e0d3;
-  --color-secondary-fixed-dim: #d6cfc0;
-  --color-on-secondary-fixed: #1c1917;
-  --color-on-secondary-fixed-variant: #44403c;
+  --color-secondary-fixed: #e4e4e7;
+  --color-secondary-fixed-dim: #d4d4d8;
+  --color-on-secondary-fixed: #18181b;
+  --color-on-secondary-fixed-variant: #3f3f46;
 
-  --color-tertiary-fixed: #fef3c7;
-  --color-tertiary-fixed-dim: #fde68a;
-  --color-on-tertiary-fixed: #451a03;
-  --color-on-tertiary-fixed-variant: #78350f;
+  --color-tertiary-fixed: #ccfbf1;
+  --color-tertiary-fixed-dim: #99f6e4;
+  --color-on-tertiary-fixed: #134e4a;
+  --color-on-tertiary-fixed-variant: #0f766e;
 
-  --color-background: #121316;
-  --color-on-background: #ece7df;
-  --color-surface-variant: #24272c;
+  --color-background: #09090b;
+  --color-on-background: #f4f4f5;
+  --color-surface-variant: #18181b;
 }

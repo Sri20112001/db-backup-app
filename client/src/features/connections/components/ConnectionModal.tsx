@@ -5,9 +5,22 @@ import { useUIStore } from '@/store/uiStore'
 import type { Agent, ConnectionType, DatabaseConnection, DatabaseInfo } from '@/types'
 import { formatBytes } from '@/utils/format'
 import { AGENT_BROWSE_BASE_URL as BROWSE_BASE } from '@/CONSTANTS'
-import { Loader2, X, DatabaseBackup } from 'lucide-react'
+import { DbTypeIcon } from '@/components/ui/SourceIcons'
+import { Loader2, X, DatabaseBackup, Radar } from 'lucide-react'
 
 const DEFAULT_PORTS: Record<ConnectionType, number> = { POSTGRES: 5432, MONGODB: 27017, MSSQL: 1433 }
+
+// Default login per engine — matches what the type switch already does.
+const DEFAULT_USERS: Record<ConnectionType, string> = { POSTGRES: 'postgres', MONGODB: '', MSSQL: 'sa' }
+
+// One engine found by the agent's /detect scan of this machine.
+interface DetectedInstance {
+  type: ConnectionType
+  product: string
+  host: string
+  port: number
+  source: string
+}
 
 interface Props {
   agents: Agent[]
@@ -36,6 +49,11 @@ const ConnectionModal = ({ agents, editing, onClose, onSaved }: Props) => {
   const [testOk, setTestOk] = useState<boolean | null>(null)
   const [testError, setTestError] = useState('')
   const [saving, setSaving] = useState(false)
+  const [detecting, setDetecting] = useState(false)
+  const [detected, setDetected] = useState<DetectedInstance[]>([])
+  const [detectNote, setDetectNote] = useState<{ text: string; isError: boolean } | null>(null)
+
+  type FormState = typeof form
 
   const update = (k: string, v: unknown) => setForm((f) => ({ ...f, [k]: v }))
   const changeType = (t: ConnectionType) => {
@@ -50,24 +68,24 @@ const ConnectionModal = ({ agents, editing, onClose, onSaved }: Props) => {
     setTestError('')
   }
 
-  const buildMongoUri = () => {
+  const buildMongoUri = (f: FormState) => {
     // No-auth servers (like a local MongoDB without access control) get a
     // bare URI — never "user:@", which drivers reject.
-    if (!form.username.trim()) {
-      return `mongodb://${form.host}:${form.port}/?directConnection=true`
+    if (!f.username.trim()) {
+      return `mongodb://${f.host}:${f.port}/?directConnection=true`
     }
-    const u = encodeURIComponent(form.username)
-    const p = encodeURIComponent(form.password)
-    return `mongodb://${u}:${p}@${form.host}:${form.port}/?authSource=admin`
+    const u = encodeURIComponent(f.username)
+    const p = encodeURIComponent(f.password)
+    return `mongodb://${u}:${p}@${f.host}:${f.port}/?authSource=admin`
   }
 
   // Agent-side validation via loopback helper. Never sends creds to the server.
-  const testViaAgent = async (): Promise<string[]> => {
-    if (form.type === 'POSTGRES') {
+  const testViaAgent = async (f: FormState): Promise<string[]> => {
+    if (f.type === 'POSTGRES') {
       const res = await fetch(`${BROWSE_BASE}/pg-databases`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ host: form.host, port: Number(form.port), user: form.username, password: form.password || undefined }),
+        body: JSON.stringify({ host: f.host, port: Number(f.port), user: f.username, password: f.password || undefined }),
       })
       if (!res.ok) throw new Error('Agent rejected the connection (bad response).')
       const data: { databases?: { name: string }[]; error?: string } = await res.json()
@@ -76,11 +94,11 @@ const ConnectionModal = ({ agents, editing, onClose, onSaved }: Props) => {
       if (names.length === 0) throw new Error('Connected, but no databases returned.')
       return names
     }
-    if (form.type === 'MONGODB') {
+    if (f.type === 'MONGODB') {
       const res = await fetch(`${BROWSE_BASE}/mongo-databases`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ uri: buildMongoUri() }),
+        body: JSON.stringify({ uri: buildMongoUri(f) }),
       })
       if (!res.ok) throw new Error('Agent rejected the connection (bad response).')
       const data: { databases?: { name: string }[]; error?: string } = await res.json()
@@ -98,14 +116,17 @@ const ConnectionModal = ({ agents, editing, onClose, onSaved }: Props) => {
     return names
   }
 
-  const handleTest = async () => {
+  // override lets "detect → use this instance" test the values it just set
+  // without waiting for a state round-trip.
+  const handleTest = async (override?: Partial<FormState>) => {
+    const f: FormState = { ...form, ...(override ?? {}) }
     setTesting(true)
     setTestError('')
     setTestOk(null)
     try {
       // Editing without re-entering the password: verify via the server's
       // stored credential instead of the loopback helper.
-      if (editing && !form.password) {
+      if (editing && !f.password) {
         if (!currentOrg) throw new Error('No organization.')
         const res = await connectionsApi.test(currentOrg.id, editing.id)
         if (res.status !== 'ok') throw new Error(res.error || 'Connection failed.')
@@ -113,7 +134,7 @@ const ConnectionModal = ({ agents, editing, onClose, onSaved }: Props) => {
         setTestOk(true)
         return
       }
-      const names = await testViaAgent()
+      const names = await testViaAgent(f)
       // Loopback discovery yields names only; the server enriches details
       // on save/test via its own credentialed inspection.
       setDbs(names.map((n) => ({ name: n, size_bytes: -1, table_count: -1 })))
@@ -125,6 +146,51 @@ const ConnectionModal = ({ agents, editing, onClose, onSaved }: Props) => {
     } finally {
       setTesting(false)
     }
+  }
+
+  // Asks the agent on this machine which database engines are listening, then
+  // fills the form and immediately tries to connect.
+  const handleDetect = async () => {
+    setDetecting(true)
+    setDetectNote(null)
+    try {
+      const res = await fetch(`${BROWSE_BASE}/detect`)
+      if (!res.ok) throw new Error('bad response')
+      const data: { instances?: DetectedInstance[]; error?: string } = await res.json()
+      if (data.error) throw new Error(data.error)
+      const found = data.instances ?? []
+      setDetected(found)
+      if (found.length === 0) {
+        setDetectNote({
+          text: 'Nothing listening on the usual local ports (5432, 5433, 1433, 27017, 27018). Enter the details by hand.',
+          isError: false,
+        })
+      }
+    } catch {
+      setDetectNote({
+        text: 'Could not reach the agent on this machine. Make sure it is running here, or enter the details by hand.',
+        isError: true,
+      })
+    } finally {
+      setDetecting(false)
+    }
+  }
+
+  // Prefills the form from a detected instance and runs the connection test.
+  const applyInstance = (i: DetectedInstance) => {
+    const next: FormState = {
+      ...form,
+      type: i.type,
+      host: i.host,
+      port: i.port,
+      username: DEFAULT_USERS[i.type] ?? form.username,
+      name: form.name.trim() || `${i.product} ${i.host}`,
+    }
+    setForm(next)
+    setDbs([])
+    setTestOk(null)
+    setTestError('')
+    void handleTest(next)
   }
 
   const handleSave = async () => {
@@ -179,8 +245,11 @@ const ConnectionModal = ({ agents, editing, onClose, onSaved }: Props) => {
 
         <div className="grid grid-cols-2 gap-3">
           <div>
-            <label className="block text-[13px] font-medium text-on-surface-variant mb-1.5">Database Type *</label>
-            <select value={form.type} onChange={(e) => changeType(e.target.value as ConnectionType)} className={inputCls}>
+            <label htmlFor="vg-conn-type" className="flex items-center gap-1.5 text-[13px] font-medium text-on-surface-variant mb-1.5">
+              <DbTypeIcon type={form.type} size={14} />
+              Database Type *
+            </label>
+            <select id="vg-conn-type" value={form.type} onChange={(e) => changeType(e.target.value as ConnectionType)} className={inputCls}>
               <option value="POSTGRES">PostgreSQL</option>
               <option value="MONGODB">MongoDB</option>
               <option value="MSSQL">SQL Server</option>
@@ -219,6 +288,48 @@ const ConnectionModal = ({ agents, editing, onClose, onSaved }: Props) => {
           </div>
         </div>
 
+        <div className="rounded-xl border border-surface-variant bg-surface-container-low p-3">
+          <div className="flex items-center justify-between gap-3">
+            <div className="min-w-0">
+              <p className="text-[12.5px] font-semibold text-on-surface">Installed on this machine</p>
+              <p className="text-[11px] text-on-surface-variant">Scan for a running database engine and fill the form with it.</p>
+            </div>
+            <button
+              type="button"
+              onClick={() => void handleDetect()}
+              disabled={detecting}
+              className="shrink-0 flex items-center gap-1.5 px-3 h-8 rounded-lg border border-surface-variant bg-surface-container-lowest text-[12px] font-medium text-on-surface hover:bg-surface-container-high disabled:opacity-50 transition-colors"
+            >
+              {detecting ? <Loader2 size={13} className="animate-spin" /> : <Radar size={13} />}
+              {detecting ? 'Scanning…' : 'Detect'}
+            </button>
+          </div>
+
+          {detected.length > 0 && (
+            <div className="mt-2.5 flex flex-col gap-1.5">
+              {detected.map((i) => (
+                <button
+                  key={`${i.type}-${i.port}`}
+                  type="button"
+                  onClick={() => applyInstance(i)}
+                  title={`Use ${i.product} at ${i.host}:${i.port}`}
+                  className="flex items-center gap-2.5 px-2.5 py-2 rounded-lg border border-surface-variant bg-surface-container-lowest text-left hover:border-primary/50 hover:bg-primary-container/20 transition-colors"
+                >
+                  <DbTypeIcon type={i.type} size={18} />
+                  <span className="text-[12.5px] font-medium text-on-surface">{i.product}</span>
+                  <span className="font-mono text-[11.5px] text-on-surface-variant">{i.host}:{i.port}</span>
+                  <span className="ml-auto text-[11.5px] font-medium text-primary">Use</span>
+                </button>
+              ))}
+            </div>
+          )}
+          {detectNote && (
+            <p className={`mt-2 text-[11.5px] ${detectNote.isError ? 'text-error' : 'text-on-surface-variant'}`}>
+              {detectNote.text}
+            </p>
+          )}
+        </div>
+
         <button type="button" onClick={() => void handleTest()} disabled={testing}
           className="self-start flex items-center gap-1.5 text-[12px] font-medium text-primary hover:underline disabled:opacity-50">
           {testing ? <Loader2 size={13} className="animate-spin" /> : <DatabaseBackup size={13} />}
@@ -240,7 +351,7 @@ const ConnectionModal = ({ agents, editing, onClose, onSaved }: Props) => {
             </div>
           </div>
         )}
-        <p className="text-[11px] text-outline">Test credentials go only to the agent on this machine — the saved password is encrypted server-side and never shown again.</p>
+        <p className="text-[11px] text-on-surface-variant">Test credentials go only to the agent on this machine — the saved password is encrypted server-side and never shown again.</p>
 
         <div className="flex items-center justify-end gap-2 pt-1">
           <button type="button" onClick={onClose} className="px-4 h-9 rounded-lg border border-surface-variant text-[13px] font-medium text-on-surface hover:bg-surface-container-low">Cancel</button>

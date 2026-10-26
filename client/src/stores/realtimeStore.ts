@@ -133,16 +133,24 @@ export const useRealtimeStore = create<RealtimeState>()((set, get) => ({
       }
       case 'alert': {
         const p = asRecord(ev.payload)
+        // Lifecycle flips (coalesce, ack, resolve) also arrive on this
+        // channel — always bump the tick so lists refetch, but only toast
+        // for newly raised alerts (status firing with a title).
         const title = str(p.title) || 'Alert'
         const message = str(p.message) || ''
-        const kind =
-          String(p.type ?? '').includes('FAILED') || String(p.type ?? '').includes('OFFLINE')
-            ? 'error'
-            : 'warning';
+        const status = str(p.status)
+        const severity = str(p.severity)
+        const kind: ToastMsg['kind'] =
+          severity === 'critical' ? 'error'
+            : severity === 'info' ? 'info'
+              : 'warning'
         set({
           _seq: seq,
           alertTick: s.alertTick + 1,
-          pendingToast: { id: ++toastId, kind: kind as ToastMsg['kind'], title, message },
+          pendingToast:
+            status === 'resolved' || status === 'acknowledged'
+              ? s.pendingToast
+              : { id: ++toastId, kind, title, message },
         })
         return
       }

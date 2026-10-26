@@ -35,7 +35,7 @@ const FolderBrowser = ({ initialPath = '', onSelect, onClose }: Props) => {
       setData(await res.json())
     } catch {
       setError(
-        'Could not reach the folder browser. Make sure the agent is running on this machine (it serves the picker on 127.0.0.1:7546), or type the path manually.',
+        `Could not reach the folder browser (${BROWSE_BASE}). Make sure the agent is running on this machine, or type the path manually.`,
       )
     } finally {
       setIsLoading(false)
@@ -56,7 +56,7 @@ const FolderBrowser = ({ initialPath = '', onSelect, onClose }: Props) => {
           <button
             type="button"
             onClick={onClose}
-            className="p-1 rounded text-outline hover:text-on-surface hover:bg-surface-container-low"
+            className="p-1 rounded text-on-surface-variant hover:text-on-surface hover:bg-surface-container-low"
           >
             <X size={16} />
           </button>
@@ -87,7 +87,7 @@ const FolderBrowser = ({ initialPath = '', onSelect, onClose }: Props) => {
 
         <div className="h-64 overflow-y-auto px-2 py-2">
           {isLoading ? (
-            <div className="flex items-center justify-center h-full text-outline">
+            <div className="flex items-center justify-center h-full text-on-surface-variant">
               <Loader2 size={20} className="animate-spin" />
             </div>
           ) : error ? (
@@ -100,7 +100,7 @@ const FolderBrowser = ({ initialPath = '', onSelect, onClose }: Props) => {
                   onClick={() => void load(data.parent)}
                   className="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-[13px] text-on-surface-variant hover:bg-surface-container-low transition-colors"
                 >
-                  <ArrowUp size={16} className="text-outline" />
+                  <ArrowUp size={16} className="text-on-surface-variant" />
                   ..
                 </button>
               )}
@@ -116,20 +116,20 @@ const FolderBrowser = ({ initialPath = '', onSelect, onClose }: Props) => {
                   {data.cwd === e.path ? (
                     <FolderOpen size={16} className="text-primary shrink-0" />
                   ) : (
-                    <Folder size={16} className="text-outline shrink-0" />
+                    <Folder size={16} className="text-on-surface-variant shrink-0" />
                   )}
                   <span className="truncate">{e.name}</span>
                 </button>
               ))}
               {data && data.entries.length === 0 && !data.parent && (
-                <p className="px-3 py-4 text-[13px] text-outline">No subfolders here.</p>
+                <p className="px-3 py-4 text-[13px] text-on-surface-variant">No subfolders here.</p>
               )}
             </>
           )}
         </div>
 
         <div className="flex items-center justify-between gap-3 px-5 py-3.5 border-t border-surface-variant bg-surface-container-low">
-          <p className="text-[11px] text-outline leading-snug">
+          <p className="text-[11px] text-on-surface-variant leading-snug">
             Browses the agent on this machine.
             <br />
             For remote agents, type the path manually.

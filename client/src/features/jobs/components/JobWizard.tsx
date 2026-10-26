@@ -4,11 +4,13 @@ import { jobApi, agentApi, storageApi, connectionsApi, policyApi } from '@/servi
 import { useAuthStore } from '@/store/authStore'
 import { useUIStore } from '@/store/uiStore'
 import type { Agent, StorageTarget, BackupSourceType, BackupMode, BackupPolicy, DatabaseConnection, ConnectionType } from '@/types'
-import { ChevronRight, Check, Server, CloudUpload, FolderOpen, HardDrive, Loader2 } from 'lucide-react'
+import { ChevronRight, Check, Server, CloudUpload, FolderOpen, HardDrive, Loader2, FolderSearch } from 'lucide-react'
 import ConnectionDatabasePicker from './ConnectionDatabasePicker'
 import Action3DButton from '@/components/ui/Action3DButton'
 import NeoToggle from '@/components/ui/NeoToggle'
+import FolderBrowser from '@/components/FolderBrowser'
 import { FileSystemIcon, MssqlServerIcon, PostgresIcon, MongoDbIcon, DbfIcon } from '@/components/ui/SourceIcons'
+import ScheduleBuilder from '@/components/ScheduleBuilder'
 
 const SOURCE_TO_CONNECTION: Partial<Record<BackupSourceType, ConnectionType>> = {
   POSTGRES: 'POSTGRES',
@@ -18,18 +20,9 @@ const SOURCE_TO_CONNECTION: Partial<Record<BackupSourceType, ConnectionType>> = 
 
 const STEPS = ['Source', 'Agent', 'Schedule', 'Processing', 'Review']
 
-const PRESETS = [
-  { label: 'Every 1 min (test)', cron: '*/1 * * * *' },
-  { label: 'Every hour', cron: '@hourly' },
-  { label: 'Every 6 hours', cron: '0 */6 * * *' },
-  { label: 'Daily at 11 PM', cron: '0 23 * * *' },
-  { label: 'Weekly Sunday', cron: '0 0 * * 0' },
-  { label: 'Monthly', cron: '0 0 1 * *' },
-]
-
 const storageTypeIcon = { S3: CloudUpload, SMB: FolderOpen, LOCAL: HardDrive }
 
-const JobWizard = ({ onClose, onSaved }: { onClose?: () => void; onSaved?: () => void } = {}) => {
+const JobWizard = ({ onClose, onSaved, onCancel }: { onClose?: () => void; onSaved?: () => void; onCancel?: () => void } = {}) => {
   const { currentOrg } = useAuthStore()
   const { addToast } = useUIStore()
   const navigate = useNavigate()
@@ -39,6 +32,7 @@ const JobWizard = ({ onClose, onSaved }: { onClose?: () => void; onSaved?: () =>
   const [connections, setConnections] = useState<DatabaseConnection[]>([])
   const [policies, setPolicies] = useState<BackupPolicy[]>([])
   const [isSubmitting, setIsSubmitting] = useState(false)
+  const [showBrowser, setShowBrowser] = useState(false)
 
   const [form, setForm] = useState({
     name: '',
@@ -61,8 +55,8 @@ const JobWizard = ({ onClose, onSaved }: { onClose?: () => void; onSaved?: () =>
 
   const loadResources = () => {
     if (!currentOrg) return
-    Promise.all([agentApi.list(currentOrg.id), storageApi.list(currentOrg.id), connectionsApi.list(currentOrg.id), policyApi.list(currentOrg.id)])
-      .then(([a, s, c, p]) => { setAgents(a); setStorageTargets(s); setConnections(c); setPolicies(p) })
+    Promise.all([agentApi.list(currentOrg.id, { limit: 200 }), storageApi.list(currentOrg.id), connectionsApi.list(currentOrg.id, { limit: 200 }), policyApi.list(currentOrg.id)])
+      .then(([a, s, c, p]) => { setAgents(a.data); setStorageTargets(s); setConnections(c.data); setPolicies(p) })
       .catch(() => addToast('error', 'Failed to load resources'))
   }
 
@@ -147,6 +141,7 @@ const JobWizard = ({ onClose, onSaved }: { onClose?: () => void; onSaved?: () =>
   }
 
   return (
+    <>
     <div className={onClose ? 'flex flex-col gap-5' : 'h-full min-h-0 overflow-y-auto flex flex-col gap-4 pr-0.5 pb-1'}>
       {!onClose && (
       <div>
@@ -165,11 +160,11 @@ const JobWizard = ({ onClose, onSaved }: { onClose?: () => void; onSaved?: () =>
           <div key={s} className="flex items-center flex-1">
             <div className="flex flex-col items-center flex-1">
               <div className={`w-8 h-8 rounded-full flex items-center justify-center text-[13px] font-semibold transition-colors ${
-                i < step ? 'bg-primary text-on-primary' : i === step ? 'bg-primary text-on-primary' : 'bg-surface-container-high text-outline'
+                i < step ? 'bg-primary text-on-primary' : i === step ? 'bg-primary text-on-primary' : 'bg-surface-container-high text-on-surface-variant'
               }`}>
                 {i < step ? <Check size={16} /> : i + 1}
               </div>
-              <span className="text-[11px] text-outline mt-1 text-center">{s}</span>
+              <span className="text-[11px] text-on-surface-variant mt-1 text-center">{s}</span>
             </div>
             {i < STEPS.length - 1 && (
               <div className={`h-0.5 flex-1 mx-1 mb-4 ${i < step ? 'bg-primary' : 'bg-surface-container-high'}`} />
@@ -225,13 +220,27 @@ const JobWizard = ({ onClose, onSaved }: { onClose?: () => void; onSaved?: () =>
                 <label className="block text-[13px] font-medium text-on-surface-variant mb-1.5">
                   {form.source_type === 'DBF' ? 'Dataset Directory *' : 'Source Path *'}
                 </label>
-                <input
-                  type="text"
-                  value={form.source_path}
-                  onChange={(e) => update('source_path', e.target.value)}
-                  placeholder={form.source_type === 'DBF' ? 'C:\\LegacyApp\\Data\\' : 'D:\\CompanyData\\'}
-                  className="w-full h-9 px-3 rounded-lg border border-surface-variant bg-surface-container-low font-mono text-[13px] text-on-surface focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all"
-                />
+                <div className="flex items-center gap-2">
+                  <input
+                    type="text"
+                    value={form.source_path}
+                    onChange={(e) => update('source_path', e.target.value)}
+                    placeholder={form.source_type === 'DBF' ? 'C:\\LegacyApp\\Data\\' : 'D:\\CompanyData\\'}
+                    className="flex-1 h-9 px-3 rounded-lg border border-surface-variant bg-surface-container-low font-mono text-[13px] text-on-surface focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowBrowser(true)}
+                    title="Browse folders on this machine"
+                    className="shrink-0 flex items-center gap-2 px-3 h-9 rounded-lg bg-surface-container-lowest border border-surface-variant text-on-surface text-[13px] font-medium hover:bg-surface-container-high transition-colors"
+                  >
+                    <FolderSearch size={16} />
+                    Browse
+                  </button>
+                </div>
+                <p className="mt-1.5 text-[11px] text-on-surface-variant">
+                  Type a path, or browse folders on this machine (works when the agent runs here).
+                </p>
               </div>
             ) : form.source_type === 'MONGODB' ? (
               <div className="flex flex-col gap-4">
@@ -263,12 +272,12 @@ const JobWizard = ({ onClose, onSaved }: { onClose?: () => void; onSaved?: () =>
                         }`}
                       >
                         <span className="text-[13px] font-semibold text-on-surface">{o.t}</span>
-                        <span className="text-[11px] text-outline">{o.d}</span>
+                        <span className="text-[11px] text-on-surface-variant">{o.d}</span>
                       </button>
                     ))}
                   </div>
                   {form.export_format === 'CSV' && (
-                    <p className="text-[11px] text-outline mt-1.5">
+                    <p className="text-[11px] text-on-surface-variant mt-1.5">
                       CSV restores values as strings — use Archive or JSON for exact restores.
                     </p>
                   )}
@@ -317,7 +326,7 @@ const JobWizard = ({ onClose, onSaved }: { onClose?: () => void; onSaved?: () =>
           <div className="flex flex-col gap-4">
             <h2 className="text-[16px] font-semibold text-on-surface">Select Agent</h2>
             {agents.length === 0 ? (
-              <div className="text-center py-8 text-outline text-[13px]">
+              <div className="text-center py-8 text-on-surface-variant text-[13px]">
                 No agents registered. <button type="button" onClick={() => navigate('/agents')} className="text-primary hover:underline">Register an agent first.</button>
               </div>
             ) : (
@@ -331,12 +340,12 @@ const JobWizard = ({ onClose, onSaved }: { onClose?: () => void; onSaved?: () =>
                       form.agent_id === agent.id ? 'border-primary bg-primary-container/20' : 'border-surface-variant hover:border-outline'
                     }`}
                   >
-                    <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${agent.status === 'ONLINE' ? 'bg-primary-container/40 text-on-primary-container' : 'bg-surface-variant text-outline'}`}>
+                    <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${agent.status === 'ONLINE' ? 'bg-primary-container/40 text-on-primary-container' : 'bg-surface-variant text-on-surface-variant'}`}>
                       <Server size={20} />
                     </div>
                     <div className="flex-1 min-w-0">
                       <p className="text-[14px] font-semibold text-on-surface">{agent.name}</p>
-                      <p className="font-mono text-[11px] text-outline">v{agent.version} · {agent.status === 'ONLINE' ? 'Online' : 'Offline'}</p>
+                      <p className="font-mono text-[11px] text-on-surface-variant">v{agent.version} · {agent.status === 'ONLINE' ? 'Online' : 'Offline'}</p>
                     </div>
                     <span className={`w-2.5 h-2.5 rounded-full ${agent.status === 'ONLINE' ? 'bg-primary' : 'bg-[#737686]'}`} />
                   </button>
@@ -355,29 +364,13 @@ const JobWizard = ({ onClose, onSaved }: { onClose?: () => void; onSaved?: () =>
                 Schedule comes from policy <span className="font-semibold">{selectedPolicy.name}</span> ({selectedPolicy.cron_expr}). Change or detach the policy in Processing to edit it here.
               </p>
             )}
-            <div className="flex flex-wrap gap-2">
-              {PRESETS.map((p) => (
-                <button
-                  key={p.cron}
-                  type="button"
-                  disabled={policyGoverns('schedule')}
-                  onClick={() => update('cron_expr', p.cron)}
-                  className={`px-3 h-8 rounded-lg text-[12px] font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed ${
-                    form.cron_expr === p.cron ? 'bg-primary text-on-primary' : 'bg-surface-container-low text-on-surface-variant hover:bg-surface-container-high'
-                  }`}
-                >
-                  {p.label}
-                </button>
-              ))}
-            </div>
-            <div>
-              <label className="block text-[13px] font-medium text-on-surface-variant mb-1.5">Cron Expression</label>
-              <input
-                type="text"
-                value={form.cron_expr}
+            <div className="flex flex-col gap-4">
+              <ScheduleBuilder
+                cron={form.cron_expr}
+                timezone={form.timezone}
+                onChange={(c) => update('cron_expr', c)}
                 disabled={policyGoverns('schedule')}
-                onChange={(e) => update('cron_expr', e.target.value)}
-                className="w-full h-9 px-3 rounded-lg border border-surface-variant bg-surface-container-low font-mono text-[13px] text-on-surface focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all disabled:opacity-50"
+                idPrefix="vg-job"
               />
             </div>
             <div>
@@ -416,7 +409,7 @@ const JobWizard = ({ onClose, onSaved }: { onClose?: () => void; onSaved?: () =>
                 ))}
               </select>
               {selectedPolicy && (
-                <p className="text-[11px] text-outline mt-1.5">
+                <p className="text-[11px] text-on-surface-variant mt-1.5">
                   {selectedPolicy.name} governs{selectedPolicy.cron_expr ? ' schedule,' : ' (manual — job schedule kept),'} compression, encryption, retention ({selectedPolicy.retention_days}d), verification{selectedPolicy.max_retries > 0 ? ` and ${selectedPolicy.max_retries} retries` : ', no retries'}. Detach by choosing job-specific settings.
                 </p>
               )}
@@ -430,7 +423,7 @@ const JobWizard = ({ onClose, onSaved }: { onClose?: () => void; onSaved?: () =>
                 <div key={t.key} className={`flex items-center justify-between p-4 rounded-xl border border-surface-variant bg-surface-container-low ${policyGoverns('processing') ? 'opacity-50' : ''}`}>
                   <div>
                     <p className="text-[14px] font-medium text-on-surface">{t.label}</p>
-                    <p className="text-[12px] text-outline">{policyGoverns('processing') && selectedPolicy ? `Managed by policy ${selectedPolicy.name}` : t.desc}</p>
+                    <p className="text-[12px] text-on-surface-variant">{policyGoverns('processing') && selectedPolicy ? `Managed by policy ${selectedPolicy.name}` : t.desc}</p>
                   </div>
                   <NeoToggle
                     id={`toggle-${t.key}`}
@@ -444,7 +437,7 @@ const JobWizard = ({ onClose, onSaved }: { onClose?: () => void; onSaved?: () =>
             <div>
               <label className="block text-[13px] font-medium text-on-surface-variant mb-2">Storage Target *</label>
               {storageTargets.length === 0 ? (
-                <div className="text-center py-6 text-outline text-[13px]">
+                <div className="text-center py-6 text-on-surface-variant text-[13px]">
                   No storage targets. <button type="button" onClick={() => navigate('/storage')} className="text-primary hover:underline">Add one first.</button>
                 </div>
               ) : (
@@ -463,7 +456,7 @@ const JobWizard = ({ onClose, onSaved }: { onClose?: () => void; onSaved?: () =>
                         <StorIcon size={20} className="text-primary" />
                         <div>
                           <p className="text-[13px] font-semibold text-on-surface">{s.name}</p>
-                          <p className="font-mono text-[11px] text-outline">{s.type} · {s.bucket || s.path || '—'}</p>
+                          <p className="font-mono text-[11px] text-on-surface-variant">{s.type} · {s.bucket || s.path || '—'}</p>
                         </div>
                       </button>
                     )
@@ -514,7 +507,7 @@ const JobWizard = ({ onClose, onSaved }: { onClose?: () => void; onSaved?: () =>
                 { label: 'Retention', value: policyGoverns('processing') && selectedPolicy ? `${selectedPolicy.retention_days} days (policy)` : `${form.retention_days} days` },
               ].map((r) => (
                 <div key={r.label} className="flex flex-col gap-0.5">
-                  <span className="text-[11px] font-semibold uppercase tracking-wider text-outline">{r.label}</span>
+                  <span className="text-[11px] font-semibold uppercase tracking-wider text-on-surface-variant">{r.label}</span>
                   <span className={`text-on-surface ${r.mono ? 'font-mono text-[12px]' : 'font-medium'}`}>{r.value}</span>
                 </div>
               ))}
@@ -527,7 +520,7 @@ const JobWizard = ({ onClose, onSaved }: { onClose?: () => void; onSaved?: () =>
       <div className="flex items-center justify-between">
         <button
           type="button"
-          onClick={() => step === 0 ? closeWizard() : setStep((s) => s - 1)}
+          onClick={() => step === 0 ? (onCancel ? onCancel() : closeWizard()) : setStep((s) => s - 1)}
           className="px-4 h-9 rounded-lg bg-surface-container-lowest border border-surface-variant text-on-surface text-[13px] font-medium hover:bg-surface-container-low transition-colors"
         >
           {step === 0 ? 'Cancel' : '← Back'}
@@ -552,6 +545,15 @@ const JobWizard = ({ onClose, onSaved }: { onClose?: () => void; onSaved?: () =>
         )}
       </div>
     </div>
+
+    {showBrowser && (
+      <FolderBrowser
+        initialPath={form.source_path}
+        onSelect={(p) => { update('source_path', p); setShowBrowser(false) }}
+        onClose={() => setShowBrowser(false)}
+      />
+    )}
+    </>
   )
 }
 

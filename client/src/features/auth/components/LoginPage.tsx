@@ -46,7 +46,7 @@ const LoginPage = () => {
             <h1 className="text-[20px] font-semibold text-on-surface tracking-tight">
               VaultGuard
             </h1>
-            <p className="text-[12px] text-outline">
+            <p className="text-[12px] text-on-surface-variant">
               Backup & Recovery Platform
             </p>
           </div>
@@ -55,7 +55,7 @@ const LoginPage = () => {
         <h2 className="text-[18px] font-semibold text-on-surface mb-1">
           Sign in
         </h2>
-        <p className="text-[13px] text-outline mb-6">
+        <p className="text-[13px] text-on-surface-variant mb-6">
           Protecting your business data
         </p>
 
@@ -80,7 +80,7 @@ const LoginPage = () => {
               onChange={(e) => setEmail(e.target.value)}
               required
               placeholder="admin@company.com"
-              className="w-full h-9 px-3 rounded-lg border border-surface-variant bg-surface-container-low text-[14px] text-on-surface placeholder:text-outline focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all"
+              className="w-full h-9 px-3 rounded-lg border border-surface-variant bg-surface-container-low text-[14px] text-on-surface placeholder:text-on-surface-variant focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all"
             />
           </div>
 
@@ -99,12 +99,12 @@ const LoginPage = () => {
                 onChange={(e) => setPassword(e.target.value)}
                 required
                 placeholder="••••••••"
-                className="w-full h-9 px-3 pr-10 rounded-lg border border-surface-variant bg-surface-container-low text-[14px] text-on-surface placeholder:text-outline focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all"
+                className="w-full h-9 px-3 pr-10 rounded-lg border border-surface-variant bg-surface-container-low text-[14px] text-on-surface placeholder:text-on-surface-variant focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all"
               />
               <button
                 type="button"
                 onClick={() => setShowPassword(!showPassword)}
-                className="absolute right-2.5 top-1/2 -translate-y-1/2 text-outline hover:text-on-surface"
+                className="absolute right-2.5 top-1/2 -translate-y-1/2 text-on-surface-variant hover:text-on-surface"
               >
                 {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
               </button>
@@ -121,7 +121,7 @@ const LoginPage = () => {
           </button>
         </form>
 
-        <p className="mt-6 text-center text-[13px] text-outline">
+        <p className="mt-6 text-center text-[13px] text-on-surface-variant">
           Don't have an account?{" "}
           <Link
             to="/register"

@@ -1,8 +1,8 @@
 import { useEffect, useState } from 'react'
-import { regionApi, storageApi } from '@/services/api'
+import { storageApi } from '@/services/api'
 import { useAuthStore } from '@/store/authStore'
 import { useUIStore } from '@/store/uiStore'
-import type { S3Region, StorageTarget, StorageType } from '@/types'
+import type { StorageTarget, StorageType } from '@/types'
 import EmptyState from '@/components/EmptyState'
 import Pagination from '@/components/Pagination'
 import { usePagination } from '@/hooks/usePagination'
@@ -12,6 +12,7 @@ import type { LucideIcon } from 'lucide-react'
 import SearchInput from '@/components/ui/SearchInput'
 import SortSelect from '@/components/ui/SortSelect'
 import { Page, PageHeader } from '@/components/Page'
+import StorageTargetForm from './StorageTargetForm'
 
 const TYPE_FILTERS: { label: string; value: StorageType | '' }[] = [
   { label: 'All', value: '' },
@@ -28,7 +29,6 @@ const StoragePage = () => {
   const { currentOrg } = useAuthStore()
   const { addToast } = useUIStore()
   const [targets, setTargets] = useState<StorageTarget[]>([])
-  const [regions, setRegions] = useState<S3Region[]>([])
   const [search, setSearch] = useState('')
   const [typeFilter, setTypeFilter] = useState<StorageType | ''>('')
   const [sort, setSort] = useState('name-asc')
@@ -49,12 +49,9 @@ const StoragePage = () => {
   const [isLoading, setIsLoading] = useState(true)
   const [showAdd, setShowAdd] = useState(false)
   const [deleteId, setDeleteId] = useState<string | null>(null)
-  const [form, setForm] = useState({ name: '', type: 'S3' as StorageType, bucket: '', region: '', endpoint: '', use_path_style: false, access_key: '', secret_key: '', path: '' })
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [testingId, setTestingId] = useState<string | null>(null)
   const [testResults, setTestResults] = useState<Record<string, { ok: boolean; detail: string }>>({})
-
-  const resetForm = () => setForm({ name: '', type: 'S3', bucket: '', region: '', endpoint: '', use_path_style: false, access_key: '', secret_key: '', path: '' })
 
   const handleTest = async (id: string) => {
     if (!currentOrg) return
@@ -79,37 +76,15 @@ const StoragePage = () => {
 
   useEffect(() => {
     loadTargets()
-    if (currentOrg) {
-      regionApi.list(currentOrg.id).then(setRegions).catch(() => setRegions([]))
-    } else {
-      setRegions([])
-    }
   }, [currentOrg])
 
-  const regionIsCustom = form.region !== '' && !regions.some((r) => r.code === form.region)
-  const handleRegionSelect = (value: string) => {
-    if (value === '__custom') {
-      setForm((f) => ({ ...f, region: '' }))
-      return
-    }
-    setForm((f) => {
-      const picked = regions.find((r) => r.code === value)
-      // Preset endpoints (e.g. a private clone registered with one) fill
-      // the endpoint field unless the user already typed their own.
-      const endpoint = picked?.endpoint && !f.endpoint.trim() ? picked.endpoint : f.endpoint
-      return { ...f, region: value, endpoint }
-    })
-  }
-
-  const handleCreate = async (e: React.FormEvent) => {
-    e.preventDefault()
+  const handleCreate = async (data: Record<string, unknown>) => {
     if (!currentOrg) return
     setIsSubmitting(true)
     try {
-      await storageApi.create(currentOrg.id, form as Record<string, unknown>)
-      addToast('success', `${form.name} added`)
+      await storageApi.create(currentOrg.id, data)
+      addToast('success', `${data.name} added`)
       setShowAdd(false)
-      resetForm()
       loadTargets()
     } catch { addToast('error', 'Failed to add storage target') }
     finally { setIsSubmitting(false) }
@@ -124,9 +99,6 @@ const StoragePage = () => {
       loadTargets()
     } catch { addToast('error', 'Failed to delete') }
   }
-
-  const inputCls = "w-full h-9 px-3 rounded-lg border border-surface-variant bg-surface-container-low text-[14px] text-on-surface focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all"
-  const labelCls = "block text-[13px] font-medium text-on-surface-variant mb-1.5"
 
   return (
     <Page>
@@ -198,9 +170,9 @@ const StoragePage = () => {
                 </div>
                 <div>
                   <h3 className="text-[15px] font-semibold text-on-surface">{t.name}</h3>
-                  <p className="font-mono text-[11px] text-outline mt-0.5 truncate">{t.bucket || t.path || '—'}</p>
-                  {t.region && <p className="text-[11px] text-outline">{t.region}</p>}
-                  {t.type === 'S3' && t.endpoint && <p className="font-mono text-[11px] text-outline truncate">{t.endpoint}{t.use_path_style ? ' · path-style' : ''}</p>}
+                  <p className="font-mono text-[11px] text-on-surface-variant mt-0.5 truncate">{t.bucket || t.path || '—'}</p>
+                  {t.region && <p className="text-[11px] text-on-surface-variant">{t.region}</p>}
+                  {t.type === 'S3' && t.endpoint && <p className="font-mono text-[11px] text-on-surface-variant truncate">{t.endpoint}{t.use_path_style ? ' · path-style' : ''}</p>}
                 </div>
                 {result && (
                   <div className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-[12px] font-medium ${result.ok ? 'bg-emerald-50 text-emerald-700' : 'bg-red-50 text-red-700'}`}>
@@ -226,7 +198,7 @@ const StoragePage = () => {
                         Test
                       </button>
                     )}
-                    <button type="button" onClick={() => setDeleteId(t.id)} className="p-1.5 rounded-lg text-outline hover:text-error hover:bg-error-container/30 transition-colors">
+                    <button type="button" onClick={() => setDeleteId(t.id)} className="p-1.5 rounded-lg text-on-surface-variant hover:text-error hover:bg-error-container/30 transition-colors">
                       <Trash2 size={16} />
                     </button>
                   </div>
@@ -256,71 +228,9 @@ const StoragePage = () => {
                 <X size={18} />
               </button>
             </div>
-            <form onSubmit={handleCreate} className="flex flex-col gap-4 p-5">
-              <div><label className={labelCls}>Name *</label><input type="text" value={form.name} onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))} required className={inputCls} /></div>
-              <div>
-                <label className={labelCls}>Type *</label>
-                <div className="grid grid-cols-3 gap-2">
-                  {(['S3', 'LOCAL', 'SMB'] as StorageType[]).map((t) => {
-                    const TIcon = typeIcon[t]
-                    const disabled = t === 'SMB'
-                    return (
-                      <button key={t} type="button" disabled={disabled} title={disabled ? 'SMB support is planned' : t} onClick={() => setForm((f) => ({ ...f, type: t }))}
-                        className={`flex flex-col items-center gap-1.5 p-3 rounded-xl border-2 transition-all ${disabled ? 'opacity-40 cursor-not-allowed border-surface-variant' : form.type === t ? 'border-primary bg-primary-container/20' : 'border-surface-variant hover:border-outline'}`}>
-                        <TIcon size={20} className={form.type === t && !disabled ? 'text-primary' : 'text-on-surface-variant'} />
-                        <span className="text-[12px] font-medium text-on-surface">{t}</span>
-                      </button>
-                    )
-                  })}
-                </div>
-              </div>
-              {form.type === 'S3' && (
-                <>
-                  <div><label className={labelCls}>Bucket *</label><input type="text" value={form.bucket} onChange={(e) => setForm((f) => ({ ...f, bucket: e.target.value }))} required placeholder="my-backup-bucket" className={inputCls} /></div>
-                  <div>
-                    <label className={labelCls}>Region</label>
-                    <select
-                      value={regionIsCustom ? '__custom' : form.region}
-                      onChange={(e) => handleRegionSelect(e.target.value)}
-                      className={inputCls}
-                    >
-                      <option value="">Select a region…</option>
-                      {regions.map((r) => (
-                        <option key={r.code} value={r.code}>
-                          {r.code} — {r.name}
-                        </option>
-                      ))}
-                      <option value="__custom">Custom…</option>
-                    </select>
-                  </div>
-                  {regionIsCustom && (
-                    <div><label className={labelCls}>Custom region code</label><input type="text" value={form.region} onChange={(e) => setForm((f) => ({ ...f, region: e.target.value }))} placeholder="auto, custom-region-1…" className={`${inputCls} font-mono text-[13px]`} /></div>
-                  )}
-                  <div><label className={labelCls}>Endpoint (S3-compatible)</label><input type="text" value={form.endpoint} onChange={(e) => setForm((f) => ({ ...f, endpoint: e.target.value }))} placeholder="https://minio:9000 or https://xyz.r2.cloudflarestorage.com" className={inputCls} /></div>
-                  <label className="flex items-start gap-2.5 p-3 rounded-lg bg-surface-container-low border border-surface-variant cursor-pointer">
-                    <input type="checkbox" checked={form.use_path_style} onChange={(e) => setForm((f) => ({ ...f, use_path_style: e.target.checked }))} className="mt-0.5 accent-primary" />
-                    <span>
-                      <span className="block text-[13px] font-medium text-on-surface">Path-style addressing</span>
-                      <span className="block text-[12px] text-outline">Needed for MinIO (<span className="font-mono">host/bucket/key</span>). AWS, R2, Wasabi use virtual-hosted style — leave off.</span>
-                    </span>
-                  </label>
-                  <div><label className={labelCls}>Access Key</label><input type="text" value={form.access_key} onChange={(e) => setForm((f) => ({ ...f, access_key: e.target.value }))} className={inputCls} /></div>
-                  <div><label className={labelCls}>Secret Key</label><input type="password" value={form.secret_key} onChange={(e) => setForm((f) => ({ ...f, secret_key: e.target.value }))} className={inputCls} /></div>
-                  <p className="text-[12px] text-outline">After saving, use <strong>Test</strong> on the card — it runs a live PUT/HEAD/GET/DELETE round-trip.</p>
-                </>
-              )}
-              {(form.type === 'LOCAL' || form.type === 'SMB') && (
-                <div><label className={labelCls}>Path</label><input type="text" value={form.path} onChange={(e) => setForm((f) => ({ ...f, path: e.target.value }))} placeholder={form.type === 'SMB' ? '\\\\server\\share' : 'D:\\Backups\\'} className={`${inputCls} font-mono text-[13px]`} /></div>
-              )}
-              <p className="text-[12px] text-outline flex items-center gap-1.5">
-                <Lock size={12} className="text-on-primary-container" />
-                Credentials are encrypted with AES-256-GCM before storage
-              </p>
-              <button type="submit" disabled={isSubmitting} className="w-full h-9 rounded-lg bg-primary text-on-primary text-[13px] font-medium hover:bg-primary-container transition-colors disabled:opacity-60 flex items-center justify-center gap-2">
-                {isSubmitting && <Loader2 size={14} className="animate-spin" />}
-                Save Storage Target
-              </button>
-            </form>
+            <div className="p-5">
+              <StorageTargetForm onSubmit={handleCreate} isSubmitting={isSubmitting} />
+            </div>
           </div>
         </div>
       )}

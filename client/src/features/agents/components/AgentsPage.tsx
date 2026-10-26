@@ -3,19 +3,19 @@ import { useNavigate } from 'react-router-dom'
 import { agentApi } from '@/services/api'
 import { useAuthStore } from '@/store/authStore'
 import { useUIStore } from '@/store/uiStore'
-import type { Agent, AgentLifecycle, EnrollmentTokenInfo, EnrollmentTokenResult } from '@/types'
-import { maskEnrollmentToken } from '@/utils/format'
+import type { Agent, AgentLifecycle } from '@/types'
 import StatusBadge from '@/components/StatusBadge'
 import EmptyState from '@/components/EmptyState'
 import ConfirmDialog from '@/components/ConfirmDialog'
 import Pagination from '@/components/Pagination'
-import { usePagination } from '@/hooks/usePagination'
+import { useDebouncedValue } from '@/hooks/useDebouncedValue'
 import { useRealtimeStore } from '@/stores/realtimeStore'
 import { formatRelative, formatDate } from '@/utils/format'
-import { Plus, Server, Trash2, Copy, Check, Loader2, Ban } from 'lucide-react'
+import { Plus, Server, Trash2, Ban } from 'lucide-react'
 import SearchInput from '@/components/ui/SearchInput'
 import SortSelect from '@/components/ui/SortSelect'
 import { Page, PageHeader } from '@/components/Page'
+import AgentEnrollmentPanel from './AgentEnrollmentPanel'
 
 const AGENT_STATUS_FILTERS: { label: string; value: AgentLifecycle | '' }[] = [
   { label: 'All', value: '' },
@@ -30,6 +30,15 @@ const AGENT_STATUS_FILTERS: { label: string; value: AgentLifecycle | '' }[] = [
 const lifecycleOf = (a: Agent): AgentLifecycle =>
   a.lifecycle ?? (a.status === 'ONLINE' ? 'ONLINE' : 'OFFLINE')
 
+const PER_PAGE = 6
+
+// Maps the UI sort options onto the server's allowlisted column + direction.
+const SORT_PARAMS: Record<string, { sort: string; order: 'asc' | 'desc' }> = {
+  'name-asc': { sort: 'name', order: 'asc' },
+  'name-desc': { sort: 'name', order: 'desc' },
+  'recently-seen': { sort: 'last_seen', order: 'desc' },
+}
+
 const AgentsPage = () => {
   const { currentOrg } = useAuthStore()
   const { addToast } = useUIStore()
@@ -37,34 +46,15 @@ const AgentsPage = () => {
   const [agents, setAgents] = useState<Agent[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [showRegister, setShowRegister] = useState(false)
-  const [agentName, setAgentName] = useState('')
-  const [enroll, setEnroll] = useState<EnrollmentTokenResult | null>(null)
-  const [isGenerating, setIsGenerating] = useState(false)
-  const [copied, setCopied] = useState(false)
-  const [pendingTokens, setPendingTokens] = useState<EnrollmentTokenInfo[]>([])
-  const [revokingTokenId, setRevokingTokenId] = useState<string | null>(null)
   const [deleteId, setDeleteId] = useState<string | null>(null)
   const [revokeId, setRevokeId] = useState<string | null>(null)
   const [search, setSearch] = useState('')
   const [statusFilter, setStatusFilter] = useState<AgentLifecycle | ''>('')
   const [sort, setSort] = useState('name-asc')
-  const filtered = agents.filter((a) => {
-    const matchStatus = !statusFilter || lifecycleOf(a) === statusFilter
-    const matchSearch = !search || a.name.toLowerCase().includes(search.toLowerCase()) ||
-      (a.machine_name || '').toLowerCase().includes(search.toLowerCase())
-    return matchStatus && matchSearch
-  })
-  const sorted = [...filtered].sort((a, b) => {
-    switch (sort) {
-      case 'name-desc':
-        return b.name.localeCompare(a.name)
-      case 'recently-seen':
-        return (b.last_seen_at ?? '').localeCompare(a.last_seen_at ?? '')
-      default:
-        return a.name.localeCompare(b.name)
-    }
-  })
-  const paged = usePagination(sorted, 6, `${search}|${statusFilter}|${sort}|${currentOrg?.id ?? ''}`)
+  const [page, setPage] = useState(1)
+  const [total, setTotal] = useState(0)
+
+  const debouncedSearch = useDebouncedValue(search, 300)
   const presence = useRealtimeStore((s) => s.presence)
   const agentsSeq = useRealtimeStore((s) => s.entitySeq.agents)
 
@@ -86,81 +76,30 @@ const AgentsPage = () => {
   const loadAgents = () => {
     if (!currentOrg) return
     setIsLoading(true)
-    agentApi.list(currentOrg.id)
-      .then(setAgents)
+    const sortParams = SORT_PARAMS[sort] ?? SORT_PARAMS['name-asc']
+    agentApi.list(currentOrg.id, {
+      page,
+      limit: PER_PAGE,
+      search: debouncedSearch || undefined,
+      lifecycle: statusFilter || undefined,
+      sort: sortParams.sort,
+      order: sortParams.order,
+    })
+      .then((res) => {
+        setAgents(res.data)
+        setTotal(res.total)
+      })
       .catch(() => addToast('error', 'Failed to load agents'))
       .finally(() => setIsLoading(false))
   }
 
-  useEffect(() => { loadAgents() }, [currentOrg])
+  useEffect(() => { loadAgents() }, [currentOrg, page, debouncedSearch, statusFilter, sort])
+
+  // Any filter change resets to the first page.
+  useEffect(() => { setPage(1) }, [debouncedSearch, statusFilter, sort])
 
   const openAddAgent = () => {
-    setAgentName('')
-    setEnroll(null)
     setShowRegister(true)
-    void loadPendingTokens()
-  }
-
-  const loadPendingTokens = async () => {
-    if (!currentOrg) return
-    try {
-      const toks = await agentApi.listTokens(currentOrg.id)
-      const now = Date.now()
-      setPendingTokens(toks.filter((t) => !t.used_at && !t.revoked_at && new Date(t.expires_at).getTime() > now))
-    } catch {
-      // Token management is auxiliary; the modal works without the list.
-      setPendingTokens([])
-    }
-  }
-
-  const handleRevokeToken = async (id: string) => {
-    if (!currentOrg) return
-    setRevokingTokenId(id)
-    try {
-      await agentApi.revokeToken(currentOrg.id, id)
-      addToast('success', 'Enrollment token revoked')
-      setPendingTokens((prev) => prev.filter((t) => t.id !== id))
-    } catch {
-      addToast('error', 'Failed to revoke token')
-    } finally {
-      setRevokingTokenId(null)
-    }
-  }
-
-  const handleGenerateToken = async () => {
-    if (!currentOrg) return
-    setIsGenerating(true)
-    try {
-      const token = await agentApi.enrollmentToken(currentOrg.id, { name: agentName.trim() || undefined })
-      setEnroll(token)
-      void loadPendingTokens()
-    } catch { addToast('error', 'Failed to generate enrollment token') }
-    finally { setIsGenerating(false) }
-  }
-
-  const handleCopy = () => {
-    if (!enroll) return
-    const text = enroll.enrollment_token
-    if (navigator.clipboard && navigator.clipboard.writeText) {
-      navigator.clipboard.writeText(text)
-    } else {
-      // Fallback for insecure contexts (like exposed IPs without HTTPS)
-      const textArea = document.createElement('textarea')
-      textArea.value = text
-      textArea.style.position = 'fixed'
-      textArea.style.left = '-9999px'
-      document.body.appendChild(textArea)
-      textArea.focus()
-      textArea.select()
-      try {
-        document.execCommand('copy')
-      } catch (err) {
-        console.error('Fallback copy failed', err)
-      }
-      document.body.removeChild(textArea)
-    }
-    setCopied(true)
-    setTimeout(() => setCopied(false), 2000)
   }
 
   const handleRevoke = async () => {
@@ -175,8 +114,6 @@ const AgentsPage = () => {
 
   const closeRegister = () => {
     setShowRegister(false)
-    setEnroll(null)
-    setAgentName('')
     loadAgents()
   }
 
@@ -248,7 +185,7 @@ const AgentsPage = () => {
             <div key={i} className="animate-pulse p-5 rounded-xl bg-surface-container-lowest border border-surface-variant h-36" />
           ))}
         </div>
-      ) : filtered.length === 0 ? (
+      ) : total === 0 ? (
         <EmptyState
           icon={Server}
           title="No agents registered"
@@ -261,7 +198,7 @@ const AgentsPage = () => {
         />
       ) : (
         <div className="flex-1 min-h-0 overflow-y-auto grid grid-cols-1 md:grid-cols-2 gap-4 content-start pr-0.5">
-          {paged.pageItems.map((agent) => (
+          {agents.map((agent) => (
             <div
               key={agent.id}
               onClick={() => navigate(`/agents/${agent.id}`)}
@@ -269,12 +206,12 @@ const AgentsPage = () => {
             >
               <div className="flex items-start justify-between">
                 <div className="flex items-center gap-3">
-                  <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${lifecycleOf(agent) === 'ONLINE' ? 'bg-primary-container/40 text-on-primary-container' : 'bg-surface-variant text-outline'}`}>
+                  <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${lifecycleOf(agent) === 'ONLINE' ? 'bg-primary-container/40 text-on-primary-container' : 'bg-surface-variant text-on-surface-variant'}`}>
                     <Server size={20} />
                   </div>
                   <div>
                     <h3 className="text-[15px] font-semibold text-on-surface">{agent.name}</h3>
-                    <p className="font-mono text-[11px] text-outline">
+                    <p className="font-mono text-[11px] text-on-surface-variant">
                       {[agent.machine_name, [agent.platform, agent.architecture].filter(Boolean).join('/'), agent.version ? `v${agent.version}` : ''].filter(Boolean).join(' · ') || '—'}
                     </p>
                   </div>
@@ -282,7 +219,7 @@ const AgentsPage = () => {
                 <StatusBadge status={lifecycleOf(agent)} size="sm" />
               </div>
 
-              <div className="flex items-center justify-between text-[12px] text-outline">
+              <div className="flex items-center justify-between text-[12px] text-on-surface-variant">
                 <span>
                   Last seen: {formatRelative(agent.last_seen_at)}
                   {agent.installed_at ? ` · Installed: ${formatDate(agent.installed_at)}` : ''}
@@ -293,7 +230,7 @@ const AgentsPage = () => {
                       type="button"
                       title="Revoke agent"
                       onClick={(e) => { e.stopPropagation(); setRevokeId(agent.id) }}
-                      className="p-1.5 rounded-lg text-outline hover:text-error hover:bg-error-container/30 transition-colors"
+                      className="p-1.5 rounded-lg text-on-surface-variant hover:text-error hover:bg-error-container/30 transition-colors"
                     >
                       <Ban size={16} />
                     </button>
@@ -301,7 +238,7 @@ const AgentsPage = () => {
                   <button
                     type="button"
                     onClick={(e) => { e.stopPropagation(); setDeleteId(agent.id) }}
-                    className="p-1.5 rounded-lg text-outline hover:text-error hover:bg-error-container/30 transition-colors"
+                    className="p-1.5 rounded-lg text-on-surface-variant hover:text-error hover:bg-error-container/30 transition-colors"
                   >
                     <Trash2 size={16} />
                   </button>
@@ -313,11 +250,11 @@ const AgentsPage = () => {
       )}
 
       <Pagination
-        page={paged.page}
-        totalPages={paged.totalPages}
-        total={paged.total}
-        perPage={paged.perPage}
-        onPage={paged.setPage}
+        page={page}
+        totalPages={Math.max(1, Math.ceil(total / PER_PAGE))}
+        total={total}
+        perPage={PER_PAGE}
+        onPage={setPage}
       />
 
       {/* Add Agent / enrollment token modal */}
@@ -326,82 +263,14 @@ const AgentsPage = () => {
           <div className="absolute inset-0 bg-on-surface/30 backdrop-blur-[2px]" onClick={closeRegister} />
           <div className="relative bg-surface-container-lowest rounded-xl shadow-2xl p-6 w-full max-w-md mx-4 border border-surface-variant">
             <h2 className="text-[16px] font-semibold text-on-surface mb-2">Add Agent</h2>
-            <p className="text-[13px] text-on-surface-variant mb-4">
-              Generate a one-time enrollment token, then run VaultGuard-Agent-Setup on the
-              machine and paste it there. The token is for initial enrollment only —
-              the agent receives its permanent credential automatically.
-            </p>
-            {enroll ? (
-              <>
-                <div className="flex items-center gap-2 p-3 rounded-lg bg-surface-container-low border border-surface-variant mb-2">
-                  <code className="flex-1 font-mono text-[12px] text-on-surface break-all" title="Full token hidden — use Copy">
-                    {maskEnrollmentToken(enroll.enrollment_token)}
-                  </code>
-                  <button
-                    type="button"
-                    onClick={handleCopy}
-                    className="p-1.5 rounded text-on-surface-variant hover:bg-surface-container-high transition-colors shrink-0"
-                  >
-                    {copied ? <Check size={16} className="text-on-primary-container" /> : <Copy size={16} />}
-                  </button>
-                </div>
-                <p className="text-[12px] text-outline mb-1">
-                  Expires: {new Date(enroll.expires_at).toLocaleString()} · Single-use.
-                </p>
-                <p className="text-[12px] text-outline mb-4">Copy it now — only the masked form stays on screen, and the full token will never be shown again. Permanent agent credentials are never displayed.</p>
-              </>
-            ) : (
-              <>
-                <label className="block text-[13px] font-medium text-on-surface-variant mb-1.5">Agent name (optional)</label>
-                <input
-                  type="text"
-                  value={agentName}
-                  onChange={(e) => setAgentName(e.target.value)}
-                  placeholder="e.g. Office-PC"
-                  className="w-full h-9 px-3 rounded-lg border border-surface-variant bg-surface-container-low text-[13px] text-on-surface focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all mb-4"
-                />
-                <button
-                  type="button"
-                  onClick={() => void handleGenerateToken()}
-                  disabled={isGenerating}
-                  className="w-full h-9 rounded-lg bg-primary text-on-primary text-[13px] font-medium hover:bg-primary-container transition-colors disabled:opacity-50 flex items-center justify-center gap-2 mb-2"
-                >
-                  {isGenerating && <Loader2 size={14} className="animate-spin" />}
-                  Generate enrollment token
-                </button>
-              </>
-            )}
+            <AgentEnrollmentPanel />
             <button
               type="button"
               onClick={closeRegister}
-              className="w-full h-9 rounded-lg bg-surface-container-lowest border border-surface-variant text-on-surface text-[13px] font-medium hover:bg-surface-container-low transition-colors"
+              className="mt-4 w-full h-9 rounded-lg bg-surface-container-lowest border border-surface-variant text-on-surface text-[13px] font-medium hover:bg-surface-container-low transition-colors"
             >
-              Done
+               Done
             </button>
-            {pendingTokens.length > 0 && (
-              <div className="mt-4 pt-4 border-t border-surface-variant">
-                <p className="text-[12px] font-semibold text-on-surface-variant mb-2">
-                  Outstanding tokens ({pendingTokens.length})
-                </p>
-                <div className="flex flex-col gap-1.5 max-h-32 overflow-y-auto">
-                  {pendingTokens.map((t) => (
-                    <div key={t.id} className="flex items-center justify-between gap-2 px-2.5 py-1.5 rounded-lg bg-surface-container-low border border-surface-variant">
-                      <span className="font-mono text-[11px] text-on-surface-variant truncate" title={`Agent ${t.agent_id}`}>
-                        agent {t.agent_id.slice(0, 8)}… · expires {new Date(t.expires_at).toLocaleString()}
-                      </span>
-                      <button
-                        type="button"
-                        disabled={revokingTokenId === t.id}
-                        onClick={() => void handleRevokeToken(t.id)}
-                        className="text-[11px] font-medium text-error hover:underline disabled:opacity-50 shrink-0"
-                      >
-                        {revokingTokenId === t.id ? 'Revoking…' : 'Revoke'}
-                      </button>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
           </div>
         </div>
       )}

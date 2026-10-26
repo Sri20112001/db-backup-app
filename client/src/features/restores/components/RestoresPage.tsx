@@ -6,7 +6,7 @@ import type { RestoreJob, BackupRun, Agent, RestoreStatus, DatabaseConnection } 
 import StatusBadge from '@/components/StatusBadge'
 import EmptyState from '@/components/EmptyState'
 import Pagination from '@/components/Pagination'
-import { usePagination } from '@/hooks/usePagination'
+import { useDebouncedValue } from '@/hooks/useDebouncedValue'
 import { useRealtimeStore } from '@/stores/realtimeStore'
 import { formatRelative, formatDate } from '@/utils/format'
 import { RotateCcw, X, Check, Loader2 } from 'lucide-react'
@@ -21,6 +21,8 @@ const RESTORE_STATUS_FILTERS: { label: string; value: RestoreStatus | '' }[] = [
   { label: 'Completed', value: 'COMPLETED' },
   { label: 'Failed', value: 'FAILED' },
 ]
+
+const PER_PAGE = 8
 
 const RestoresPage = () => {
   const { currentOrg } = useAuthStore()
@@ -37,14 +39,30 @@ const RestoresPage = () => {
   const [search, setSearch] = useState('')
   const [statusFilter, setStatusFilter] = useState<RestoreStatus | ''>('')
   const [sort, setSort] = useState('newest')
+  const [page, setPage] = useState(1)
+  const [total, setTotal] = useState(0)
+
+  const debouncedSearch = useDebouncedValue(search, 300)
 
   const loadRestores = () => {
     if (!currentOrg) return
     setIsLoading(true)
-    restoreApi.list(currentOrg.id).then(setRestores).catch(() => addToast('error', 'Failed to load restores')).finally(() => setIsLoading(false))
+    restoreApi.list(currentOrg.id, {
+      page,
+      limit: PER_PAGE,
+      search: debouncedSearch || undefined,
+      status: statusFilter || undefined,
+      sort: 'created',
+      order: sort === 'oldest' ? 'asc' : 'desc',
+    })
+      .then((res) => { setRestores(res.data); setTotal(res.total) })
+      .catch(() => addToast('error', 'Failed to load restores'))
+      .finally(() => setIsLoading(false))
   }
 
-  useEffect(() => { loadRestores() }, [currentOrg])
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  useEffect(() => { loadRestores() }, [currentOrg, page, debouncedSearch, statusFilter, sort])
+  useEffect(() => { setPage(1) }, [debouncedSearch, statusFilter, sort])
 
   const restoresSeq = useRealtimeStore((s) => s.entitySeq.restores)
   const lastRunEvent = useRealtimeStore((s) => s.lastRunEvent)
@@ -67,12 +85,12 @@ const RestoresPage = () => {
     try {
       const [runs, ags, conns] = await Promise.all([
         runApi.list(currentOrg.id, { status: 'COMPLETED', limit: 50 }),
-        agentApi.list(currentOrg.id),
-        connectionsApi.list(currentOrg.id),
+        agentApi.list(currentOrg.id, { limit: 200 }),
+        connectionsApi.list(currentOrg.id, { limit: 200 }),
       ])
       setRecentRuns(runs.data)
-      setAgents(ags)
-      setConnections(conns)
+      setAgents(ags.data)
+      setConnections(conns.data)
       setShowWizard(true)
       setWizardStep(0)
     } catch { addToast('error', 'Failed to load data') }
@@ -102,22 +120,6 @@ const RestoresPage = () => {
     const connAgent = run.backup_job?.agent_id
     setForm((f) => ({ ...f, backup_run_id: run.id, agent_id: connAgent || f.agent_id }))
   }
-  const filtered = restores.filter((r) => {
-    const matchStatus = !statusFilter || r.status === statusFilter
-    const q = search.toLowerCase()
-    const matchSearch =
-      !search ||
-      (r.backup_run?.backup_job?.name ?? '').toLowerCase().includes(q) ||
-      (r.destination_path || '').toLowerCase().includes(q) ||
-      (r.target_database || '').toLowerCase().includes(q)
-    return matchStatus && matchSearch
-  })
-  const sorted = [...filtered].sort((a, b) =>
-    sort === 'oldest'
-      ? a.created_at.localeCompare(b.created_at)
-      : b.created_at.localeCompare(a.created_at),
-  )
-  const paged = usePagination(sorted, 8, `${search}|${statusFilter}|${sort}|${currentOrg?.id ?? ''}`)
   const inputCls = "w-full h-9 px-3 rounded-lg border border-surface-variant bg-surface-container-low text-[14px] text-on-surface focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all"
 
   return (
@@ -169,26 +171,26 @@ const RestoresPage = () => {
 
       {isLoading ? (
         <div className="flex flex-col gap-2">{[...Array(4)].map((_, i) => <div key={i} className="animate-pulse h-16 rounded-xl bg-surface-container-lowest border border-surface-variant" />)}</div>
-      ) : filtered.length === 0 ? (
+      ) : total === 0 ? (
         <EmptyState icon={RotateCcw} title="No restore jobs" description="Restore jobs will appear here once you initiate a restore from a recovery point."
           action={<button type="button" onClick={openWizard} className="px-4 h-9 rounded-lg bg-primary text-on-primary text-[13px] font-medium hover:bg-primary-container transition-colors">Start First Restore</button>}
         />
       ) : (
         <div className="flex-1 min-h-0 overflow-y-auto flex flex-col gap-2 pr-0.5">
-          {paged.pageItems.map((r) => (
+          {restores.map((r) => (
             <div key={r.id} className="flex items-center gap-4 p-4 rounded-xl bg-surface-container-lowest border border-surface-variant shadow-sm hover:shadow-md transition-all">
               <StatusBadge status={r.status} />
               <div className="flex-1 min-w-0">
                 <p className="text-[14px] font-medium text-on-surface truncate">
                   {r.backup_run?.backup_job?.name ?? 'Unknown Job'}
                 </p>
-                <p className="font-mono text-[11px] text-outline truncate">
+                <p className="font-mono text-[11px] text-on-surface-variant truncate">
                   → {r.destination_path || r.target_database || 'Original location'}
                 </p>
               </div>
               <div className="text-right shrink-0">
-                <p className="text-[12px] text-outline">{formatRelative(r.created_at)}</p>
-                {r.completed_at && <p className="text-[11px] text-outline">Done: {formatDate(r.completed_at)}</p>}
+                <p className="text-[12px] text-on-surface-variant">{formatRelative(r.created_at)}</p>
+                {r.completed_at && <p className="text-[11px] text-on-surface-variant">Done: {formatDate(r.completed_at)}</p>}
               </div>
               {r.error_message && (
                 <div className="px-2 py-1 rounded bg-error-container text-on-error-container text-[11px] font-mono max-w-[200px] truncate" title={r.error_message}>
@@ -201,11 +203,11 @@ const RestoresPage = () => {
       )}
 
       <Pagination
-        page={paged.page}
-        totalPages={paged.totalPages}
-        total={paged.total}
-        perPage={paged.perPage}
-        onPage={paged.setPage}
+        page={page}
+        totalPages={Math.max(1, Math.ceil(total / PER_PAGE))}
+        total={total}
+        perPage={PER_PAGE}
+        onPage={setPage}
       />
 
       {/* Restore wizard drawer */}
@@ -225,10 +227,10 @@ const RestoresPage = () => {
               {['Recovery Point', 'Destination', 'Confirm'].map((s, i) => (
                 <div key={s} className="flex items-center flex-1">
                   <div className="flex flex-col items-center flex-1">
-                    <div className={`w-7 h-7 rounded-full flex items-center justify-center text-[12px] font-semibold ${i < wizardStep ? 'bg-primary text-on-primary' : i === wizardStep ? 'bg-primary text-on-primary' : 'bg-surface-container-high text-outline'}`}>
+                    <div className={`w-7 h-7 rounded-full flex items-center justify-center text-[12px] font-semibold ${i < wizardStep ? 'bg-primary text-on-primary' : i === wizardStep ? 'bg-primary text-on-primary' : 'bg-surface-container-high text-on-surface-variant'}`}>
                       {i < wizardStep ? <Check size={14} /> : i + 1}
                     </div>
-                    <span className="text-[10px] text-outline mt-1 text-center">{s}</span>
+                    <span className="text-[10px] text-on-surface-variant mt-1 text-center">{s}</span>
                   </div>
                   {i < 2 && <div className={`h-0.5 flex-1 mx-1 mb-4 ${i < wizardStep ? 'bg-primary' : 'bg-surface-container-high'}`} />}
                 </div>
@@ -239,14 +241,14 @@ const RestoresPage = () => {
               {wizardStep === 0 && (
                 <>
                   <h3 className="text-[14px] font-semibold text-on-surface">Select Recovery Point</h3>
-                  <p className="text-[12px] text-outline -mt-2">Only successfully completed backups are listed — failed or partial runs can never be restored.</p>
+                  <p className="text-[12px] text-on-surface-variant -mt-2">Only successfully completed backups are listed — failed or partial runs can never be restored.</p>
                   <div className="flex flex-col gap-2 max-h-96 overflow-y-auto">
                     {recentRuns.map((run) => (
                       <button key={run.id} type="button" onClick={() => selectRun(run)}
                         className={`flex items-center gap-3 p-3.5 rounded-xl border-2 text-left transition-all ${form.backup_run_id === run.id ? 'border-primary bg-primary-container/20' : 'border-surface-variant hover:border-outline'}`}>
                         <div className="flex-1 min-w-0">
                           <p className="text-[13px] font-semibold text-on-surface">{run.backup_job?.name ?? '—'}</p>
-                          <p className="text-[11px] text-outline">{formatRelative(run.completed_at)} · {run.backup_job?.source_type}</p>
+                          <p className="text-[11px] text-on-surface-variant">{formatRelative(run.completed_at)} · {run.backup_job?.source_type}</p>
                         </div>
                         <StatusBadge status={run.status} size="sm" />
                       </button>
@@ -297,7 +299,7 @@ const RestoresPage = () => {
                       ...(form.target_database ? [{ label: 'Target DB', value: form.target_database }] : []),
                     ].map((r) => (
                       <div key={r.label} className="flex items-start gap-3">
-                        <span className="text-outline w-32 shrink-0">{r.label}</span>
+                        <span className="text-on-surface-variant w-32 shrink-0">{r.label}</span>
                         <span className="text-on-surface font-medium">{r.value}</span>
                       </div>
                     ))}

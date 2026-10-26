@@ -6,6 +6,7 @@ import AppLayout from './components/AppLayout'
 import LoginPage from './features/auth/components/LoginPage'
 import RegisterPage from './features/auth/components/RegisterPage'
 import SetupPage from './features/setup/SetupPage'
+import OnboardingPage from './features/onboarding/OnboardingPage'
 import DashboardPage from './features/dashboard/components/DashboardPage'
 import JobsPage from './features/jobs/components/JobsPage'
 import JobDetailPage from './features/jobs/components/JobDetailPage'
@@ -15,6 +16,7 @@ import AgentsPage from './features/agents/components/AgentsPage'
 import AgentDetailPage from './features/agents/components/AgentDetailPage'
 import StoragePage from './features/storage/components/StoragePage'
 import ConnectionsPage from './features/connections/components/ConnectionsPage'
+import ConnectionDetailPage from './features/connections/components/ConnectionDetailPage'
 import PoliciesPage from './features/policies/components/PoliciesPage'
 import AlertsPage from './features/alerts/components/AlertsPage'
 import SettingsPage from './features/settings/components/SettingsPage'
@@ -52,6 +54,14 @@ const App = () => {
         }
       />
       <Route
+        path="/onboarding"
+        element={
+          <RequireOrg>
+            <OnboardingPage />
+          </RequireOrg>
+        }
+      />
+      <Route
         path="/"
         element={
           <RequireOrg>
@@ -69,6 +79,7 @@ const App = () => {
         <Route path="agents/:id" element={<AgentDetailPage />} />
         <Route path="storage" element={<StoragePage />} />
         <Route path="connections" element={<ConnectionsPage />} />
+        <Route path="connections/:id" element={<ConnectionDetailPage />} />
         <Route path="alerts" element={<AlertsPage />} />
         <Route path="settings" element={<SettingsPage />} />
       </Route>

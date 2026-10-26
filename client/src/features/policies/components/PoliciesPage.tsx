@@ -6,16 +6,10 @@ import type { BackupPolicy } from '@/types'
 import EmptyState from '@/components/EmptyState'
 import ConfirmDialog from '@/components/ConfirmDialog'
 import SearchInput from '@/components/ui/SearchInput'
+import ScheduleBuilder from '@/components/ScheduleBuilder'
+import { cronIssue, describeSchedule } from '@/utils/schedule'
 import { Page, PageHeader } from '@/components/Page'
-import { Plus, Pencil, Trash2, X, SlidersHorizontal } from 'lucide-react'
-
-const CRON_PRESETS = [
-  { label: 'Manual (no schedule)', cron: '' },
-  { label: 'Hourly', cron: '0 * * * *' },
-  { label: 'Every 6 hours', cron: '0 */6 * * *' },
-  { label: 'Daily 11 PM', cron: '0 23 * * *' },
-  { label: 'Weekly Sunday', cron: '0 0 * * 0' },
-]
+import { Plus, Pencil, Trash2, X, SlidersHorizontal, HelpCircle } from 'lucide-react'
 
 const TIMEZONES = ['UTC', 'America/New_York', 'America/Chicago', 'America/Los_Angeles', 'Europe/London', 'Europe/Berlin', 'Asia/Tokyo']
 
@@ -45,11 +39,11 @@ const PoliciesPage = () => {
   const load = () => {
     if (!currentOrg) return
     setIsLoading(true)
-    Promise.all([policyApi.list(currentOrg.id), jobApi.list(currentOrg.id)])
-      .then(([p, jobs]) => {
+    Promise.all([policyApi.list(currentOrg.id), jobApi.list(currentOrg.id, { limit: 200 })])
+      .then(([p, jobsRes]) => {
         setPolicies(p)
         const counts: Record<string, number> = {}
-        for (const j of jobs) {
+        for (const j of jobsRes.data) {
           if (j.policy_id) counts[j.policy_id] = (counts[j.policy_id] ?? 0) + 1
         }
         setAttachedCounts(counts)
@@ -84,6 +78,11 @@ const PoliciesPage = () => {
     if (!currentOrg) return
     if (!form.name.trim()) {
       addToast('error', 'Policy name is required')
+      return
+    }
+    const issue = cronIssue(form.cron_expr)
+    if (issue) {
+      addToast('error', issue)
       return
     }
     setIsSubmitting(true)
@@ -122,8 +121,7 @@ const PoliciesPage = () => {
     !search || p.name.toLowerCase().includes(search.toLowerCase()),
   )
 
-  const scheduleLabel = (p: BackupPolicy) =>
-    !p.cron_expr ? 'Manual' : (CRON_PRESETS.find((c) => c.cron === p.cron_expr)?.label ?? p.cron_expr)
+  const scheduleLabel = (p: BackupPolicy) => describeSchedule(p.cron_expr, p.timezone)
 
   return (
     <Page>
@@ -171,11 +169,11 @@ const PoliciesPage = () => {
               <div className="flex items-start justify-between gap-2">
                 <div className="min-w-0">
                   <h3 className="text-[15px] font-semibold text-on-surface truncate">{p.name}</h3>
-                  <p className="font-mono text-[11px] text-outline">
+                  <p className="font-mono text-[11px] text-on-surface-variant">
                     {scheduleLabel(p)} · {p.retention_days}d retention · {attachedCounts[p.id] ?? 0} jobs
                   </p>
                 </div>
-                <span className={`shrink-0 px-2 py-0.5 rounded-full text-[11px] font-medium ${p.enabled ? 'bg-primary-container text-on-primary-container' : 'bg-surface-variant text-outline'}`}>
+                <span className={`shrink-0 px-2 py-0.5 rounded-full text-[11px] font-medium ${p.enabled ? 'bg-primary-container text-on-primary-container' : 'bg-surface-variant text-on-surface-variant'}`}>
                   {p.enabled ? 'Enabled' : 'Disabled'}
                 </span>
               </div>
@@ -196,7 +194,7 @@ const PoliciesPage = () => {
                 <button
                   type="button"
                   onClick={() => setDeleteId(p.id)}
-                  className="p-2 rounded-lg text-outline hover:text-error hover:bg-error-container/30 transition-colors"
+                  className="p-2 rounded-lg text-on-surface-variant hover:text-error hover:bg-error-container/30 transition-colors"
                 >
                   <Trash2 size={15} />
                 </button>
@@ -223,18 +221,13 @@ const PoliciesPage = () => {
                 <input type="text" value={form.name} onChange={(e) => update('name', e.target.value)} placeholder="e.g. Nightly Standard" className={inputCls} />
               </div>
 
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-[13px] font-medium text-on-surface-variant mb-1.5">Schedule</label>
-                  <select value={form.cron_expr} onChange={(e) => update('cron_expr', e.target.value)} className={inputCls}>
-                    {CRON_PRESETS.map((c) => <option key={c.label} value={c.cron}>{c.label}</option>)}
-                    {!CRON_PRESETS.some((c) => c.cron === form.cron_expr) && <option value={form.cron_expr}>Custom: {form.cron_expr}</option>}
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-[13px] font-medium text-on-surface-variant mb-1.5">Custom cron</label>
-                  <input type="text" value={form.cron_expr} onChange={(e) => update('cron_expr', e.target.value)} placeholder="0 2 * * * (empty = manual)" className={`${inputCls} font-mono text-[13px]`} />
-                </div>
+              <div>
+                <ScheduleBuilder
+                  cron={form.cron_expr}
+                  timezone={form.timezone}
+                  onChange={(c) => update('cron_expr', c)}
+                  idPrefix="vg-policy"
+                />
               </div>
 
               <div className="grid grid-cols-2 gap-3">
@@ -259,7 +252,7 @@ const PoliciesPage = () => {
                 <label key={t.key} className="flex items-center justify-between gap-3 p-3 rounded-xl border border-surface-variant bg-surface-container-low cursor-pointer">
                   <span>
                     <span className="block text-[13px] font-medium text-on-surface">{t.label}</span>
-                    <span className="block text-[11px] text-outline">{t.desc}</span>
+                    <span className="block text-[11px] text-on-surface-variant">{t.desc}</span>
                   </span>
                   <input
                     type="checkbox"
@@ -281,25 +274,39 @@ const PoliciesPage = () => {
                 </div>
               </div>
 
-              <div className="grid grid-cols-3 gap-3">
-                {[
-                  { key: 'sla_target_minutes', label: 'SLA (min)' },
-                  { key: 'rpo_target_minutes', label: 'RPO (min)' },
-                  { key: 'rto_target_minutes', label: 'RTO (min)' },
-                ].map((f) => (
-                  <div key={f.key}>
-                    <label className="block text-[13px] font-medium text-on-surface-variant mb-1.5">{f.label}</label>
-                    <input
-                      type="number"
-                      value={Number(form[f.key as keyof typeof form])}
-                      onChange={(e) => update(f.key, Math.max(0, parseInt(e.target.value) || 0))}
-                      min={0}
-                      className={inputCls}
-                    />
-                  </div>
-                ))}
+              <div>
+                <div className="grid grid-cols-3 gap-3">
+                  {[
+                    { key: 'sla_target_minutes', label: 'SLA (min)', help: 'How long a backup may run from its scheduled start.' },
+                    { key: 'rpo_target_minutes', label: 'RPO (min)', help: 'How stale your data may get before a backup counts as overdue.' },
+                    { key: 'rto_target_minutes', label: 'RTO (min)', help: 'How long a restore may take to finish.' },
+                  ].map((f) => (
+                    <div key={f.key}>
+                      <label htmlFor={`vg-${f.key}`} className="flex items-center gap-1 text-[13px] font-medium text-on-surface-variant mb-1.5">
+                        {f.label}
+                        <span title={f.help} className="text-on-surface-variant/70 cursor-help" aria-hidden="true">
+                          <HelpCircle size={12} />
+                        </span>
+                      </label>
+                      <input
+                        id={`vg-${f.key}`}
+                        type="number"
+                        value={Number(form[f.key as keyof typeof form])}
+                        onChange={(e) => update(f.key, Math.max(0, parseInt(e.target.value) || 0))}
+                        min={0}
+                        className={inputCls}
+                      />
+                    </div>
+                  ))}
+                </div>
+                <div className="mt-2 rounded-lg border border-surface-variant bg-surface-container-low p-3 text-[11px] leading-relaxed text-on-surface-variant">
+                  <p><span className="font-semibold text-on-surface">SLA</span> — minutes a run may take from its scheduled start; longer runs count as a breach.</p>
+                  <p><span className="font-semibold text-on-surface">RPO</span> — minutes of data you can afford to lose; alerts fire when no backup finished inside this window.</p>
+                  <p><span className="font-semibold text-on-surface">RTO</span> — minutes a restore may take, measured against your last restore.</p>
+                  <p className="mt-1.5">Leave a value at <span className="font-medium text-on-surface">0</span> to keep it untracked — dashboards and alerts ignore it.</p>
+                </div>
               </div>
-              <p className="text-[11px] text-outline">Strategy is FULL-only — incremental backups are not implemented and cannot be selected.</p>
+              <p className="text-[11px] text-on-surface-variant">Strategy is FULL-only — incremental backups are not implemented and cannot be selected.</p>
             </div>
 
             <div className="flex items-center justify-end gap-2 mt-5">

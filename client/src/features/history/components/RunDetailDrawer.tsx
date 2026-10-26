@@ -111,11 +111,11 @@ const RunDetailDrawer = ({ runId }: { runId: string }) => {
                         done ? 'bg-primary text-on-primary' :
                         active && (failed || cancelled) ? 'bg-error text-on-primary' :
                         active ? 'bg-primary text-on-primary' :
-                        'bg-surface-container-high text-outline'
+                        'bg-surface-container-high text-on-surface-variant'
                       }`}>
                         {done ? <Check size={12} /> : i + 1}
                       </div>
-                      <span className="text-[10px] text-outline mt-1 text-center leading-tight">{s}</span>
+                      <span className="text-[10px] text-on-surface-variant mt-1 text-center leading-tight">{s}</span>
                     </div>
                     {i < STATUSES.length - 1 && (
                       <div className={`h-0.5 flex-1 mx-1 ${done ? 'bg-primary' : 'bg-surface-container-high'}`} />
@@ -134,7 +134,7 @@ const RunDetailDrawer = ({ runId }: { runId: string }) => {
                 { label: 'Duration', value: formatDuration(run.duration_seconds) },
               ].map((m) => (
                 <div key={m.label} className="p-3 rounded-lg bg-surface-container-low border border-surface-variant">
-                  <p className="text-[11px] text-outline uppercase tracking-wider font-semibold">{m.label}</p>
+                  <p className="text-[11px] text-on-surface-variant uppercase tracking-wider font-semibold">{m.label}</p>
                   <p className="text-[16px] font-bold text-on-surface mt-0.5">{m.value}</p>
                 </div>
               ))}
@@ -156,7 +156,7 @@ const RunDetailDrawer = ({ runId }: { runId: string }) => {
                   { label: 'Checksum', value: run.checksum, mono: true },
                 ].map((d) => d.value ? (
                   <div key={d.label} className="flex items-start gap-3">
-                    <span className="text-outline w-28 shrink-0">{d.label}</span>
+                    <span className="text-on-surface-variant w-28 shrink-0">{d.label}</span>
                     <span className={`text-on-surface break-all ${d.mono ? 'font-mono text-[11px]' : ''}`}>
                       {d.value}
                     </span>
@@ -192,7 +192,7 @@ const RunDetailDrawer = ({ runId }: { runId: string }) => {
                             <span className="ml-1.5 px-1.5 py-0.5 rounded bg-error-container text-error text-[10px] font-medium">Failed</span>
                           )}
                         </p>
-                        <p className="font-mono text-[11px] text-outline">{truncate(a.checksum, 8)}</p>
+                        <p className="font-mono text-[11px] text-on-surface-variant">{truncate(a.checksum, 8)}</p>
                       </div>
                       <span className="text-[12px] font-mono text-on-surface-variant shrink-0 ml-3">{formatBytes(a.size)}</span>
                     </div>
@@ -216,7 +216,7 @@ const RunDetailDrawer = ({ runId }: { runId: string }) => {
                 </h3>
                 <div className="max-h-40 overflow-y-auto rounded-lg bg-on-surface p-3 font-mono text-[11px] leading-relaxed text-[#dbe1ff]">
                   {liveLines.length === 0 ? (
-                    <span className="text-outline">Waiting for agent output…</span>
+                    <span className="text-on-surface-variant">Waiting for agent output…</span>
                   ) : (
                     liveLines.map((line, i) => <div key={i} className="break-all">{line}</div>)
                   )}

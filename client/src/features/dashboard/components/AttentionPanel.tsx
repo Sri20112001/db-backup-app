@@ -6,6 +6,7 @@ import type { JobHealth, SizeAnomaly } from '@/types'
 interface AttentionPanelProps {
   failedJobs: JobHealth[]
   anomalies: SizeAnomaly[]
+  isLoading: boolean
   onRunNow: (jobId: string, jobName: string) => void
   onSelectJob: (jobId: string) => void
   onReviewAlerts: () => void
@@ -13,7 +14,18 @@ interface AttentionPanelProps {
 
 // Actionable issues lane: failed/warning jobs (with instant run + details)
 // and backup-size anomalies. Collapses to a slim all-clear strip when empty.
-const AttentionPanel = ({ failedJobs, anomalies, onRunNow, onSelectJob, onReviewAlerts }: AttentionPanelProps) => {
+const AttentionPanel = ({ failedJobs, anomalies, isLoading, onRunNow, onSelectJob, onReviewAlerts }: AttentionPanelProps) => {
+  // While the first load is in flight we have no data yet — show a neutral
+  // placeholder rather than a premature (and false) all-clear.
+  if (isLoading) {
+    return (
+      <div className="flex items-center gap-2.5 px-4 py-2 rounded-lg bg-surface-container-low border border-surface-variant/60 shrink-0 animate-pulse" aria-hidden="true">
+        <div className="w-4 h-4 rounded-full bg-surface-container-high shrink-0" />
+        <div className="h-3.5 w-64 rounded bg-surface-container-high" />
+      </div>
+    )
+  }
+
   const empty = failedJobs.length === 0 && anomalies.length === 0
 
   if (empty) {
@@ -51,7 +63,7 @@ const AttentionPanel = ({ failedJobs, anomalies, onRunNow, onSelectJob, onReview
             <StatusBadge status={job.status} size="sm" />
             <div className="flex-1 min-w-0">
               <p className="text-[13px] font-medium text-on-surface truncate">{job.job_name}</p>
-              <p className="text-[11px] text-outline truncate">
+              <p className="text-[11px] text-on-surface-variant truncate">
                 {job.status === 'FAILED' && job.last_failure_at
                   ? `Failed ${formatRelative(job.last_failure_at)}`
                   : job.last_success_at
@@ -81,7 +93,7 @@ const AttentionPanel = ({ failedJobs, anomalies, onRunNow, onSelectJob, onReview
           </div>
         ))}
         {anomalies.map((a) => (
-          <div key={a.job_id} className="px-4 py-2 flex items-center gap-3">
+          <div key={a.run_id} className="px-4 py-2 flex items-center gap-3">
             <TrendingDown size={14} className="text-amber-600 shrink-0" />
             <p className="text-[12px] text-on-surface-variant truncate">
               <span className="font-medium text-on-surface">{a.job_name}</span>

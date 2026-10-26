@@ -28,7 +28,7 @@ const Pagination = ({ page, totalPages, total, perPage, onPage }: Props) => {
 
   return (
     <div className="flex items-center justify-between gap-3 pt-1 shrink-0">
-      <p className="text-[12px] text-outline">
+      <p className="text-[12px] text-on-surface-variant">
         Showing {start}–{end} of {total}
       </p>
       <div className="flex items-center gap-1">
@@ -43,7 +43,7 @@ const Pagination = ({ page, totalPages, total, perPage, onPage }: Props) => {
         </button>
         {pages.map((p, i) =>
           p === '…' ? (
-            <span key={`gap-${i}`} className={`${btn} text-outline pointer-events-none`}>
+            <span key={`gap-${i}`} className={`${btn} text-on-surface-variant pointer-events-none`}>
               …
             </span>
           ) : (

@@ -133,7 +133,7 @@ export const Select: React.FC<DatabaseSelectProps> = ({
   if (isManual) {
     return (
       <div className={`relative flex items-center ${className}`}>
-        <div className="absolute left-3 text-outline pointer-events-none flex items-center">
+        <div className="absolute left-3 text-on-surface-variant pointer-events-none flex items-center">
           <Database size={15} />
         </div>
         <input
@@ -174,14 +174,14 @@ export const Select: React.FC<DatabaseSelectProps> = ({
       >
         <span
           className={`text-[13px] truncate ${
-            value ? "text-on-surface font-medium" : "text-outline"
+            value ? "text-on-surface font-medium" : "text-on-surface-variant"
           }`}
         >
           {value || placeholder}
         </span>
         <ChevronDown
           size={16}
-          className={`text-outline shrink-0 transition-transform duration-200 ${
+          className={`text-on-surface-variant shrink-0 transition-transform duration-200 ${
             isOpen ? "rotate-180" : ""
           }`}
         />
@@ -195,7 +195,7 @@ export const Select: React.FC<DatabaseSelectProps> = ({
             <div className="relative flex items-center">
               <Search
                 size={14}
-                className="absolute left-2.5 text-outline pointer-events-none"
+                className="absolute left-2.5 text-on-surface-variant pointer-events-none"
               />
               <input
                 ref={searchInputRef}
@@ -245,7 +245,7 @@ export const Select: React.FC<DatabaseSelectProps> = ({
                 );
               })
             ) : (
-              <li className="px-3 py-3 text-center text-[12px] text-outline">
+              <li className="px-3 py-3 text-center text-[12px] text-on-surface-variant">
                 No matching databases found.
               </li>
             )}

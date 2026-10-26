@@ -41,7 +41,7 @@ const ToastContainer = () => {
             <button
               type="button"
               onClick={() => removeToast(t.id)}
-              className="text-outline hover:text-on-surface transition-colors"
+              className="text-on-surface-variant hover:text-on-surface transition-colors"
             >
               <X size={14} />
             </button>

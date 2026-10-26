@@ -7,8 +7,9 @@ import { UserPlus, UserMinus, Loader2 } from 'lucide-react'
 import Pagination from '@/components/Pagination'
 import { Page, PageHeader } from '@/components/Page'
 import { usePagination } from '@/hooks/usePagination'
+import NotificationsSection from './NotificationsSection'
 
-const TABS = ['Organization', 'Team Members', 'Security']
+const TABS = ['Organization', 'Team Members', 'Notifications', 'Security']
 
 const roleColor: Record<MemberRole, string> = {
   OWNER: 'bg-primary-container text-primary',
@@ -127,15 +128,15 @@ const SettingsPage = () => {
           </div>
           <div>
             <label className="block text-[13px] font-medium text-on-surface-variant mb-1.5">Slug</label>
-            <input type="text" defaultValue={currentOrg?.slug} readOnly className={`${inputCls} font-mono text-[13px] bg-surface-container-low text-outline`} />
+            <input type="text" defaultValue={currentOrg?.slug} readOnly className={`${inputCls} font-mono text-[13px] bg-surface-container-low text-on-surface-variant`} />
           </div>
           <div>
             <label className="block text-[13px] font-medium text-on-surface-variant mb-1.5">Organization ID</label>
-            <input type="text" defaultValue={currentOrg?.id} readOnly className={`${inputCls} font-mono text-[12px] bg-surface-container-low text-outline`} />
+            <input type="text" defaultValue={currentOrg?.id} readOnly className={`${inputCls} font-mono text-[12px] bg-surface-container-low text-on-surface-variant`} />
           </div>
           <div>
             <label className="block text-[13px] font-medium text-on-surface-variant mb-1.5">User Limit</label>
-            <input type="text" defaultValue={currentOrg?.user_limit} readOnly className={`${inputCls} bg-surface-container-low text-outline`} />
+            <input type="text" defaultValue={currentOrg?.user_limit} readOnly className={`${inputCls} bg-surface-container-low text-on-surface-variant`} />
           </div>
         </div>
       )}
@@ -170,7 +171,7 @@ const SettingsPage = () => {
                   ))
                 ) : members.length === 0 ? (
                   <tr>
-                    <td colSpan={4} className="py-10 text-center text-[13px] text-outline">
+                    <td colSpan={4} className="py-10 text-center text-[13px] text-on-surface-variant">
                       No team members yet.
                     </td>
                   </tr>
@@ -200,7 +201,7 @@ const SettingsPage = () => {
                               <option key={r} value={r}>{r}</option>
                             ))}
                           </select>
-                          <button type="button" onClick={() => handleRemove(m.user_id)} className="p-1 rounded text-outline hover:text-error hover:bg-error-container/30 transition-colors">
+                          <button type="button" onClick={() => handleRemove(m.user_id)} className="p-1 rounded text-on-surface-variant hover:text-error hover:bg-error-container/30 transition-colors">
                             <UserMinus size={14} />
                           </button>
                         </div>
@@ -251,8 +252,13 @@ const SettingsPage = () => {
         </div>
       )}
 
-      {/* Security tab */}
+      {/* Notifications tab */}
       {tab === 2 && (
+        <NotificationsSection />
+      )}
+
+      {/* Security tab */}
+      {tab === 3 && (
         <div className="flex flex-col gap-4 p-5 rounded-xl bg-surface-container-lowest border border-surface-variant shadow-sm">
           <h2 className="text-[14px] font-semibold text-on-surface">Change Password</h2>
           <form onSubmit={handlePasswordChange} className="flex flex-col gap-4">

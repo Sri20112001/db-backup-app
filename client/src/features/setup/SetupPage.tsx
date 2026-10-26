@@ -28,7 +28,7 @@ const SetupPage = () => {
       const org = await orgApi.create(orgName.trim())
       setCurrentOrg(org)
       addToast('success', 'Organization created')
-      navigate('/')
+      navigate('/onboarding')
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : 'Failed to create organization')
     } finally {
@@ -45,7 +45,7 @@ const SetupPage = () => {
           </div>
           <div>
             <h1 className="text-[20px] font-semibold text-on-surface tracking-tight">VaultGuard</h1>
-            <p className="text-[12px] text-outline">Backup & Recovery Platform</p>
+            <p className="text-[12px] text-on-surface-variant">Backup & Recovery Platform</p>
           </div>
         </div>
 
@@ -55,7 +55,7 @@ const SetupPage = () => {
           </div>
           <div>
             <h2 className="text-[18px] font-semibold text-on-surface">Set up your organization</h2>
-            <p className="text-[13px] text-outline">Hi {user?.name} — one more step before you start.</p>
+            <p className="text-[13px] text-on-surface-variant">Hi {user?.name} — one more step before you start.</p>
           </div>
         </div>
 
@@ -78,9 +78,9 @@ const SetupPage = () => {
               required
               placeholder="Acme Corp"
               autoFocus
-              className="w-full h-9 px-3 rounded-lg border border-surface-variant bg-surface-container-low text-[14px] text-on-surface placeholder:text-outline focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all"
+              className="w-full h-9 px-3 rounded-lg border border-surface-variant bg-surface-container-low text-[14px] text-on-surface placeholder:text-on-surface-variant focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all"
             />
-            <p className="mt-1.5 text-[12px] text-outline">
+            <p className="mt-1.5 text-[12px] text-on-surface-variant">
               This is your team's workspace. You can invite members after setup.
             </p>
           </div>
@@ -97,7 +97,7 @@ const SetupPage = () => {
         <button
           type="button"
           onClick={handleLogout}
-          className="mt-4 w-full text-center text-[13px] text-outline hover:text-error transition-colors"
+          className="mt-4 w-full text-center text-[13px] text-on-surface-variant hover:text-error transition-colors"
         >
           Sign out
         </button>

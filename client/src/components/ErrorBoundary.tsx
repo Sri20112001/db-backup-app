@@ -40,7 +40,7 @@ class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoundarySta
           <p className="mt-1 text-[13px] text-on-surface-variant">
             This view crashed. Your data is safe — try again or reload the page.
           </p>
-          <p className="mt-2 font-mono text-[11px] text-outline break-all">
+          <p className="mt-2 font-mono text-[11px] text-on-surface-variant break-all">
             {error.message}
           </p>
           <div className="mt-4 flex items-center justify-center gap-2">

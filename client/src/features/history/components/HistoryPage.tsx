@@ -164,7 +164,7 @@ const HistoryPage = () => {
                     </span>
                   </td>
                   <td className="py-3 px-4 font-mono text-[12px] text-on-surface-variant">{run.backup_job?.agent?.name ?? '—'}</td>
-                  <td className="py-3 px-4 text-[12px] text-outline">{formatRelative(run.started_at)}</td>
+                  <td className="py-3 px-4 text-[12px] text-on-surface-variant">{formatRelative(run.started_at)}</td>
                   <td className="py-3 px-4 font-mono text-[12px]">{formatDuration(run.duration_seconds)}</td>
                   <td className="py-3 px-4 font-mono text-[12px]">{formatBytes(run.bytes_read)}</td>
                   <td className="py-3 px-4 font-mono text-[12px]">{formatBytes(run.bytes_uploaded)}</td>

@@ -45,15 +45,24 @@ const RecentRunsTable = ({ runs, isLoading, onOpenRun, onViewAll, onNewJob }: Re
             ))
           ) : runs.length === 0 ? (
             <tr>
-              <td colSpan={8} className="py-10 text-center text-[13px] text-outline">
+              <td colSpan={8} className="py-10 text-center text-[13px] text-on-surface-variant">
                 No backup runs yet. <button type="button" onClick={onNewJob} className="text-primary hover:underline">Create a backup job</button> to get started.
               </td>
             </tr>
           ) : runs.slice(0, MAX_RUNS).map((run) => (
             <tr
               key={run.id}
+              role="button"
+              tabIndex={0}
               onClick={() => onOpenRun(run.id)}
-              className={`hover:bg-surface-container-low/50 transition-colors cursor-pointer ${run.status === 'FAILED' ? 'bg-error-container/20' : run.status === 'RUNNING' || run.status === 'UPLOADING' ? 'bg-primary-container/10' : ''}`}
+              onKeyDown={(e) => {
+                if (e.target !== e.currentTarget) return
+                if (e.key === 'Enter' || e.key === ' ') {
+                  e.preventDefault()
+                  onOpenRun(run.id)
+                }
+              }}
+              className={`hover:bg-surface-container-low/50 transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary/40 ${run.status === 'FAILED' ? 'bg-error-container/20' : run.status === 'RUNNING' || run.status === 'UPLOADING' ? 'bg-primary-container/10' : ''}`}
             >
               <td className="py-2 px-3"><StatusBadge status={run.status} size="sm" /></td>
               <td className="py-2 px-3 font-medium text-on-surface whitespace-nowrap">{run.backup_job?.name ?? '—'}</td>
@@ -62,7 +71,7 @@ const RecentRunsTable = ({ runs, isLoading, onOpenRun, onViewAll, onNewJob }: Re
                   {run.source_type || run.backup_job?.source_type}
                 </span>
               </td>
-              <td className="py-2 px-3 text-[12px] text-outline whitespace-nowrap">{formatRelative(run.started_at)}</td>
+              <td className="py-2 px-3 text-[12px] text-on-surface-variant whitespace-nowrap">{formatRelative(run.started_at)}</td>
               <td className="py-2 px-3 font-mono text-[12px] whitespace-nowrap">{formatDuration(run.duration_seconds)}</td>
               <td className="py-2 px-3 font-mono text-[12px] whitespace-nowrap">{formatBytes(run.bytes_uploaded)}</td>
               <td className="py-2 px-3">
@@ -73,7 +82,11 @@ const RecentRunsTable = ({ runs, isLoading, onOpenRun, onViewAll, onNewJob }: Re
                 ) : '—'}
               </td>
               <td className="py-2 px-3 text-right">
-                <button type="button" className="px-2 py-0.5 rounded text-[12px] text-on-surface-variant hover:bg-surface-container-high transition-colors">
+                <button
+                  type="button"
+                  onClick={(e) => { e.stopPropagation(); onOpenRun(run.id) }}
+                  className="px-2 py-0.5 rounded text-[12px] text-on-surface-variant hover:bg-surface-container-high transition-colors"
+                >
                   Details
                 </button>
               </td>

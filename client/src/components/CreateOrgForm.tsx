@@ -10,7 +10,7 @@ interface Props {
 }
 
 const inputCls =
-  'w-full h-9 px-3 rounded-lg border border-surface-variant bg-surface-container-low text-[14px] text-on-surface placeholder:text-outline focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all'
+  'w-full h-9 px-3 rounded-lg border border-surface-variant bg-surface-container-low text-[14px] text-on-surface placeholder:text-on-surface-variant focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all'
 
 const CreateOrgForm = ({ onCreated, autoFocus = false }: Props) => {
   const { setCurrentOrg } = useAuthStore()

@@ -41,7 +41,7 @@ const PgDatabasePicker = ({ value, onChange }: Props) => {
       setError(
         e instanceof Error
           ? e.message
-          : 'Could not reach the agent helper. It must run on this machine (127.0.0.1:7546).',
+          : `Could not reach the agent helper. It must run on this machine (${BROWSE_BASE}).`,
       )
       setDbs(null)
     } finally {
@@ -145,8 +145,8 @@ const PgDatabasePicker = ({ value, onChange }: Props) => {
         </button>
       )}
 
-      {error && <p className="text-[12px] text-outline">{error}</p>}
-      <p className="text-[11px] text-outline">
+      {error && <p className="text-[12px] text-on-surface-variant">{error}</p>}
+      <p className="text-[11px] text-on-surface-variant">
         Credentials go only to the agent on this machine for discovery — never stored.
       </p>
     </div>

@@ -69,7 +69,7 @@ const SqlDatabasePicker = ({ value, onChange }: Props) => {
         <div className="relative">
           <Database
             size={15}
-            className="absolute left-3 top-1/2 -translate-y-1/2 text-outline pointer-events-none"
+            className="absolute left-3 top-1/2 -translate-y-1/2 text-on-surface-variant pointer-events-none"
           />
           <select
             value={dbs.includes(value) ? value : value === '' ? '' : '__manual'}
@@ -112,10 +112,10 @@ const SqlDatabasePicker = ({ value, onChange }: Props) => {
       )}
 
       {isLoading && dbs === null && !error && (
-        <p className="text-[12px] text-outline">Detecting databases on this machine…</p>
+        <p className="text-[12px] text-on-surface-variant">Detecting databases on this machine…</p>
       )}
       {error && (
-        <p className="text-[12px] text-outline">
+        <p className="text-[12px] text-on-surface-variant">
           {error} You can still type the name manually — required for remote agents.
         </p>
       )}

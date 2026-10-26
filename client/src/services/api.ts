@@ -1,16 +1,41 @@
 import type {
   AuthTokens, BackupJob, BackupRun, BackupArtifact, BackupPolicy,
-  Agent, Machine, StorageTarget, RestoreJob, Alert,
+  Agent, Machine, StorageTarget, RestoreJob, Alert, AlertSeverity,
   DashboardOverview, JobHealth, OrganizationMember,
   Organization, PaginatedResponse, PreflightResult, S3Region, User,
   DatabaseConnection, CreateConnectionRequest, TestConnectionResult,
   DatabaseListResult, TableListResult, EnrollmentTokenResult,
-  EnrollmentTokenInfo
+  EnrollmentTokenInfo, JobListResponse,
+  NotificationSettings, UserNotificationPrefs
 } from '../types'
 
 import { useAuthStore } from '../store/authStore'
 
 import { API_BASE_URL as BASE, LOGIN_URL, REGISTER_URL } from '../CONSTANTS'
+
+// Params accepted by every paginated list endpoint: page/limit/search/sort/order
+// plus any entity-specific filters (status, source_type, lifecycle, ...).
+export interface ListParams {
+  page?: number
+  limit?: number
+  search?: string
+  sort?: string
+  order?: 'asc' | 'desc'
+  [key: string]: string | number | boolean | undefined
+}
+
+// Build a querystring, skipping empty/undefined values so callers can pass
+// optional filters directly without conditional assembly.
+export function listQuery(params?: ListParams): string {
+  if (!params) return ''
+  const q = new URLSearchParams()
+  for (const [key, value] of Object.entries(params)) {
+    if (value === undefined || value === null || value === '') continue
+    q.set(key, String(value))
+  }
+  const s = q.toString()
+  return s ? `?${s}` : ''
+}
 
 function getToken() {
   return useAuthStore.getState().accessToken
@@ -144,7 +169,8 @@ export const dashboardApi = {
 
 // Agents
 export const agentApi = {
-  list: (orgId: string) => request<Agent[]>(`/organizations/${orgId}/agents`),
+  list: (orgId: string, params?: ListParams) =>
+    request<PaginatedResponse<Agent>>(`/organizations/${orgId}/agents${listQuery(params)}`),
   get: (orgId: string, id: string) => request<Agent>(`/organizations/${orgId}/agents/${id}`),
   generateToken: (orgId: string) =>
     request<{ agent_id: string; registration_key: string }>(`/organizations/${orgId}/agents/token`, { method: 'POST' }),
@@ -201,7 +227,8 @@ export const regionApi = {
 // Database connections: reusable credentials configured once. Passwords are
 // write-only (create/update) and never appear in list/get responses.
 export const connectionsApi = {
-  list: (orgId: string) => request<DatabaseConnection[]>(`/organizations/${orgId}/connections`),
+  list: (orgId: string, params?: ListParams) =>
+    request<PaginatedResponse<DatabaseConnection>>(`/organizations/${orgId}/connections${listQuery(params)}`),
   get: (orgId: string, id: string) => request<DatabaseConnection>(`/organizations/${orgId}/connections/${id}`),
   create: (orgId: string, data: CreateConnectionRequest) =>
     request<DatabaseConnection>(`/organizations/${orgId}/connections`, {
@@ -225,7 +252,8 @@ export const connectionsApi = {
 
 // Backup Jobs
 export const jobApi = {
-  list: (orgId: string) => request<BackupJob[]>(`/organizations/${orgId}/backup-jobs`),
+  list: (orgId: string, params?: ListParams) =>
+    request<JobListResponse>(`/organizations/${orgId}/backup-jobs${listQuery(params)}`),
   get: (orgId: string, id: string) => request<BackupJob>(`/organizations/${orgId}/backup-jobs/${id}`),
   create: (orgId: string, data: Record<string, unknown>) =>
     request<BackupJob>(`/organizations/${orgId}/backup-jobs`, {
@@ -266,17 +294,8 @@ export const policyApi = {
 
 // Backup Runs
 export const runApi = {
-  list: (orgId: string, params?: { job_id?: string; status?: string; search?: string; sort?: string; order?: 'asc' | 'desc'; page?: number; limit?: number }) => {
-    const q = new URLSearchParams()
-    if (params?.job_id) q.set('job_id', params.job_id)
-    if (params?.status) q.set('status', params.status)
-    if (params?.search) q.set('search', params.search)
-    if (params?.sort) q.set('sort', params.sort)
-    if (params?.order) q.set('order', params.order)
-    if (params?.page) q.set('page', String(params.page))
-    if (params?.limit) q.set('limit', String(params.limit))
-    return request<PaginatedResponse<BackupRun>>(`/organizations/${orgId}/backup-runs?${q}`)
-  },
+  list: (orgId: string, params?: ListParams) =>
+    request<PaginatedResponse<BackupRun>>(`/organizations/${orgId}/backup-runs${listQuery(params)}`),
   get: (orgId: string, id: string) => request<BackupRun>(`/organizations/${orgId}/backup-runs/${id}`),
   cancel: (orgId: string, id: string) =>
     request(`/organizations/${orgId}/backup-runs/${id}/cancel`, { method: 'POST' }),
@@ -288,7 +307,8 @@ export const runApi = {
 
 // Restores
 export const restoreApi = {
-  list: (orgId: string) => request<RestoreJob[]>(`/organizations/${orgId}/restores`),
+  list: (orgId: string, params?: ListParams) =>
+    request<PaginatedResponse<RestoreJob>>(`/organizations/${orgId}/restores${listQuery(params)}`),
   get: (orgId: string, id: string) => request<RestoreJob>(`/organizations/${orgId}/restores/${id}`),
   create: (orgId: string, data: Record<string, unknown>) =>
     request<RestoreJob>(`/organizations/${orgId}/restores`, {
@@ -298,17 +318,29 @@ export const restoreApi = {
 
 // Alerts
 export const alertApi = {
-  list: (orgId: string, params?: { unread?: boolean; search?: string; order?: 'asc' | 'desc'; page?: number; limit?: number }) => {
-    const q = new URLSearchParams()
-    if (params?.unread) q.set('unread', 'true')
-    if (params?.search) q.set('search', params.search)
-    if (params?.order) q.set('order', params.order)
-    if (params?.page) q.set('page', String(params.page))
-    if (params?.limit) q.set('limit', String(params.limit))
-    return request<PaginatedResponse<Alert>>(`/organizations/${orgId}/alerts?${q}`)
-  },
+  list: (orgId: string, params?: ListParams) =>
+    request<PaginatedResponse<Alert>>(`/organizations/${orgId}/alerts${listQuery(params)}`),
   markRead: (orgId: string, id: string) =>
     request(`/organizations/${orgId}/alerts/${id}/read`, { method: 'PUT' }),
   markAllRead: (orgId: string) =>
     request<{ read: boolean; count: number }>(`/organizations/${orgId}/alerts/read-all`, { method: 'PUT' }),
+  ack: (orgId: string, id: string) =>
+    request<Alert>(`/organizations/${orgId}/alerts/${id}/ack`, { method: 'POST' }),
+  resolve: (orgId: string, id: string) =>
+    request<Alert>(`/organizations/${orgId}/alerts/${id}/resolve`, { method: 'POST' }),
+}
+
+// Notification settings (org-level) + per-user email prefs
+export const notificationApi = {
+  getSettings: (orgId: string) =>
+    request<NotificationSettings>(`/organizations/${orgId}/notification-settings`),
+  updateSettings: (orgId: string, data: Partial<NotificationSettings> & { webhook_secret?: string }) =>
+    request<NotificationSettings>(`/organizations/${orgId}/notification-settings`, {
+      method: 'PUT', body: JSON.stringify(data),
+    }),
+  testEmail: (orgId: string) =>
+    request<{ sent: boolean; to: string }>(`/organizations/${orgId}/notification-settings/test-email`, { method: 'POST' }),
+  getMyPrefs: () => request<UserNotificationPrefs>('/me/notification-prefs'),
+  updateMyPrefs: (data: { email_enabled?: boolean; min_severity?: AlertSeverity }) =>
+    request<UserNotificationPrefs>('/me/notification-prefs', { method: 'PUT', body: JSON.stringify(data) }),
 }

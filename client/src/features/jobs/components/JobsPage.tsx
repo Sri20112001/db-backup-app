@@ -3,11 +3,11 @@ import { useNavigate } from "react-router-dom";
 import { jobApi } from "@/services/api";
 import { useAuthStore } from "@/store/authStore";
 import { useUIStore } from "@/store/uiStore";
-import type { BackupJob, BackupSourceType } from "@/types";
+import type { BackupJob, BackupSourceType, ListCounts } from "@/types";
 import StatusBadge from "@/components/StatusBadge";
 import EmptyState from "@/components/EmptyState";
 import Pagination from "@/components/Pagination";
-import { usePagination } from "@/hooks/usePagination";
+import { useDebouncedValue } from "@/hooks/useDebouncedValue";
 import EditJobModal from "./EditJobModal";
 import NewJobModal from "./NewJobModal";
 import { useRealtimeStore } from "@/stores/realtimeStore";
@@ -59,6 +59,16 @@ const sourceIcon = {
   DBF: DbfIcon,
 };
 
+const PER_PAGE = 8;
+
+// Maps the UI sort options onto the server's allowlisted column + direction.
+const SORT_PARAMS: Record<string, { sort: string; order: "asc" | "desc" }> = {
+  "name-asc": { sort: "name", order: "asc" },
+  "name-desc": { sort: "name", order: "desc" },
+  "enabled-first": { sort: "enabled", order: "desc" },
+  "disabled-first": { sort: "enabled", order: "asc" },
+};
+
 const JobsPage = () => {
   const { currentOrg } = useAuthStore();
   const { addToast } = useUIStore();
@@ -68,32 +78,58 @@ const JobsPage = () => {
   const [search, setSearch] = useState("");
   const [sourceFilter, setSourceFilter] = useState<BackupSourceType | "">("");
   const [sort, setSort] = useState("name-asc");
+  const [page, setPage] = useState(1);
+  const [total, setTotal] = useState(0);
+  const [counts, setCounts] = useState<ListCounts>({
+    total: 0,
+    enabled: 0,
+    disabled: 0,
+    by_source: {},
+  });
   const [editId, setEditId] = useState<string | null>(null);
   const [showNew, setShowNew] = useState(false);
+
+  const debouncedSearch = useDebouncedValue(search, 300);
 
   const loadJobs = () => {
     if (!currentOrg) return;
     setIsLoading(true);
+    const sortParams = SORT_PARAMS[sort] ?? SORT_PARAMS["name-asc"];
     jobApi
-      .list(currentOrg.id)
+      .list(currentOrg.id, {
+        page,
+        limit: PER_PAGE,
+        search: debouncedSearch || undefined,
+        source_type: sourceFilter || undefined,
+        sort: sortParams.sort,
+        order: sortParams.order,
+      })
       // Normalize the legacy 'SQL_SERVER' spelling stored by older jobs so
-      // icons, filters, and counts treat them as MSSQL_SERVER.
-      .then((list) =>
+      // icons and labels treat them as MSSQL_SERVER.
+      .then((res) => {
         setJobs(
-          list.map((j) =>
+          res.data.map((j) =>
             (j.source_type as string) === "SQL_SERVER"
               ? { ...j, source_type: "MSSQL_SERVER" as BackupSourceType }
               : j,
           ),
-        ),
-      )
+        );
+        setTotal(res.total);
+        setCounts(res.counts);
+      })
       .catch(() => addToast("error", "Failed to load backup jobs"))
       .finally(() => setIsLoading(false));
   };
 
   useEffect(() => {
     loadJobs();
-  }, [currentOrg]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [currentOrg, page, debouncedSearch, sourceFilter, sort]);
+
+  // Any filter change resets to the first page.
+  useEffect(() => {
+    setPage(1);
+  }, [debouncedSearch, sourceFilter, sort]);
 
   // Cross-operator job changes refresh the list.
   const jobsSeq = useRealtimeStore((s) => s.entitySeq.jobs);
@@ -129,34 +165,6 @@ const JobsPage = () => {
     }
   };
 
-  const filtered = jobs.filter((j) => {
-    const q = search.toLowerCase();
-    const matchSearch =
-      !search ||
-      j.name.toLowerCase().includes(q) ||
-      (j.source_path || "").toLowerCase().includes(q) ||
-      (j.agent?.name || "").toLowerCase().includes(q);
-    const matchSource = !sourceFilter || j.source_type === sourceFilter;
-    return matchSearch && matchSource;
-  });
-  const sorted = [...filtered].sort((a, b) => {
-    switch (sort) {
-      case "name-desc":
-        return b.name.localeCompare(a.name);
-      case "enabled-first":
-        return Number(b.enabled) - Number(a.enabled) || a.name.localeCompare(b.name);
-      case "disabled-first":
-        return Number(a.enabled) - Number(b.enabled) || a.name.localeCompare(b.name);
-      default:
-        return a.name.localeCompare(b.name);
-    }
-  });
-  const paged = usePagination(
-    sorted,
-    8,
-    `${search}|${sourceFilter}|${sort}|${currentOrg?.id ?? ""}`,
-  );
-
   const accentColor = (job: BackupJob) => {
     if (!job.enabled) return "bg-[#c3c6d7]";
     return "bg-primary";
@@ -177,7 +185,7 @@ const JobsPage = () => {
           <>
             Backup Jobs
             <span className="px-2 py-0.5 rounded-full bg-surface-container-high text-on-surface-variant text-[12px] font-medium">
-              {jobs.length} Workloads
+              {counts.total} Workloads
             </span>
           </>
         }
@@ -195,14 +203,14 @@ const JobsPage = () => {
         {[
           {
             label: "Total",
-            value: jobs.length,
+            value: counts.total,
             Icon: Layers,
             color: "text-primary",
             bg: "bg-surface-container-high",
           },
           {
             label: "Active",
-            value: jobs.filter((j) => j.enabled).length,
+            value: counts.enabled,
             Icon: CheckCircle,
             color: "text-on-primary-container",
             bg: "bg-primary-container/50",
@@ -216,7 +224,7 @@ const JobsPage = () => {
           },
           {
             label: "Paused",
-            value: jobs.filter((j) => !j.enabled).length,
+            value: counts.disabled,
             Icon: PauseCircle,
             color: "text-on-surface-variant",
             bg: "bg-surface-variant",
@@ -227,7 +235,7 @@ const JobsPage = () => {
             className="flex items-center justify-between p-3.5 rounded-xl bg-surface-container-lowest shadow-sm border border-surface-variant"
           >
             <div>
-              <span className="text-[12px] text-outline">{m.label}</span>
+              <span className="text-[12px] text-on-surface-variant">{m.label}</span>
               <p className="text-[22px] font-bold text-on-surface leading-tight">
                 {m.value}
               </p>
@@ -276,8 +284,8 @@ const JobsPage = () => {
               >
                 {f.label}{" "}
                 {f.value === ""
-                  ? `(${jobs.length})`
-                  : `(${jobs.filter((j) => j.source_type === f.value).length})`}
+                  ? `(${counts.total})`
+                  : `(${counts.by_source[f.value] ?? 0})`}
               </button>
             ))}
           </div>
@@ -297,7 +305,7 @@ const JobsPage = () => {
       <div className="flex-1 min-h-0 overflow-y-auto flex flex-col gap-2.5 pr-0.5">
         {isLoading ? (
           [...Array(5)].map((_, i) => <SkeletonCard key={i} />)
-        ) : filtered.length === 0 ? (
+        ) : total === 0 ? (
           <EmptyState
             icon={Archive}
             title="No backup jobs"
@@ -313,7 +321,7 @@ const JobsPage = () => {
             }
           />
         ) : (
-          paged.pageItems.map((job) => {
+          jobs.map((job) => {
             const SourceIcon = sourceIcon[job.source_type] ?? Archive;
             return (
               <div
@@ -340,7 +348,7 @@ const JobsPage = () => {
                     className={`w-10 h-10 rounded-lg flex items-center justify-center shrink-0 mt-0.5 ${
                       job.enabled
                         ? "bg-primary-container/40 text-on-primary-container"
-                        : "bg-surface-variant text-outline"
+                        : "bg-surface-variant text-on-surface-variant"
                     }`}
                   >
                     <SourceIcon size={20} />
@@ -407,7 +415,7 @@ const JobsPage = () => {
                     status={job.enabled ? "ONLINE" : "OFFLINE"}
                     size="sm"
                   />
-                  <span className="text-[11px] text-outline">
+                  <span className="text-[11px] text-on-surface-variant">
                     {job.mode === "COMPRESSED" ? "Zstandard" : "Normal"} mode
                   </span>
                 </div>
@@ -469,11 +477,11 @@ const JobsPage = () => {
       </div>
 
       <Pagination
-        page={paged.page}
-        totalPages={paged.totalPages}
-        total={paged.total}
-        perPage={paged.perPage}
-        onPage={paged.setPage}
+        page={page}
+        totalPages={Math.max(1, Math.ceil(total / PER_PAGE))}
+        total={total}
+        perPage={PER_PAGE}
+        onPage={setPage}
       />
 
       {editId && (

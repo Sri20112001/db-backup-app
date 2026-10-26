@@ -143,10 +143,10 @@ const JobDetailPage = () => {
                     Policy: {job.policy.name}
                   </span>
                 ) : (
-                  <span className="text-[11px] text-outline">Job-specific settings</span>
+                  <span className="text-[11px] text-on-surface-variant">Job-specific settings</span>
                 )}
-                <span className="text-[12px] text-outline">{job.agent?.name}</span>
-                <span className="text-[12px] text-outline">→ {job.storage_target?.name}</span>
+                <span className="text-[12px] text-on-surface-variant">{job.agent?.name}</span>
+                <span className="text-[12px] text-on-surface-variant">→ {job.storage_target?.name}</span>
               </div>
             </div>
         </div>
@@ -223,11 +223,11 @@ const JobDetailPage = () => {
                       className={`hover:bg-surface-container-low/50 transition-colors cursor-pointer ${run.status === 'FAILED' ? 'bg-error-container/10' : ''}`}
                     >
                       <td className="py-3 px-4"><StatusBadge status={run.status} size="sm" /></td>
-                      <td className="py-3 px-4 text-[12px] text-outline">{formatRelative(run.started_at)}</td>
+                      <td className="py-3 px-4 text-[12px] text-on-surface-variant">{formatRelative(run.started_at)}</td>
                       <td className="py-3 px-4 font-mono text-[12px]">{formatDuration(run.duration_seconds)}</td>
                       <td className="py-3 px-4 font-mono text-[12px]">{formatBytes(run.bytes_read)}</td>
                       <td className="py-3 px-4 font-mono text-[12px]">{formatBytes(run.bytes_uploaded)}</td>
-                      <td className="py-3 px-4 font-mono text-[11px] text-outline">
+                      <td className="py-3 px-4 font-mono text-[11px] text-on-surface-variant">
                         {run.checksum ? `${run.checksum.slice(0, 8)}...` : '—'}
                       </td>
                       <td className="py-3 px-4 text-right">
@@ -305,7 +305,7 @@ const ConfigCard = ({ title, items }: { title: string; items: { label: string; v
     <div className="flex flex-col gap-2">
       {items.map((item) => (
         <div key={item.label} className="flex items-start gap-3 text-[13px]">
-          <span className="text-outline w-20 shrink-0">{item.label}</span>
+          <span className="text-on-surface-variant w-20 shrink-0">{item.label}</span>
           <span className={`text-on-surface break-all ${item.mono ? 'font-mono text-[11px]' : 'font-medium'}`}>{item.value}</span>
         </div>
       ))}
