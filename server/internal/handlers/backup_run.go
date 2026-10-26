@@ -8,7 +8,6 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
-	"strconv"
 	"strings"
 	"time"
 
@@ -34,18 +33,9 @@ func NewBackupRunHandler(db *gorm.DB, grpc CommandDispatcher, encKey []byte, mai
 
 func (h *BackupRunHandler) List(c *gin.Context) {
 	orgID := c.MustGet("org_id").(uuid.UUID)
+	p := parseListParams(c)
 
-	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
-	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "50"))
-	if page < 1 {
-		page = 1
-	}
-	if limit < 1 || limit > 200 {
-		limit = 50
-	}
-	offset := (page - 1) * limit
-
-	query := h.db.Where("backup_runs.organization_id = ?", orgID)
+	query := h.db.Model(&models.BackupRun{}).Where("backup_runs.organization_id = ?", orgID)
 	if jobID := c.Query("job_id"); jobID != "" {
 		query = query.Where("backup_runs.backup_job_id = ?", jobID)
 	}
@@ -56,40 +46,28 @@ func (h *BackupRunHandler) List(c *gin.Context) {
 	// orphan rows, and preloaded job names stay consistent with ordering.
 	query = query.Joins("LEFT JOIN backup_jobs ON backup_jobs.id = backup_runs.backup_job_id")
 	// Free-text search across the parent job name.
-	if q := strings.TrimSpace(c.Query("search")); q != "" {
-		query = query.Where("backup_jobs.name ILIKE ?", "%"+escapeLike(q)+"%")
+	if p.Search != "" {
+		query = query.Where("backup_jobs.name ILIKE ?", "%"+escapeLike(p.Search)+"%")
 	}
 
 	var total int64
-	query.Model(&models.BackupRun{}).Count(&total)
+	query.Count(&total)
 
 	// Sorting: allowlisted columns only — raw input is never interpolated.
-	sortCol := map[string]string{
+	sortCol := p.sortColumn(c, map[string]string{
 		"job":      "backup_jobs.name",
 		"started":  "backup_runs.started_at",
 		"duration": "backup_runs.duration_seconds",
 		"uploaded": "backup_runs.bytes_uploaded",
 		"created":  "backup_runs.created_at",
-	}[c.Query("sort")]
-	if sortCol == "" {
-		sortCol = "backup_runs.created_at"
-	}
-	order := "DESC"
-	if strings.EqualFold(c.Query("order"), "asc") {
-		order = "ASC"
-	}
+	}, "backup_runs.created_at")
 	// Secondary key keeps pagination stable for ties (e.g. equal durations).
-	query = query.Order(sortCol + " " + order).Order("backup_runs.created_at DESC")
+	query = query.Order(sortCol + " " + p.Order).Order("backup_runs.created_at DESC")
 
 	var runs []models.BackupRun
-	query.Preload("BackupJob").Limit(limit).Offset(offset).Find(&runs)
+	query.Preload("BackupJob").Limit(p.Limit).Offset(p.Offset).Find(&runs)
 
-	c.JSON(http.StatusOK, gin.H{
-		"data":  asArray(runs),
-		"total": total,
-		"page":  page,
-		"limit": limit,
-	})
+	respondPaginated(c, asArray(runs), total, p)
 }
 
 func (h *BackupRunHandler) Get(c *gin.Context) {
@@ -310,10 +288,14 @@ func (h *BackupRunHandler) UpdateStatus(c *gin.Context) {
 		h.db.Model(&models.BackupArtifact{}).
 			Where("backup_run_id = ? AND verification_status = ?", run.ID, models.ArtifactUnverified).
 			Updates(map[string]interface{}{"verification_status": models.ArtifactVerified, "verified_at": &now})
+		// A successful run clears any open "backup missed" alert for the job.
+		services.ResolveAlerts(h.db, run.OrganizationID, models.AlertBackupMissed,
+			"backup-missed:"+run.BackupJobID.String())
 	}
 
 	// First FAILED report for a run raises an alert + email. Terminal states
-	// never transition out, so exactly one FAILED report exists per run.
+	// never transition out, so exactly one FAILED report exists per run —
+	// and the dedup key coalesces a duplicate gRPC event for the same run.
 	if req.Status == models.RunFailed {
 		var job models.BackupJob
 		jobName := run.BackupJobID.String()
@@ -326,19 +308,32 @@ func (h *BackupRunHandler) UpdateStatus(c *gin.Context) {
 
 		agentID := agent.ID
 		jobID := run.BackupJobID
-		alert := models.Alert{
-			OrganizationID: run.OrganizationID,
-			Type:           models.AlertBackupFailed,
-			Title:          "Backup Failed: " + jobName,
-			Message:        req.ErrorMessage,
-			BackupJobID:    &jobID,
-			AgentID:        &agentID,
+		services.RaiseAlert(h.db, h.mailer, services.AlertInput{
+			OrgID:        run.OrganizationID,
+			Type:         models.AlertBackupFailed,
+			Title:        "Backup Failed: " + jobName,
+			Message:      req.ErrorMessage,
+			BackupJobID:  &jobID,
+			AgentID:      &agentID,
+			DedupKey:     "backup-failed:run:" + run.ID.String(),
+			EmailSubject: "[VaultGuard] Backup Failed: " + jobName,
+			EmailBody:    "Backup job " + jobName + " failed on agent " + agent.Name + ":\n\n" + req.ErrorMessage,
+		})
+		// Disk-full is both a run failure and a storage-capacity signal:
+		// raise STORAGE_LOW too so the storage filter/chip is not dead.
+		if category == "DISK_FULL" {
+			services.RaiseAlert(h.db, h.mailer, services.AlertInput{
+				OrgID:        run.OrganizationID,
+				Type:         models.AlertStorageLow,
+				Title:        "Storage Low: " + jobName,
+				Message:      "Backup failed because storage is full: " + req.ErrorMessage,
+				BackupJobID:  &jobID,
+				AgentID:      &agentID,
+				DedupKey:     "storage-low:job:" + jobID.String(),
+				EmailSubject: "[VaultGuard] Storage Low: " + jobName,
+				EmailBody:    "A backup for job " + jobName + " failed because the storage target is full:\n\n" + req.ErrorMessage,
+			})
 		}
-		h.db.Create(&alert)
-		publishAlert(alert)
-		services.NotifyOrg(h.db, h.mailer, run.OrganizationID,
-			"[VaultGuard] Backup Failed: "+jobName,
-			"Backup job "+jobName+" failed on agent "+agent.Name+":\n\n"+req.ErrorMessage)
 	}
 
 	c.JSON(http.StatusOK, gin.H{"updated": true, "cancel_requested": fresh.CancelRequested})
@@ -389,20 +384,18 @@ func (h *BackupRunHandler) Verify(c *gin.Context) {
 		h.db.Model(&models.BackupArtifact{}).Where("backup_run_id = ?", run.ID).
 			Updates(map[string]interface{}{"verification_status": models.ArtifactVerifyFail, "verified_at": &now})
 		jobID := run.BackupJobID
-		alert := models.Alert{
-			OrganizationID: run.OrganizationID,
-			Type:           models.AlertVerifyFailed,
-			Title:          "Backup verification failed",
-			Message:        fmt.Sprintf("stored file hash mismatch for run %s (expected %s, got %s)", run.ID, run.Checksum, sum),
-			BackupJobID:    &jobID,
-			AgentID:        &run.AgentID,
-		}
-		h.db.Create(&alert)
-		publishAlert(alert)
-		services.NotifyOrg(h.db, h.mailer, run.OrganizationID,
-			"[VaultGuard] Backup verification failed",
-			fmt.Sprintf("Stored file for run %s does not match its recorded checksum.\nExpected: %s\nActual:   %s\n\nTreat this recovery point as suspect until investigated.",
-				run.ID, run.Checksum, sum))
+		services.RaiseAlert(h.db, h.mailer, services.AlertInput{
+			OrgID:     run.OrganizationID,
+			Type:      models.AlertVerifyFailed,
+			Title:     "Backup verification failed",
+			Message:   fmt.Sprintf("stored file hash mismatch for run %s (expected %s, got %s)", run.ID, run.Checksum, sum),
+			BackupJobID: &jobID,
+			AgentID:   &run.AgentID,
+			DedupKey:  "verify-failed:run:" + run.ID.String(),
+			EmailSubject: "[VaultGuard] Backup verification failed",
+			EmailBody: fmt.Sprintf("Stored file for run %s does not match its recorded checksum.\nExpected: %s\nActual:   %s\n\nTreat this recovery point as suspect until investigated.",
+				run.ID, run.Checksum, sum),
+		})
 		c.JSON(http.StatusOK, gin.H{"match": false, "expected": run.Checksum, "actual": sum})
 		return
 	}

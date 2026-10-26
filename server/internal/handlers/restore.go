@@ -34,9 +34,37 @@ type createRestoreRequest struct {
 
 func (h *RestoreHandler) List(c *gin.Context) {
 	orgID := c.MustGet("org_id").(uuid.UUID)
+	p := parseListParams(c)
+
+	query := h.db.Model(&models.RestoreJob{}).Where("restore_jobs.organization_id = ?", orgID)
+	if status := c.Query("status"); status != "" {
+		query = query.Where("restore_jobs.status = ?", status)
+	}
+	if p.Search != "" {
+		like := "%" + escapeLike(p.Search) + "%"
+		// Restores are searched by destination or by the source backup job's
+		// name, which lives two hops away (run -> job).
+		query = query.
+			Joins("LEFT JOIN backup_runs ON backup_runs.id = restore_jobs.backup_run_id").
+			Joins("LEFT JOIN backup_jobs ON backup_jobs.id = backup_runs.backup_job_id").
+			Where("restore_jobs.destination_path ILIKE ? OR restore_jobs.target_database ILIKE ? OR backup_jobs.name ILIKE ?",
+				like, like, like)
+	}
+
+	var total int64
+	query.Count(&total)
+
+	sortCol := p.sortColumn(c, map[string]string{
+		"created":  "restore_jobs.created_at",
+		"started":  "restore_jobs.started_at",
+		"duration": "restore_jobs.duration_seconds",
+		"status":   "restore_jobs.status",
+	}, "restore_jobs.created_at")
+	query = query.Order(sortCol + " " + p.Order).Order("restore_jobs.id " + p.Order)
+
 	var jobs []models.RestoreJob
-	h.db.Preload("BackupRun").Preload("Connection").Where("organization_id = ?", orgID).Order("created_at DESC").Find(&jobs)
-	c.JSON(http.StatusOK, asArray(jobs))
+	query.Preload("BackupRun").Preload("Connection").Limit(p.Limit).Offset(p.Offset).Find(&jobs)
+	respondPaginated(c, asArray(jobs), total, p)
 }
 
 func (h *RestoreHandler) Create(c *gin.Context) {

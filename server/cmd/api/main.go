@@ -47,7 +47,7 @@ func main() {
 		log.Warn().Msg("SMTP_HOST is not set — alert emails are disabled (alerts still recorded)")
 	}
 
-	monitor := services.NewHealthMonitor(database, mailer)
+	monitor := services.NewHealthMonitor(database, mailer, cfg.AlertRetentionDays)
 	monitor.Start()
 	defer monitor.Stop()
 

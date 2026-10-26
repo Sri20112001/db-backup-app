@@ -9,7 +9,6 @@ import (
 
 	"github.com/backup-saas/server/internal/handlers"
 	"github.com/backup-saas/server/internal/models"
-	"github.com/backup-saas/server/internal/realtime"
 	"github.com/backup-saas/server/internal/services"
 	pb "github.com/backup-saas/server/proto/agentpb"
 	"github.com/google/uuid"
@@ -100,6 +99,10 @@ func (s *Server) Connect(stream pb.AgentService_ConnectServer) error {
 		"status":       models.AgentOnline,
 		"last_seen_at": &now,
 	})
+	// A live connection is definitive recovery: clear any open offline alert
+	// immediately instead of waiting for the monitor's next tick.
+	services.ResolveAlerts(s.db, agent.OrganizationID, models.AlertAgentOffline,
+		"agent-offline:"+agent.ID.String())
 	log.Info().Str("agent_id", agent.ID.String()).Msg("agent connected")
 
 	defer func() {
@@ -187,23 +190,22 @@ func (s *Server) handleEvent(agent *models.Agent, evt *pb.AgentEvent) {
 				"error_message": p.BackupFailed.Error,
 			})
 		agentID := agent.ID
-		alert := models.Alert{
-			OrganizationID: agent.OrganizationID,
-			Type:           models.AlertBackupFailed,
-			Title:          "Backup Failed",
-			Message:        p.BackupFailed.Error,
-			AgentID:        &agentID,
-		}
+		var jobID *uuid.UUID
 		if run.ID != uuid.Nil {
-			alert.BackupJobID = &run.BackupJobID
+			jobID = &run.BackupJobID
 		}
-		s.db.Create(&alert)
-		services.NotifyOrg(s.db, s.mailer, agent.OrganizationID,
-			"[VaultGuard] Backup Failed",
-			"Backup failed on agent "+agent.Name+":\n\n"+p.BackupFailed.Error)
-		realtime.Publish(realtime.DefaultHub, agent.OrganizationID.String(), realtime.Event{
-			Type:    realtime.TypeAlert,
-			Payload: alert,
+		// Dedup key on the run id: a retried/duplicated event for the same
+		// run coalesces into the firing alert instead of spamming email.
+		services.RaiseAlert(s.db, s.mailer, services.AlertInput{
+			OrgID:        agent.OrganizationID,
+			Type:         models.AlertBackupFailed,
+			Title:        "Backup Failed",
+			Message:      p.BackupFailed.Error,
+			AgentID:      &agentID,
+			BackupJobID:  jobID,
+			DedupKey:     "backup-failed:run:" + p.BackupFailed.RunId,
+			EmailSubject: "[VaultGuard] Backup Failed",
+			EmailBody:    "Backup failed on agent " + agent.Name + ":\n\n" + p.BackupFailed.Error,
 		})
 
 	case *pb.AgentEvent_RestoreStarted:
@@ -221,6 +223,22 @@ func (s *Server) handleEvent(agent *models.Agent, evt *pb.AgentEvent) {
 				"completed_at":  &now,
 				"error_message": p.RestoreFailed.Error,
 			})
+		// RESTORE_FAILED was defined but never raised — wire it here so the
+		// restore failure is visible in the alert stream and via email.
+		var restore models.RestoreJob
+		if err := s.db.Where("id = ?", p.RestoreFailed.RestoreId).First(&restore).Error; err == nil {
+			agentID := agent.ID
+			services.RaiseAlert(s.db, s.mailer, services.AlertInput{
+				OrgID:        restore.OrganizationID,
+				Type:         models.AlertRestoreFailed,
+				Title:        "Restore Failed",
+				Message:      p.RestoreFailed.Error,
+				AgentID:      &agentID,
+				DedupKey:     "restore-failed:" + restore.ID.String(),
+				EmailSubject: "[VaultGuard] Restore Failed",
+				EmailBody:    "Restore " + restore.ID.String() + " failed on agent " + agent.Name + ":\n\n" + p.RestoreFailed.Error,
+			})
+		}
 	}
 }
 

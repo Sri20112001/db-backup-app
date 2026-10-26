@@ -36,6 +36,7 @@ func NewRouter(db *gorm.DB, cfg *config.Config, grpcSrv *grpcserver.Server, hub 
 	runH     := handlers.NewBackupRunHandler(db, grpcSrv, encKey, mailer)
 	restoreH := handlers.NewRestoreHandler(db, grpcSrv, encKey)
 	alertH   := handlers.NewAlertHandler(db)
+	notifH   := handlers.NewNotificationSettingsHandler(db, mailer)
 	dashH    := handlers.NewDashboardHandler(db)
 	userH    := handlers.NewUserHandler(db)
 
@@ -95,6 +96,9 @@ func NewRouter(db *gorm.DB, cfg *config.Config, grpcSrv *grpcserver.Server, hub 
 
 	authed.GET("/me", userH.Me)
 	authed.POST("/auth/change-password", authH.ChangePassword)
+	// Per-user email prefs: any authed member manages their own.
+	authed.GET("/me/notification-prefs", notifH.GetMyPrefs)
+	authed.PUT("/me/notification-prefs", notifH.UpdateMyPrefs)
 	authed.GET("/organizations", orgH.List)
 	authed.POST("/organizations", orgH.Create)
 
@@ -184,6 +188,14 @@ func NewRouter(db *gorm.DB, cfg *config.Config, grpcSrv *grpcserver.Server, hub 
 	org.GET("/alerts", alertH.List)
 	org.PUT("/alerts/read-all", alertH.MarkAllRead)
 	org.PUT("/alerts/:id/read", alertH.MarkRead)
+	org.POST("/alerts/:id/ack", alertH.Ack)
+	org.POST("/alerts/:id/resolve", alertH.Resolve)
+
+	// Notification settings: every member can read; Owner/Admin configure.
+	// Test-email is Admin+ because it exercises shared SMTP.
+	org.GET("/notification-settings", notifH.Get)
+	org.PUT("/notification-settings", middleware.RequireRole(models.RoleOwner, models.RoleAdmin), notifH.Update)
+	org.POST("/notification-settings/test-email", middleware.RequireRole(models.RoleOwner, models.RoleAdmin), notifH.TestEmail)
 
 	// Dashboard
 	org.GET("/dashboard", dashH.Overview)

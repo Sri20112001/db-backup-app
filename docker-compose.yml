@@ -54,6 +54,8 @@ services:
       - JWT_REFRESH_SECRET=${JWT_REFRESH_SECRET:?Set JWT_REFRESH_SECRET in your shell or .env file}
       - ENCRYPTION_KEY=${ENCRYPTION_KEY:?Set ENCRYPTION_KEY in your shell or .env file}
       - CORS_ORIGIN=http://localhost:7540
+      # Resolved/acknowledged alert retention in days (0 = keep forever).
+      - ALERT_RETENTION_DAYS=${ALERT_RETENTION_DAYS:-90}
     depends_on:
       postgres:
         condition: service_healthy

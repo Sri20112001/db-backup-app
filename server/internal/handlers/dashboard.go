@@ -71,10 +71,16 @@ func (h *DashboardHandler) Overview(c *gin.Context) {
 // exceeded their effective SLATargetMinutes (start-to-completion duration).
 func (h *DashboardHandler) countSLABreaches(orgID uuid.UUID, since time.Time) int {
 	var jobs []models.BackupJob
-	h.db.Preload("Policy").Where("organization_id = ?", orgID).Find(&jobs)
+	h.db.Preload("Policy").Where("organization_id = ? AND enabled = true", orgID).Find(&jobs)
 	breaches := 0
 	for _, job := range jobs {
-		if target := models.EffectivePolicy(&job).SLATargetMinutes; target > 0 {
+		// Mirror BackupHealth's gating: only enabled jobs with an enabled
+		// effective policy count, so both endpoints agree on the fleet.
+		eff := models.EffectivePolicy(&job)
+		if !eff.Enabled {
+			continue
+		}
+		if target := eff.SLATargetMinutes; target > 0 {
 			var runs []models.BackupRun
 			h.db.Where("backup_job_id = ? AND status = ? AND completed_at > ?", job.ID, models.RunCompleted, since).Find(&runs)
 			for _, r := range runs {
@@ -102,7 +108,7 @@ type sizeAnomalyDTO struct {
 func (h *DashboardHandler) detectSizeAnomalies(orgID uuid.UUID) []sizeAnomalyDTO {
 	var baselines []models.BackupSizeBaseline
 	h.db.Joins("JOIN backup_jobs ON backup_jobs.id = backup_size_baselines.backup_job_id").
-		Where("backup_jobs.organization_id = ? AND backup_size_baselines.avg_bytes > 0 AND backup_size_baselines.sample_count >= 3", orgID).
+		Where("backup_jobs.organization_id = ? AND backup_jobs.deleted_at IS NULL AND backup_size_baselines.avg_bytes > 0 AND backup_size_baselines.sample_count >= 3", orgID).
 		Find(&baselines)
 
 	result := []sizeAnomalyDTO{}
@@ -185,18 +191,12 @@ func (h *DashboardHandler) BackupHealth(c *gin.Context) {
 		h.db.Model(&models.BackupRun{}).
 			Where("backup_job_id = ? AND status = ?", job.ID, models.RunCompleted).Count(&count)
 
-		// Overall health status
-		status := "HEALTHY"
-		if lastSuccess.ID == uuid.Nil {
-			status = "UNKNOWN"
-		} else if lastFailure.ID != uuid.Nil && lastFailure.CreatedAt.After(lastSuccess.CreatedAt) {
-			status = "FAILED"
-		} else if lastSuccess.CompletedAt != nil && time.Since(*lastSuccess.CompletedAt) > 25*time.Hour {
-			status = "WARNING"
-		}
-
-		// Next scheduled run
+		// Next scheduled run + freshness window: the "stale" threshold is
+		// derived from the job's own cadence (one interval + grace) instead
+		// of a flat 25h, so weekly/monthly jobs are not flagged WARNING
+		// forever. Falls back to the historical 25h when no cron parses.
 		var nextRun *time.Time
+		staleAfter := 25 * time.Hour
 		if eff.CronExpr != "" {
 			if sched, err := cronParser.Parse(eff.CronExpr); err == nil {
 				loc := time.UTC
@@ -207,7 +207,26 @@ func (h *DashboardHandler) BackupHealth(c *gin.Context) {
 				}
 				t := sched.Next(time.Now().In(loc))
 				nextRun = &t
+				if following := sched.Next(t); following.After(t) {
+					if iv := following.Sub(t); iv > 0 {
+						grace := iv / 24
+						if grace < 5*time.Minute {
+							grace = 5 * time.Minute
+						}
+						staleAfter = iv + grace
+					}
+				}
 			}
+		}
+
+		// Overall health status
+		status := "HEALTHY"
+		if lastSuccess.ID == uuid.Nil {
+			status = "UNKNOWN"
+		} else if lastFailure.ID != uuid.Nil && lastFailure.CreatedAt.After(lastSuccess.CreatedAt) {
+			status = "FAILED"
+		} else if lastSuccess.CompletedAt != nil && time.Since(*lastSuccess.CompletedAt) > staleAfter {
+			status = "WARNING"
 		}
 
 		// SLA tracking

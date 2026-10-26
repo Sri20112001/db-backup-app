@@ -41,6 +41,8 @@ func Migrate(db *gorm.DB) error {
 		&models.RestoreJob{},
 		&models.BackupSizeBaseline{},
 		&models.Alert{},
+		&models.NotificationSettings{},
+		&models.UserNotificationPrefs{},
 		&models.AuditLog{},
 		&models.RefreshToken{},
 		&models.S3Region{},

@@ -31,13 +31,49 @@ func NewAgentHandler(db *gorm.DB, grpc StreamDisconnector) *AgentHandler {
 
 func (h *AgentHandler) List(c *gin.Context) {
 	orgID := c.MustGet("org_id").(uuid.UUID)
+	p := parseListParams(c)
+
+	query := h.db.Model(&models.Agent{}).Where("agents.organization_id = ?", orgID)
+	if status := c.Query("status"); status != "" {
+		query = query.Where("agents.status = ?", status)
+	}
+	// Lifecycle is derived (revoked/pending/online/offline). Filtering has to
+	// mirror Agent.Lifecycle() in SQL so the count and page agree.
+	switch c.Query("lifecycle") {
+	case models.LifecycleRevoked:
+		query = query.Where("agents.revoked_at IS NOT NULL")
+	case models.LifecyclePending:
+		query = query.Where("agents.revoked_at IS NULL AND agents.token_hash IS NULL")
+	case models.LifecycleOnline:
+		query = query.Where("agents.revoked_at IS NULL AND agents.token_hash IS NOT NULL AND agents.last_seen_at > ?",
+			time.Now().Add(-models.OnlineThreshold))
+	case models.LifecycleOffline:
+		query = query.Where("agents.revoked_at IS NULL AND agents.token_hash IS NOT NULL AND (agents.last_seen_at IS NULL OR agents.last_seen_at <= ?)",
+			time.Now().Add(-models.OnlineThreshold))
+	}
+	if p.Search != "" {
+		like := "%" + escapeLike(p.Search) + "%"
+		query = query.Where("agents.name ILIKE ? OR agents.machine_name ILIKE ?", like, like)
+	}
+
+	var total int64
+	query.Count(&total)
+
+	sortCol := p.sortColumn(c, map[string]string{
+		"name":      "agents.name",
+		"created":   "agents.created_at",
+		"last_seen": "agents.last_seen_at",
+		"status":    "agents.status",
+	}, "agents.created_at")
+	query = query.Order(sortCol + " " + p.Order).Order("agents.id " + p.Order)
+
 	var agents []models.Agent
-	h.db.Where("organization_id = ?", orgID).Find(&agents)
+	query.Limit(p.Limit).Offset(p.Offset).Find(&agents)
 	out := make([]gin.H, 0, len(agents))
 	for _, a := range agents {
 		out = append(out, agentWithLifecycle(a))
 	}
-	c.JSON(http.StatusOK, out)
+	respondPaginated(c, out, total, p)
 }
 
 // GenerateRegistrationToken creates a one-time token the agent uses to register.

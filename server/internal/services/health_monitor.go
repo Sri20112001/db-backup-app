@@ -6,24 +6,27 @@ import (
 
 	"github.com/backup-saas/server/internal/models"
 	"github.com/backup-saas/server/internal/realtime"
+	"github.com/google/uuid"
 	"github.com/robfig/cron/v3"
 	"github.com/rs/zerolog/log"
 	"gorm.io/gorm"
 )
 
 type HealthMonitor struct {
-	db       *gorm.DB
-	mailer   *Mailer
-	interval time.Duration
-	stop     chan struct{}
+	db                 *gorm.DB
+	mailer             *Mailer
+	interval           time.Duration
+	alertRetentionDays int
+	stop               chan struct{}
 }
 
-func NewHealthMonitor(db *gorm.DB, mailer *Mailer) *HealthMonitor {
+func NewHealthMonitor(db *gorm.DB, mailer *Mailer, alertRetentionDays int) *HealthMonitor {
 	return &HealthMonitor{
-		db:       db,
-		mailer:   mailer,
-		interval: 5 * time.Minute,
-		stop:     make(chan struct{}),
+		db:                 db,
+		mailer:             mailer,
+		interval:           5 * time.Minute,
+		alertRetentionDays: alertRetentionDays,
+		stop:               make(chan struct{}),
 	}
 }
 
@@ -40,6 +43,7 @@ func (h *HealthMonitor) run() {
 			h.checkStaleRuns()
 			h.checkMissedBackups()
 			h.enforceRetention()
+			h.enforceAlertRetention()
 			h.updateSizeBaselines()
 		case <-h.stop:
 			return
@@ -47,42 +51,79 @@ func (h *HealthMonitor) run() {
 	}
 }
 
-func (h *HealthMonitor) checkAgents() {
-	threshold := time.Now().Add(-3 * time.Minute)
-	var staleAgents []models.Agent
-	h.db.Where("status = ? AND revoked_at IS NULL AND last_seen_at < ?", models.AgentOnline, threshold).Find(&staleAgents)
+// orgThresholds holds per-org monitor knobs resolved from notification
+// settings (defaults when the org never saved any).
+type orgThresholds struct {
+	offlineAfter time.Duration
+	missedMult   int
+}
 
-	for _, agent := range staleAgents {
+func (h *HealthMonitor) loadThresholds(orgID uuid.UUID) orgThresholds {
+	t := orgThresholds{offlineAfter: 3 * time.Minute, missedMult: 2}
+	var s models.NotificationSettings
+	if err := h.db.First(&s, "organization_id = ?", orgID).Error; err == nil {
+		if s.OfflineThresholdMin >= 1 && s.OfflineThresholdMin <= 60 {
+			t.offlineAfter = time.Duration(s.OfflineThresholdMin) * time.Minute
+		}
+		if s.MissedWindowMult >= 1 && s.MissedWindowMult <= 24 {
+			t.missedMult = s.MissedWindowMult
+		}
+	}
+	return t
+}
+
+func (h *HealthMonitor) checkAgents() {
+	// First, auto-resolve offline alerts for agents that came back (fresh
+	// heartbeat and not revoked). The monitor's per-org threshold is the same
+	// one used to mark them offline, so recovery uses the global floor — an
+	// agent fresh within 3 min is alive under every org's configuration.
+	recoverCutoff := time.Now().Add(-3 * time.Minute)
+	var alive []models.Agent
+	h.db.Where("revoked_at IS NULL AND last_seen_at >= ?", recoverCutoff).Find(&alive)
+	for _, agent := range alive {
+		ResolveAlerts(h.db, agent.OrganizationID, models.AlertAgentOffline,
+			"agent-offline:"+agent.ID.String())
+	}
+
+	// Then mark stale agents offline and raise (or coalesce) their alerts.
+	// Per-org threshold: an org that tightened its SLA gets faster alerts.
+	var agents []models.Agent
+	h.db.Where("revoked_at IS NULL AND last_seen_at IS NOT NULL").Find(&agents)
+
+	for _, agent := range agents {
+		th := h.loadThresholds(agent.OrganizationID)
+		if agent.LastSeenAt != nil && time.Since(*agent.LastSeenAt) < th.offlineAfter {
+			continue
+		}
+		if agent.Status == models.AgentOffline {
+			continue // already flagged; the firing alert coalesces below
+		}
 		h.db.Model(&agent).Update("status", models.AgentOffline)
 		agentID := agent.ID
-		// Cooldown: flapping agents must not spam an alert (and email) on
-		// every 5-minute monitor tick. One AGENT_OFFLINE per agent per hour.
+		dedupKey := "agent-offline:" + agent.ID.String()
+		// Flap guard: a re-fire within 1h of the previous alert's creation
+		// stays silent (the firing row itself still coalesces while open).
 		var recent int64
 		h.db.Model(&models.Alert{}).
-			Where("type = ? AND agent_id = ? AND created_at > ?", models.AlertAgentOffline, agentID, time.Now().Add(-time.Hour)).
+			Where("dedup_key = ? AND created_at > ?", dedupKey, time.Now().Add(-time.Hour)).
 			Count(&recent)
 		if recent > 0 {
 			continue
 		}
-		alert := models.Alert{
-			OrganizationID: agent.OrganizationID,
-			Type:           models.AlertAgentOffline,
-			Title:          "Agent Offline",
-			Message:        "Agent " + agent.Name + " stopped reporting",
-			AgentID:        &agentID,
-		}
-		h.db.Create(&alert)
+		RaiseAlert(h.db, h.mailer, AlertInput{
+			OrgID:        agent.OrganizationID,
+			Type:         models.AlertAgentOffline,
+			Title:        "Agent Offline",
+			Message:      "Agent " + agent.Name + " stopped reporting",
+			AgentID:      &agentID,
+			DedupKey:     dedupKey,
+			EmailSubject: "[VaultGuard] Agent Offline: " + agent.Name,
+			EmailBody:    "Agent " + agent.Name + " stopped reporting.\n\nScheduled backups for its jobs will be missed until it reconnects.",
+		})
 		realtime.Publish(realtime.DefaultHub, agent.OrganizationID.String(), realtime.Event{
 			Type:    realtime.TypePresence,
 			Payload: map[string]interface{}{"id": agent.ID.String(), "name": agent.Name, "status": string(models.AgentOffline)},
 		})
-		realtime.Publish(realtime.DefaultHub, agent.OrganizationID.String(), realtime.Event{
-			Type:    realtime.TypeAlert,
-			Payload: alert,
-		})
-		NotifyOrg(h.db, h.mailer, agent.OrganizationID,
-			"[VaultGuard] Agent Offline: "+agent.Name,
-			"Agent "+agent.Name+" stopped reporting.\n\nScheduled backups for its jobs will be missed until it reconnects.")
 		log.Warn().Str("agent_id", agent.ID.String()).Msg("agent marked offline")
 	}
 }
@@ -135,18 +176,18 @@ func (h *HealthMonitor) checkStaleRuns() {
 			continue
 		}
 		jobID := run.BackupJobID
-		alert := models.Alert{
-			OrganizationID: run.OrganizationID,
-			Type:           models.AlertBackupFailed,
-			Title:          "Backup Failed: agent lost",
-			Message:        errMsg + " (job run " + run.ID.String() + ")",
-			BackupJobID:    &jobID,
-			AgentID:        &run.AgentID,
-		}
-		h.db.Create(&alert)
-		realtime.Publish(realtime.DefaultHub, run.OrganizationID.String(), realtime.Event{
-			Type:    realtime.TypeAlert,
-			Payload: alert,
+		// Dedup key = run id: terminal states guarantee one stale transition
+		// per run, and a late agent FAILED report for the same run coalesces.
+		RaiseAlert(h.db, h.mailer, AlertInput{
+			OrgID:        run.OrganizationID,
+			Type:         models.AlertBackupFailed,
+			Title:        "Backup Failed: agent lost",
+			Message:      errMsg + " (job run " + run.ID.String() + ")",
+			BackupJobID:  &jobID,
+			AgentID:      &run.AgentID,
+			DedupKey:     "backup-failed:run:" + run.ID.String(),
+			EmailSubject: "[VaultGuard] Backup Failed: agent lost",
+			EmailBody:    errMsg + " (job run " + run.ID.String() + ").",
 		})
 		realtime.Publish(realtime.DefaultHub, run.OrganizationID.String(), realtime.Event{
 			Type: realtime.TypeRun,
@@ -180,9 +221,16 @@ func (h *HealthMonitor) checkMissedBackups() {
 			continue
 		}
 
-		// Use 2x the expected interval as the missed-backup window.
-		// Default to 25h if we can't parse the cron expression.
-		window := missedWindow(eff.CronExpr)
+		th := h.loadThresholds(job.OrganizationID)
+		// Window: an explicit RPO target wins (the documented contract in
+		// models.go — max acceptable data-loss window); otherwise N× the
+		// actual cron interval, so the alert fires after one missed window.
+		var window time.Duration
+		if eff.RPOTargetMinutes > 0 {
+			window = time.Duration(eff.RPOTargetMinutes) * time.Minute
+		} else {
+			window = missedWindow(eff.CronExpr, th.missedMult)
+		}
 		since := time.Now().Add(-window)
 
 		var count int64
@@ -190,30 +238,23 @@ func (h *HealthMonitor) checkMissedBackups() {
 			Where("backup_job_id = ? AND status = ? AND completed_at > ?", job.ID, models.RunCompleted, since).
 			Count(&count)
 
+		dedupKey := "backup-missed:" + job.ID.String()
 		if count == 0 {
-			var existing int64
-			h.db.Model(&models.Alert{}).
-				Where("type = ? AND backup_job_id = ? AND created_at > ?", models.AlertBackupMissed, job.ID, since).
-				Count(&existing)
-			if existing == 0 {
-				jobID := job.ID
-				alert := models.Alert{
-					OrganizationID: job.OrganizationID,
-					Type:           models.AlertBackupMissed,
-					Title:          "Backup Missed",
-					Message:        "No successful backup within expected window for job: " + job.Name,
-					BackupJobID:    &jobID,
-				}
-				h.db.Create(&alert)
-				realtime.Publish(realtime.DefaultHub, job.OrganizationID.String(), realtime.Event{
-					Type:    realtime.TypeAlert,
-					Payload: alert,
-				})
-				NotifyOrg(h.db, h.mailer, job.OrganizationID,
-					"[VaultGuard] Backup Missed: "+job.Name,
-					"No successful backup within the expected window for job: "+job.Name+".\n\nCheck the agent and storage target.")
-				log.Warn().Str("job_id", job.ID.String()).Msg("missed backup detected")
-			}
+			jobID := job.ID
+			RaiseAlert(h.db, h.mailer, AlertInput{
+				OrgID:        job.OrganizationID,
+				Type:         models.AlertBackupMissed,
+				Title:        "Backup Missed",
+				Message:      "No successful backup within expected window for job: " + job.Name,
+				BackupJobID:  &jobID,
+				DedupKey:     dedupKey,
+				EmailSubject: "[VaultGuard] Backup Missed: " + job.Name,
+				EmailBody:    "No successful backup within the expected window for job: " + job.Name + ".\n\nCheck the agent and storage target.",
+			})
+			log.Warn().Str("job_id", job.ID.String()).Msg("missed backup detected")
+		} else {
+			// Job caught up: auto-resolve the open miss (if any).
+			ResolveAlerts(h.db, job.OrganizationID, models.AlertBackupMissed, dedupKey)
 		}
 	}
 }
@@ -303,6 +344,29 @@ func (h *HealthMonitor) deleteRunFiles(run models.BackupRun) {
 	}
 }
 
+// enforceAlertRetention prunes RESOLVED and ACKNOWLEDGED alerts older than
+// the configured retention (ALERT_RETENTION_DAYS, 0 = keep forever).
+// FIRING alerts are never pruned — they represent unaddressed problems.
+func (h *HealthMonitor) enforceAlertRetention() {
+	if h.alertRetentionDays <= 0 {
+		return
+	}
+	cutoff := time.Now().AddDate(0, 0, -h.alertRetentionDays)
+	res := h.db.Unscoped().
+		Where("status IN ? AND created_at < ?",
+			[]models.AlertStatus{models.AlertResolved, models.AlertAcked}, cutoff).
+		Delete(&models.Alert{})
+	if res.Error != nil {
+		log.Warn().Err(res.Error).Msg("alert retention: delete failed")
+		return
+	}
+	if res.RowsAffected > 0 {
+		log.Info().Int64("count", res.RowsAffected).
+			Int("days", h.alertRetentionDays).
+			Msg("alert retention: deleted expired alerts")
+	}
+}
+
 // updateSizeBaselines recomputes the rolling average backup size for each job
 // using the last 10 completed runs. This feeds the size anomaly detector in
 // the dashboard handler.
@@ -342,23 +406,26 @@ func (h *HealthMonitor) updateSizeBaselines() {
 	}
 }
 
-// missedWindow computes 2x the actual cron interval so the alert fires after
+// missedWindow computes N× the actual cron interval so the alert fires after
 // one missed window regardless of the schedule. Falls back to 25h if the
 // expression cannot be parsed.
-func missedWindow(expr string) time.Duration {
+func missedWindow(expr string, multiplier int) time.Duration {
+	if multiplier < 1 {
+		multiplier = 2
+	}
 	parser := cron.NewParser(
 		cron.Minute | cron.Hour | cron.Dom | cron.Month | cron.Dow | cron.Descriptor,
 	)
 	sched, err := parser.Parse(expr)
 	if err != nil {
-		return 25 * time.Hour
+		return time.Duration(multiplier) * 25 * time.Hour / 2
 	}
 	now := time.Now()
 	next1 := sched.Next(now)
 	next2 := sched.Next(next1)
 	interval := next2.Sub(next1)
 	if interval <= 0 {
-		return 25 * time.Hour
+		return time.Duration(multiplier) * 25 * time.Hour / 2
 	}
-	return 2 * interval
+	return time.Duration(multiplier) * interval
 }

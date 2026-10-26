@@ -74,11 +74,84 @@ func normalizeExportFormat(sourceType models.BackupSourceType, raw string) (stri
 	return format, nil
 }
 
-func (h *BackupJobHandler) List(c *gin.Context) {	orgID := c.MustGet("org_id").(uuid.UUID)
+func (h *BackupJobHandler) List(c *gin.Context) {
+	orgID := c.MustGet("org_id").(uuid.UUID)
+	p := parseListParams(c)
+
+	query := h.db.Model(&models.BackupJob{}).Where("backup_jobs.organization_id = ?", orgID)
+	if sourceType := c.Query("source_type"); sourceType != "" {
+		// MSSQL_SERVER is the canonical dashboard value; legacy rows may still
+		// carry the old SQL_SERVER alias, so match both.
+		if sourceType == string(models.SourceMssqlServer) {
+			query = query.Where("backup_jobs.source_type IN ?",
+				[]string{string(models.SourceMssqlServer), string(models.SourceSQLServer)})
+		} else {
+			query = query.Where("backup_jobs.source_type = ?", sourceType)
+		}
+	}
+	if enabled := c.Query("enabled"); enabled == "true" || enabled == "false" {
+		query = query.Where("backup_jobs.enabled = ?", enabled == "true")
+	}
+	if p.Search != "" {
+		like := "%" + escapeLike(p.Search) + "%"
+		query = query.Where("backup_jobs.name ILIKE ? OR backup_jobs.source_path ILIKE ?", like, like)
+	}
+
+	var total int64
+	query.Count(&total)
+
+	sortCol := p.sortColumn(c, map[string]string{
+		"name":    "backup_jobs.name",
+		"created": "backup_jobs.created_at",
+		"updated": "backup_jobs.updated_at",
+		"enabled": "backup_jobs.enabled",
+	}, "backup_jobs.created_at")
+	query = query.Order(sortCol + " " + p.Order).Order("backup_jobs.id " + p.Order)
+
 	var jobs []models.BackupJob
-	h.db.Preload("Schedule").Preload("Policy").Preload("Agent").Preload("StorageTarget").Preload("Connection").
-		Where("organization_id = ?", orgID).Find(&jobs)
-	c.JSON(http.StatusOK, asArray(jobs))
+	query.Preload("Schedule").Preload("Policy").Preload("Agent").Preload("StorageTarget").Preload("Connection").
+		Limit(p.Limit).Offset(p.Offset).Find(&jobs)
+
+	// Org-wide counts for the dashboard-style metric strip. These
+	// intentionally ignore the active search/filter so the tiles stay stable.
+	var enabledCount, disabledCount int64
+	h.db.Model(&models.BackupJob{}).
+		Where("backup_jobs.organization_id = ? AND backup_jobs.enabled = ?", orgID, true).Count(&enabledCount)
+	h.db.Model(&models.BackupJob{}).
+		Where("backup_jobs.organization_id = ? AND backup_jobs.enabled = ?", orgID, false).Count(&disabledCount)
+
+	// Per-source totals power the source filter chips.
+	type sourceRow struct {
+		SourceType string
+		Count      int64
+	}
+	var sourceRows []sourceRow
+	h.db.Model(&models.BackupJob{}).
+		Select("source_type, COUNT(*) AS count").
+		Where("backup_jobs.organization_id = ?", orgID).
+		Group("source_type").Scan(&sourceRows)
+
+	bySource := map[string]int64{}
+	for _, r := range sourceRows {
+		key := r.SourceType
+		if key == string(models.SourceSQLServer) {
+			key = string(models.SourceMssqlServer)
+		}
+		bySource[key] += r.Count
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"data":  asArray(jobs),
+		"total": total,
+		"page":  p.Page,
+		"limit": p.Limit,
+		"counts": gin.H{
+			"total":     enabledCount + disabledCount,
+			"enabled":   enabledCount,
+			"disabled":  disabledCount,
+			"by_source": bySource,
+		},
+	})
 }
 
 func (h *BackupJobHandler) Create(c *gin.Context) {

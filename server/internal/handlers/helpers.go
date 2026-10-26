@@ -56,14 +56,6 @@ func publishEntity(orgID string, eventType, action, id string) {
 	})
 }
 
-// publishAlert broadcasts a freshly created alert row.
-func publishAlert(alert models.Alert) {
-	realtime.Publish(realtime.DefaultHub, alert.OrganizationID.String(), realtime.Event{
-		Type:    realtime.TypeAlert,
-		Payload: alert,
-	})
-}
-
 // publishPresence broadcasts an agent ONLINE/OFFLINE flip.
 func publishPresence(agent models.Agent) {
 	realtime.Publish(realtime.DefaultHub, agent.OrganizationID.String(), realtime.Event{

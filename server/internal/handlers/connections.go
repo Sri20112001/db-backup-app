@@ -75,7 +75,11 @@ func normalizeConnectionType(raw string) (models.ConnectionType, error) {
 // arrive as -1 sentinels the UI renders as "—".
 func toConnectionDTO(c models.DatabaseConnection) gin.H {
 	meta := c.MetadataList()
-	return gin.H{
+	// agent_lifecycle is the enrollment-aware agent state the UI should show
+	// alongside the cached DB status: a connection can only be reached when
+	// its agent is ONLINE, so the badge derives from this. Only set when the
+	// Agent relation was preloaded — a zero-value Agent would read as PENDING.
+	dto := gin.H{
 		"id":              c.ID.String(),
 		"organization_id": c.OrganizationID.String(),
 		"agent_id":        c.AgentID.String(),
@@ -92,6 +96,10 @@ func toConnectionDTO(c models.DatabaseConnection) gin.H {
 		"created_at":      c.CreatedAt,
 		"updated_at":      c.UpdatedAt,
 	}
+	if c.Agent.ID != uuid.Nil {
+		dto["agent_lifecycle"] = c.Agent.Lifecycle()
+	}
+	return dto
 }
 
 func (h *ConnectionHandler) loadOwned(c *gin.Context) (*models.DatabaseConnection, bool) {
@@ -111,13 +119,39 @@ func (h *ConnectionHandler) loadOwned(c *gin.Context) (*models.DatabaseConnectio
 
 func (h *ConnectionHandler) List(c *gin.Context) {
 	orgID := c.MustGet("org_id").(uuid.UUID)
+	p := parseListParams(c)
+
+	query := h.db.Model(&models.DatabaseConnection{}).Where("database_connections.organization_id = ?", orgID)
+	if connType := c.Query("type"); connType != "" {
+		query = query.Where("database_connections.type = ?", connType)
+	}
+	if status := c.Query("status"); status != "" {
+		query = query.Where("database_connections.status = ?", status)
+	}
+	if p.Search != "" {
+		like := "%" + escapeLike(p.Search) + "%"
+		query = query.Where("database_connections.name ILIKE ? OR database_connections.host ILIKE ?", like, like)
+	}
+
+	var total int64
+	query.Count(&total)
+
+	sortCol := p.sortColumn(c, map[string]string{
+		"name":    "database_connections.name",
+		"created": "database_connections.created_at",
+		"updated": "database_connections.updated_at",
+		"status":  "database_connections.status",
+		"type":    "database_connections.type",
+	}, "database_connections.created_at")
+	query = query.Order(sortCol + " " + p.Order).Order("database_connections.id " + p.Order)
+
 	var conns []models.DatabaseConnection
-	h.db.Preload("Agent").Where("organization_id = ?", orgID).Order("created_at ASC").Find(&conns)
+	query.Preload("Agent").Limit(p.Limit).Offset(p.Offset).Find(&conns)
 	out := make([]gin.H, 0, len(conns))
 	for _, cn := range conns {
 		out = append(out, toConnectionDTO(cn))
 	}
-	c.JSON(http.StatusOK, out)
+	respondPaginated(c, out, total, p)
 }
 
 func (h *ConnectionHandler) Get(c *gin.Context) {

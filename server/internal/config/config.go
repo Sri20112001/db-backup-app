@@ -38,6 +38,10 @@ type Config struct {
 	// loopback/LAN behind a reverse proxy, not for agents over the internet).
 	TLSCertFile string
 	TLSKeyFile  string
+	// AlertRetentionDays is how long resolved/acknowledged alerts are kept
+	// before the health monitor prunes them (firing alerts are never pruned).
+	// 0 disables alert retention entirely.
+	AlertRetentionDays int
 }
 
 func Load() *Config {
@@ -98,6 +102,7 @@ func Load() *Config {
 		RefreshTokenTTLDays:   getEnvInt("REFRESH_TOKEN_TTL_DAYS", 7),
 		TLSCertFile: getEnv("TLS_CERT_FILE", ""),
 		TLSKeyFile:  getEnv("TLS_KEY_FILE", ""),
+		AlertRetentionDays: getEnvInt("ALERT_RETENTION_DAYS", 90),
 	}
 }
 
