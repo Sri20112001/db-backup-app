@@ -3,7 +3,6 @@ import { connectionsApi } from '@/services/api'
 import { useAuthStore } from '@/store/authStore'
 import { useUIStore } from '@/store/uiStore'
 import type { Agent, ConnectionType, DatabaseConnection, DatabaseInfo } from '@/types'
-import { formatBytes } from '@/utils/format'
 import { AGENT_BROWSE_BASE_URL as BROWSE_BASE } from '@/CONSTANTS'
 import { DbTypeIcon } from '@/components/ui/SourceIcons'
 import { Loader2, X, DatabaseBackup, Radar } from 'lucide-react'
@@ -335,22 +334,9 @@ const ConnectionModal = ({ agents, editing, onClose, onSaved }: Props) => {
           {testing ? <Loader2 size={13} className="animate-spin" /> : <DatabaseBackup size={13} />}
           Test Connection
         </button>
-        {testOk === true && <p className="text-[12px] text-primary">Connected{dbs.length > 0 ? ` — ${dbs.length} databases found.` : '.'}</p>}
+        {testOk === true && <p className="text-[12px] text-primary">Connected.</p>}
         {testOk === false && <p className="text-[12px] text-error">{testError}</p>}
 
-        {dbs.length > 0 && (
-          <div className="rounded-xl border border-surface-variant bg-surface-container-low p-3">
-            <p className="text-[12px] font-semibold text-on-surface mb-1.5">Available databases ({dbs.length})</p>
-            <div className="flex flex-wrap gap-1.5 max-h-28 overflow-y-auto">
-              {dbs.map((d) => (
-                <span key={d.name} title={d.size_bytes >= 0 ? formatBytes(d.size_bytes) : undefined}
-                  className="px-2 py-0.5 rounded-md bg-surface-container-high font-mono text-[11px] text-on-surface">
-                  {d.name}{d.size_bytes >= 0 ? ` · ${formatBytes(d.size_bytes)}` : ''}
-                </span>
-              ))}
-            </div>
-          </div>
-        )}
         <p className="text-[11px] text-on-surface-variant">Test credentials go only to the agent on this machine — the saved password is encrypted server-side and never shown again.</p>
 
         <div className="flex items-center justify-end gap-2 pt-1">
