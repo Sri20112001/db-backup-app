@@ -21,9 +21,9 @@ type BrowseEntry struct {
 
 // BrowseResponse is the payload of GET /browse.
 type BrowseResponse struct {
-	CWD     string       `json:"cwd"`
-	Parent  string       `json:"parent"`
-	Roots   []string     `json:"roots"`
+	CWD     string        `json:"cwd"`
+	Parent  string        `json:"parent"`
+	Roots   []string      `json:"roots"`
 	Entries []BrowseEntry `json:"entries"`
 }
 
@@ -53,6 +53,7 @@ func StartBrowseServer(addr, browseToken, origin string) {
 	mux.HandleFunc("/databases", auth(handleDatabases))
 	mux.HandleFunc("/pg-databases", auth(handlePgDatabases))
 	mux.HandleFunc("/mongo-databases", auth(handleMongoDatabases))
+	mux.HandleFunc("/detect", auth(handleDetect))
 	mux.HandleFunc("/health", func(w http.ResponseWriter, _ *http.Request) {
 		w.Write([]byte(`{"status":"ok"}`))
 	})

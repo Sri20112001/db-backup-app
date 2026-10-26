@@ -31,6 +31,8 @@ type Wizard struct {
 	result     *agentsetup.SetupResult
 }
 
+const localDevServerURL = "http://localhost:7541/vaultguard/api"
+
 // NewWizard builds the wizard with auto-detected machine info, prefilling
 // the server URL from a previous install when present (asked once, kept).
 func NewWizard(w fyne.Window) *Wizard {
@@ -40,6 +42,8 @@ func NewWizard(w fyne.Window) *Wizard {
 	server.SetPlaceHolder("https://vaultguard.example.com/vaultguard/api")
 	if saved := agentsetup.SavedServerURL(); saved != "" {
 		server.SetText(saved)
+	} else {
+		server.SetText(localDevServerURL)
 	}
 
 	token := widget.NewPasswordEntry()
