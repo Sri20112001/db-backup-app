@@ -3,9 +3,9 @@ module github.com/backup-saas/agent
 go 1.26.0
 
 // Pinned for security: stdlib CVE fixes land in patch releases, and this
-// pin makes `go` auto-download go1.26.6 everywhere (dev, CI, docker) so
+// pin makes `go` auto-download go1.26.10 everywhere (dev, CI, docker) so
 // `govulncheck` stays green. Bump deliberately, then re-scan.
-toolchain go1.26.6
+toolchain go1.26.10
 
 require (
 	github.com/aws/aws-sdk-go-v2 v1.47.1

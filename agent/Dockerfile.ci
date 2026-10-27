@@ -1,5 +1,6 @@
 # CI-only image: bakes the agent source in so test stages need no host
 # bind-mount (Docker-outside-of-Docker safe â€” see server/Dockerfile.ci).
-FROM golang:1.26-alpine
+# Pinned patch tag: stdlib CVE fixes (govulncheck) land per patch release.
+FROM golang:1.26.10-alpine
 WORKDIR /src
 COPY . /src/

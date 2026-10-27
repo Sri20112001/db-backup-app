@@ -1,4 +1,5 @@
-FROM golang:1.26-alpine AS builder
+# Pinned patch tag: stdlib CVE fixes (govulncheck) land per patch release.
+FROM golang:1.26.10-alpine AS builder
 WORKDIR /app
 COPY go.mod ./
 # If there's no go.sum, that's fine.
