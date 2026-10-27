@@ -32,7 +32,7 @@ export const PageHeader = ({ eyebrow, title, description, actions }: PageHeaderP
   <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
     <div className="min-w-0">
       {eyebrow}
-      <h1 className="text-[20px] font-semibold text-on-surface tracking-tight flex items-center gap-2.5">
+      <h1 className="text-[20px] font-heading font-semibold text-on-surface tracking-tight flex items-center gap-2.5">
         {title}
       </h1>
       {description && (

@@ -10,12 +10,13 @@ import RunDetailDrawer from './RunDetailDrawer'
 import Pagination from '@/components/Pagination'
 import { useRealtimeStore, mergeRunPatch } from '@/stores/realtimeStore'
 import { formatBytes, formatDuration, formatRelative } from '@/utils/format'
-import { History } from 'lucide-react'
+import { History, Download } from 'lucide-react'
 import SearchInput from '@/components/ui/SearchInput'
 import SortableTh from '@/components/ui/SortableTh'
 import { Page, PageHeader } from '@/components/Page'
 import { useDebouncedValue } from '@/hooks/useDebouncedValue'
 import type { SortDir } from '@/hooks/useSort'
+import { exportToCsv } from '@/utils/exportCsv'
 
 const STATUS_FILTERS: { label: string; value: BackupRunStatus | '' }[] = [
   { label: 'All', value: '' },
@@ -86,11 +87,56 @@ const HistoryPage = () => {
 
   const totalPages = Math.ceil(total / limit)
 
+  const handleExportCsv = () => {
+    if (runs.length === 0) {
+      addToast('info', 'No runs available to export')
+      return
+    }
+    const headers = [
+      'ID',
+      'Job Name',
+      'Status',
+      'Source',
+      'Agent',
+      'Started At',
+      'Duration (seconds)',
+      'Bytes Read',
+      'Bytes Uploaded',
+      'Storage Path',
+    ]
+    const rows = runs.map((r) => [
+      r.id,
+      r.backup_job?.name ?? '',
+      r.status,
+      r.source_type || r.backup_job?.source_type || '',
+      r.backup_job?.agent?.name ?? '',
+      r.started_at,
+      r.duration_seconds,
+      r.bytes_read,
+      r.bytes_uploaded,
+      r.storage_path ?? '',
+    ])
+    exportToCsv(`vaultguard-history-${new Date().toISOString().slice(0, 10)}.csv`, headers, rows)
+    addToast('success', `Exported ${runs.length} runs to CSV`)
+  }
+
   return (
     <Page>
       <PageHeader
         title="Backup History"
         description="All backup run executions across all jobs"
+        actions={
+          <button
+            type="button"
+            onClick={handleExportCsv}
+            disabled={runs.length === 0}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-outline-variant/60 bg-surface-container-low hover:bg-surface-container-high text-[12.5px] font-medium text-on-surface transition-colors disabled:opacity-50"
+            title="Download current run history as CSV"
+          >
+            <Download size={14} />
+            Export CSV
+          </button>
+        }
       />
 
       {/* Filters */}

@@ -7,11 +7,16 @@ import EmptyState from '@/components/EmptyState'
 import Pagination from '@/components/Pagination'
 import { useRealtimeStore } from '@/stores/realtimeStore'
 import { formatRelative } from '@/utils/format'
-import { XCircle, Clock, WifiOff, Database, RotateCcw, ShieldOff, Bell, ArrowDownWideNarrow, ArrowUpNarrowWide, Check, CheckCheck, CircleDot, CheckCircle2 } from 'lucide-react'
+import {
+  XCircle, Clock, WifiOff, Database, RotateCcw, ShieldOff, Bell,
+  ArrowDownWideNarrow, ArrowUpNarrowWide, Check, CheckCheck, CircleDot,
+  CheckCircle2, Download, CheckSquare, Square
+} from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 import SearchInput from '@/components/ui/SearchInput'
 import { Page, PageHeader } from '@/components/Page'
 import { useDebouncedValue } from '@/hooks/useDebouncedValue'
+import { exportToCsv } from '@/utils/exportCsv'
 
 const TYPE_FILTERS: { label: string; value: AlertType | '' }[] = [
   { label: 'All types', value: '' },
@@ -82,12 +87,12 @@ const AlertsPage = () => {
   const [search, setSearch] = useState('')
   const [oldestFirst, setOldestFirst] = useState(false)
   const [isLoading, setIsLoading] = useState(true)
+  const [selectedIds, setSelectedIds] = useState<string[]>([])
+  const [isBatchProcessing, setIsBatchProcessing] = useState(false)
   const limit = 50
   const alertTick = useRealtimeStore((s) => s.alertTick)
   const debouncedSearch = useDebouncedValue(search)
 
-  // Wrapped so the fetch effects can depend on it; identity changes when any
-  // query input changes.
   const loadAlerts = useCallback(() => {
     if (!currentOrg) return
     setIsLoading(true)
@@ -108,12 +113,10 @@ const AlertsPage = () => {
 
   useEffect(() => { loadAlerts() }, [loadAlerts])
 
-  // New alerts pushed over the socket refresh the list (toast included).
   useEffect(() => {
     if (alertTick === 0) return
     loadAlerts()
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [alertTick])
+  }, [alertTick, loadAlerts])
 
   const notifyAlertsChanged = useRealtimeStore((s) => s.notifyAlertsChanged)
 
@@ -156,6 +159,88 @@ const AlertsPage = () => {
     } catch { addToast('error', 'Failed to resolve alert') }
   }
 
+  const toggleSelectAlert = (id: string) => {
+    setSelectedIds((prev) =>
+      prev.includes(id) ? prev.filter((item) => item !== id) : [...prev, id]
+    )
+  }
+
+  const toggleSelectAll = () => {
+    if (selectedIds.length === alerts.length) {
+      setSelectedIds([])
+    } else {
+      setSelectedIds(alerts.map((a) => a.id))
+    }
+  }
+
+  const handleBatchAck = async () => {
+    if (!currentOrg || selectedIds.length === 0) return
+    setIsBatchProcessing(true)
+    try {
+      await Promise.allSettled(selectedIds.map((id) => alertApi.ack(currentOrg.id, id)))
+      addToast('success', `Acknowledged ${selectedIds.length} alerts`)
+      setSelectedIds([])
+      loadAlerts()
+      notifyAlertsChanged()
+    } catch {
+      addToast('error', 'Failed to batch acknowledge alerts')
+    } finally {
+      setIsBatchProcessing(false)
+    }
+  }
+
+  const handleBatchResolve = async () => {
+    if (!currentOrg || selectedIds.length === 0) return
+    setIsBatchProcessing(true)
+    try {
+      await Promise.allSettled(selectedIds.map((id) => alertApi.resolve(currentOrg.id, id)))
+      addToast('success', `Resolved ${selectedIds.length} alerts`)
+      setSelectedIds([])
+      loadAlerts()
+      notifyAlertsChanged()
+    } catch {
+      addToast('error', 'Failed to batch resolve alerts')
+    } finally {
+      setIsBatchProcessing(false)
+    }
+  }
+
+  const handleBatchMarkRead = async () => {
+    if (!currentOrg || selectedIds.length === 0) return
+    setIsBatchProcessing(true)
+    try {
+      await Promise.allSettled(selectedIds.map((id) => alertApi.markRead(currentOrg.id, id)))
+      addToast('success', `Marked ${selectedIds.length} alerts as read`)
+      setSelectedIds([])
+      loadAlerts()
+      notifyAlertsChanged()
+    } catch {
+      addToast('error', 'Failed to batch mark alerts as read')
+    } finally {
+      setIsBatchProcessing(false)
+    }
+  }
+
+  const handleExportCsv = () => {
+    if (alerts.length === 0) {
+      addToast('info', 'No alerts available to export')
+      return
+    }
+    const headers = ['ID', 'Type', 'Title', 'Message', 'Severity', 'Status', 'Read', 'Created At']
+    const rows = alerts.map((a) => [
+      a.id,
+      a.type,
+      a.title,
+      a.message,
+      a.severity,
+      a.status,
+      a.read ? 'Yes' : 'No',
+      a.created_at,
+    ])
+    exportToCsv(`vaultguard-alerts-${new Date().toISOString().slice(0, 10)}.csv`, headers, rows)
+    addToast('success', `Exported ${alerts.length} alerts to CSV`)
+  }
+
   const unreadCount = alerts.filter((a) => !a.read).length
   const firingCount = alerts.filter((a) => a.status === 'firing').length
 
@@ -187,6 +272,16 @@ const AlertsPage = () => {
           <>
             <button
               type="button"
+              onClick={handleExportCsv}
+              disabled={alerts.length === 0}
+              className="flex items-center gap-1.5 px-3 h-8 rounded-lg text-[12px] font-medium transition-colors border border-outline-variant/60 bg-surface-container-low text-on-surface hover:bg-surface-container-high disabled:opacity-50"
+              title="Download filtered alerts as CSV"
+            >
+              <Download size={14} />
+              Export CSV
+            </button>
+            <button
+              type="button"
               onClick={() => { setOldestFirst((v) => !v); setPage(1) }}
               title={oldestFirst ? 'Oldest first' : 'Newest first'}
               className="flex items-center gap-1.5 px-3 h-8 rounded-lg text-[12px] font-medium transition-colors bg-surface-container-low text-on-surface-variant hover:bg-surface-container-high"
@@ -205,7 +300,7 @@ const AlertsPage = () => {
               <button
                 type="button"
                 onClick={handleMarkAllRead}
-                className="flex items-center gap-1.5 px-3 h-8 rounded-lg bg-primary text-on-primary text-[12px] font-medium hover:bg-primary-container transition-colors shadow-sm whitespace-nowrap"
+                className="flex items-center gap-1.5 px-3 h-8 rounded-lg bg-primary text-on-primary text-[12px] font-medium hover:bg-primary/90 transition-colors shadow-xs whitespace-nowrap"
               >
                 <CheckCheck size={14} />
                 Mark all read
@@ -238,47 +333,107 @@ const AlertsPage = () => {
         ))}
       </div>
 
-      {/* Search + filters */}
-      <div className="flex flex-col lg:flex-row lg:items-center gap-3 ">
-        <SearchInput
-          value={search}
-          onChange={(e) => { setSearch(e.target.value); setPage(1) }}
-          placeholder="Search alerts…"
-          className="lg:max-w-xs"
-        />
-        <div className="flex items-center gap-1.5 overflow-x-auto">
-          {TYPE_FILTERS.map((f) => (
-            <button
-              key={f.value}
-              type="button"
-              onClick={() => { setTypeFilter(f.value); setPage(1) }}
-              className={`px-3 h-8 rounded-lg text-[12px] font-medium whitespace-nowrap transition-colors ${
-                typeFilter === f.value
-                  ? 'bg-primary text-on-primary shadow-sm'
-                  : 'bg-surface-container-low text-on-surface-variant hover:bg-surface-container-high'
-              }`}
-            >
-              {f.label}
-            </button>
-          ))}
+      {/* Search + filters + Select All */}
+      <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3">
+        <div className="flex flex-col lg:flex-row lg:items-center gap-3 flex-1">
+          <SearchInput
+            value={search}
+            onChange={(e) => { setSearch(e.target.value); setPage(1) }}
+            placeholder="Search alerts…"
+            className="lg:max-w-xs"
+          />
+          <div className="flex items-center gap-1.5 overflow-x-auto">
+            {TYPE_FILTERS.map((f) => (
+              <button
+                key={f.value}
+                type="button"
+                onClick={() => { setTypeFilter(f.value); setPage(1) }}
+                className={`px-3 h-8 rounded-lg text-[12px] font-medium whitespace-nowrap transition-colors ${
+                  typeFilter === f.value
+                    ? 'bg-primary text-on-primary shadow-sm'
+                    : 'bg-surface-container-low text-on-surface-variant hover:bg-surface-container-high'
+                }`}
+              >
+                {f.label}
+              </button>
+            ))}
+          </div>
+          <div className="flex items-center gap-1.5 overflow-x-auto">
+            {SEVERITY_FILTERS.map((f) => (
+              <button
+                key={f.value}
+                type="button"
+                onClick={() => { setSeverityFilter(f.value); setPage(1) }}
+                className={`px-3 h-8 rounded-lg text-[12px] font-medium whitespace-nowrap transition-colors ${
+                  severityFilter === f.value
+                    ? 'bg-primary text-on-primary shadow-sm'
+                    : 'bg-surface-container-low text-on-surface-variant hover:bg-surface-container-high'
+                }`}
+              >
+                {f.label}
+              </button>
+            ))}
+          </div>
         </div>
-        <div className="flex items-center gap-1.5 overflow-x-auto">
-          {SEVERITY_FILTERS.map((f) => (
-            <button
-              key={f.value}
-              type="button"
-              onClick={() => { setSeverityFilter(f.value); setPage(1) }}
-              className={`px-3 h-8 rounded-lg text-[12px] font-medium whitespace-nowrap transition-colors ${
-                severityFilter === f.value
-                  ? 'bg-primary text-on-primary shadow-sm'
-                  : 'bg-surface-container-low text-on-surface-variant hover:bg-surface-container-high'
-              }`}
-            >
-              {f.label}
-            </button>
-          ))}
-        </div>
+
+        {alerts.length > 0 && (
+          <button
+            type="button"
+            onClick={toggleSelectAll}
+            className="flex items-center gap-1.5 px-3 h-8 text-[12px] font-medium text-on-surface-variant hover:text-on-surface self-start lg:self-auto"
+          >
+            {selectedIds.length === alerts.length && alerts.length > 0 ? (
+              <CheckSquare size={15} className="text-primary" />
+            ) : (
+              <Square size={15} />
+            )}
+            Select page ({selectedIds.length}/{alerts.length})
+          </button>
+        )}
       </div>
+
+      {/* Floating Batch Actions Bar */}
+      {selectedIds.length > 0 && (
+        <div className="sticky top-0 z-20 flex items-center justify-between gap-3 p-3 rounded-xl bg-primary text-on-primary shadow-lg animate-in slide-in-from-top-2 duration-150">
+          <div className="flex items-center gap-2 text-[13px] font-medium">
+            <span>{selectedIds.length} alert{selectedIds.length > 1 ? 's' : ''} selected</span>
+          </div>
+
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              disabled={isBatchProcessing}
+              onClick={handleBatchAck}
+              className="px-3 py-1.5 rounded-lg bg-surface-container-lowest/20 hover:bg-surface-container-lowest/30 text-[12.5px] font-medium transition-colors disabled:opacity-50"
+            >
+              Acknowledge
+            </button>
+            <button
+              type="button"
+              disabled={isBatchProcessing}
+              onClick={handleBatchResolve}
+              className="px-3 py-1.5 rounded-lg bg-surface-container-lowest/20 hover:bg-surface-container-lowest/30 text-[12.5px] font-medium transition-colors disabled:opacity-50"
+            >
+              Resolve
+            </button>
+            <button
+              type="button"
+              disabled={isBatchProcessing}
+              onClick={handleBatchMarkRead}
+              className="px-3 py-1.5 rounded-lg bg-surface-container-lowest/20 hover:bg-surface-container-lowest/30 text-[12.5px] font-medium transition-colors disabled:opacity-50"
+            >
+              Mark Read
+            </button>
+            <button
+              type="button"
+              onClick={() => setSelectedIds([])}
+              className="px-2.5 py-1.5 text-[12px] underline opacity-90 hover:opacity-100 transition-opacity"
+            >
+              Cancel
+            </button>
+          </div>
+        </div>
+      )}
 
       {isLoading ? (
         <div className="flex flex-col gap-2">{[...Array(6)].map((_, i) => <div key={i} className="animate-pulse h-16 rounded-xl bg-surface-container-lowest border border-surface-variant" />)}</div>
@@ -294,16 +449,36 @@ const AlertsPage = () => {
                 const AlertIcon = alertIcon[alert.type]
                 const sc = statusChip[alert.status]
                 const dimmed = alert.status === 'resolved'
+                const isSelected = selectedIds.includes(alert.id)
                 return (
                   <div
                     key={alert.id}
                     onClick={() => !alert.read && handleMarkRead(alert.id)}
                     className={`flex items-start gap-3 p-4 rounded-xl border transition-all cursor-pointer ${
+                      isSelected ? 'ring-2 ring-primary border-primary bg-primary/5' : ''
+                    } ${
                       alert.read || dimmed
                         ? 'bg-surface-container-lowest border-surface-variant opacity-75'
                         : 'bg-surface-container-lowest border-surface-variant border-l-4 border-l-[#ba1a1a]'
                     } hover:shadow-sm`}
                   >
+                    {/* Selection Checkbox */}
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        toggleSelectAlert(alert.id)
+                      }}
+                      className="mt-1 text-on-surface-variant hover:text-primary transition-colors"
+                      aria-label={isSelected ? 'Deselect alert' : 'Select alert'}
+                    >
+                      {isSelected ? (
+                        <CheckSquare size={17} className="text-primary" />
+                      ) : (
+                        <Square size={17} />
+                      )}
+                    </button>
+
                     <div className={`w-8 h-8 rounded-lg ${c.bg} ${c.icon} flex items-center justify-center shrink-0 mt-0.5`}>
                       <AlertIcon size={16} />
                     </div>

@@ -10,7 +10,7 @@ interface DashboardHeaderProps {
 const DashboardHeader = ({ overview, onNewJob }: DashboardHeaderProps) => (
   <div className="flex items-center justify-between gap-3 shrink-0">
     <div className="flex items-baseline gap-3 min-w-0">
-      <h1 className="text-[18px] font-semibold text-on-surface tracking-tight whitespace-nowrap">Command Center</h1>
+      <h1 className="text-[18px] font-heading font-semibold text-on-surface tracking-tight whitespace-nowrap">Command Center</h1>
       <p className="text-[11px] text-on-surface-variant truncate hidden xl:block">
         Live status of backup infrastructure, agent nodes, and replication pipelines.
       </p>
