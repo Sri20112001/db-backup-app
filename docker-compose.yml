@@ -9,12 +9,20 @@
 #   Frontend → http://localhost:7540/vaultguard/
 #   Backend  → http://localhost:7541/vaultguard/api/health
 #   gRPC     → localhost:9090 (agents inside the compose network use server:9090)
+#
+# Published ports bind to 127.0.0.1 only: the API and UI are reached from
+# other machines through the TLS reverse proxy (deployment/apache.conf),
+# never directly. Remote access needs HTTPS — the agent enrollment enforces
+# it off-loopback. Local tooling (Vite proxy, Apache on the same host,
+# `docker compose exec`) is unaffected by the loopback bind.
 
 services:
   postgres:
     build:
       context: .
       dockerfile: ./postgres/Dockerfile
+    # Survive host reboots — the backup database must come back on its own.
+    restart: unless-stopped
     # NOTE: no `ports:` published on purpose — nothing outside this network
     # needs raw PostgreSQL access. To administer locally, use
     # `docker compose exec postgres psql -U postgres`, or temporarily add
@@ -39,8 +47,9 @@ services:
     build:
       context: ./server
       dockerfile: Dockerfile
+    restart: unless-stopped
     ports:
-      - "7541:7541"
+      - "127.0.0.1:7541:7541"
       # NOTE: gRPC :9090 is intentionally NOT published. No current agent
       # dials it (agents poll REST and hold a WebSocket for cancel/logs);
       # the listener stays for compose-internal/legacy use. Re-add
@@ -64,6 +73,7 @@ services:
     build:
       context: ./agent
       dockerfile: Dockerfile
+    restart: unless-stopped
     environment:
       - AGENT_SERVER=http://server:7541/vaultguard/api
       - AGENT_PG_HOST=postgres
@@ -79,8 +89,9 @@ services:
     build:
       context: ./client
       dockerfile: Dockerfile
+    restart: unless-stopped
     ports:
-      - "7540:80"
+      - "127.0.0.1:7540:80"
     depends_on:
       - server
 
