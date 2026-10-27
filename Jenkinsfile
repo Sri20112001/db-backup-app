@@ -1,6 +1,16 @@
 pipeline {
   agent any
 
+  triggers {
+    // Automatically trigger builds on git push via GitHub Webhook
+    // (requires GitHub plugin in Jenkins and webhook configured at:
+    // https://github.com/<owner>/<repo>/settings/hooks -> Payload URL: <jenkins-url>/github-webhook/)
+    githubPush()
+    // Fallback: poll SCM every 5 minutes if Jenkins is running locally or behind NAT
+    // without a public webhook endpoint (uncomment if webhooks cannot reach Jenkins):
+    // pollSCM('H/5 * * * *')
+  }
+
   options {
     timestamps()
     timeout(time: 30, unit: 'MINUTES')
@@ -127,38 +137,39 @@ pipeline {
         sh '''
           set -e
           # Pure-Go cross-compile of the headless agent (service wrapper
-          # included) — no C toolchain needed. dist/ is the ONLY source of
-          # distributable binaries (git-ignored); tmp/ dev artifacts must
-          # never be shipped. The Fyne setup GUI is NOT built here: it needs
-          # network module downloads plus platform graphics backends, so GUI
-          # packaging requires a Windows build agent
-          # (see setup/README.md + docs/WINDOWS_VALIDATION.md).
+          # included) and console setup wizard — no C toolchain needed.
+          # Extracted to dist/windows/ and archived as Jenkins build artifacts.
+          # (The Fyne setup GUI requires a Windows build agent with C toolchain).
           #
-          # Future Windows-agent pipeline (separate node, does not touch
-          # this Linux flow):
-          #   windows-agent: checkout -> go mod tidy (setup/) ->
-          #     rsrc manifest embed -> go build GUI ->
-          #     signtool Authenticode sign + timestamp ->
-          #     dist/windows package -> release
-          # Existing stages above are untouched.
-          # DooD-safe: sources are baked into the throwaway image (see
-          # Test (server) comment) instead of -v mounting $WORKSPACE.
-          # NOTE: the container env cross-compiles to Windows, but the
-          # verifier must EXECUTE on Linux — scope Linux env to it only.
+          # DooD-safe: sources are baked into the container; binaries are extracted
+          # to $WORKSPACE via `docker cp` (no host volume bind-mounts).
           IMG="vg-ci-agent-$BUILD_NUMBER"
+          CID="vg-ci-agent-win-$BUILD_NUMBER"
+          docker rm -f "$CID" >/dev/null 2>&1 || true
           docker rmi -f "$IMG" >/dev/null 2>&1 || true
           docker build -t "$IMG" -f agent/Dockerfile.ci agent/ >/dev/null
           STATUS=0
-          docker run --rm \
+          docker run --name "$CID" \
             -e GOOS=windows -e GOARCH=amd64 -e CGO_ENABLED=0 \
             "$IMG" \
-            sh -c "go build -trimpath -o /tmp/VaultGuard-Agent.exe ./cmd/agent && env GOOS=linux GOARCH=amd64 CGO_ENABLED=0 go run ./cmd/verify-artifact --arch amd64 --min-bytes 5000000 /tmp/VaultGuard-Agent.exe && go build -trimpath -o /tmp/VaultGuard-Agent-Setup-Console.exe ./cmd/agent-setup && env GOOS=linux GOARCH=amd64 CGO_ENABLED=0 go run ./cmd/verify-artifact --arch amd64 --min-bytes 100000 /tmp/VaultGuard-Agent-Setup-Console.exe" || STATUS=$?
+            sh -c "mkdir -p /build && go build -trimpath -o /build/VaultGuard-Agent.exe ./cmd/agent && env GOOS=linux GOARCH=amd64 CGO_ENABLED=0 go run ./cmd/verify-artifact --arch amd64 --min-bytes 5000000 /build/VaultGuard-Agent.exe && go build -trimpath -o /build/VaultGuard-Agent-Setup-Console.exe ./cmd/agent-setup && env GOOS=linux GOARCH=amd64 CGO_ENABLED=0 go run ./cmd/verify-artifact --arch amd64 --min-bytes 100000 /build/VaultGuard-Agent-Setup-Console.exe" || STATUS=$?
+
+          if [ "$STATUS" -eq 0 ]; then
+            rm -rf "$WORKSPACE/dist/windows"
+            mkdir -p "$WORKSPACE/dist/windows"
+            docker cp "$CID:/build/VaultGuard-Agent.exe" "$WORKSPACE/dist/windows/VaultGuard-Agent.exe"
+            docker cp "$CID:/build/VaultGuard-Agent-Setup-Console.exe" "$WORKSPACE/dist/windows/VaultGuard-Agent-Setup-Console.exe"
+            echo "Windows build artifacts extracted to dist/windows/:"
+            ls -lh "$WORKSPACE/dist/windows"
+          fi
+
+          docker rm -f "$CID" >/dev/null 2>&1 || true
           docker rmi -f "$IMG" >/dev/null 2>&1 || true
           exit $STATUS
         '''
+        archiveArtifacts artifacts: 'dist/windows/*.exe', fingerprint: true
       }
     }
-    
 
     stage('Test (client)') {
       steps {
