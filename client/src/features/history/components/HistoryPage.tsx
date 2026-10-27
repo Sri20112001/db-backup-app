@@ -7,10 +7,11 @@ import StatusBadge from '@/components/StatusBadge'
 import EmptyState from '@/components/EmptyState'
 import { SkeletonRow } from '@/components/Skeleton'
 import RunDetailDrawer from './RunDetailDrawer'
+import ArchiveInspectorModal from './ArchiveInspectorModal'
 import Pagination from '@/components/Pagination'
 import { useRealtimeStore, mergeRunPatch } from '@/stores/realtimeStore'
 import { formatBytes, formatDuration, formatRelative } from '@/utils/format'
-import { History, Download } from 'lucide-react'
+import { History, Download, FileSearch } from 'lucide-react'
 import SearchInput from '@/components/ui/SearchInput'
 import SortableTh from '@/components/ui/SortableTh'
 import { Page, PageHeader } from '@/components/Page'
@@ -40,6 +41,8 @@ const HistoryPage = () => {
   const [sortKey, setSortKey] = useState<RunSortKey>('started')
   const [sortDir, setSortDir] = useState<SortDir>('desc')
   const [isLoading, setIsLoading] = useState(true)
+  const [inspectorOpen, setInspectorOpen] = useState(false)
+  const [inspectTarget, setInspectTarget] = useState<{ checksum?: string; jobName?: string }>({})
   const limit = 50
   const lastRunEvent = useRealtimeStore((s) => s.lastRunEvent)
   const debouncedSearch = useDebouncedValue(search)
@@ -120,22 +123,45 @@ const HistoryPage = () => {
     addToast('success', `Exported ${runs.length} runs to CSV`)
   }
 
+  const handleInspectRun = (run: BackupRun, e: React.MouseEvent) => {
+    e.stopPropagation()
+    setInspectTarget({
+      checksum: run.checksum,
+      jobName: run.backup_job?.name,
+    })
+    setInspectorOpen(true)
+  }
+
   return (
     <Page>
       <PageHeader
         title="Backup History"
         description="All backup run executions across all jobs"
         actions={
-          <button
-            type="button"
-            onClick={handleExportCsv}
-            disabled={runs.length === 0}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-outline-variant/60 bg-surface-container-low hover:bg-surface-container-high text-[12.5px] font-medium text-on-surface transition-colors disabled:opacity-50"
-            title="Download current run history as CSV"
-          >
-            <Download size={14} />
-            Export CSV
-          </button>
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={() => {
+                setInspectTarget({})
+                setInspectorOpen(true)
+              }}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-primary/30 bg-primary/10 hover:bg-primary/20 text-[12.5px] font-medium text-primary transition-colors"
+              title="Open client-side Wasm backup inspector & checksum verifier"
+            >
+              <FileSearch size={14} />
+              Inspect Archive
+            </button>
+            <button
+              type="button"
+              onClick={handleExportCsv}
+              disabled={runs.length === 0}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-outline-variant/60 bg-surface-container-low hover:bg-surface-container-high text-[12.5px] font-medium text-on-surface transition-colors disabled:opacity-50"
+              title="Download current run history as CSV"
+            >
+              <Download size={14} />
+              Export CSV
+            </button>
+          </div>
         }
       />
 
@@ -217,9 +243,22 @@ const HistoryPage = () => {
                   <td className="py-3 px-4 font-mono text-[12px]">{formatBytes(run.bytes_read)}</td>
                   <td className="py-3 px-4 font-mono text-[12px]">{formatBytes(run.bytes_uploaded)}</td>
                   <td className="py-3 px-4 text-right">
-                    <button type="button" className="px-2 py-1 rounded text-[12px] text-on-surface-variant hover:bg-surface-container-high transition-colors">
-                      Details
-                    </button>
+                    <div className="flex items-center justify-end gap-1">
+                      {run.checksum && (
+                        <button
+                          type="button"
+                          onClick={(e) => handleInspectRun(run, e)}
+                          title="Inspect archive header and verify SHA-256"
+                          className="px-2 py-1 rounded text-[11.5px] text-primary hover:bg-primary/10 transition-colors font-medium flex items-center gap-1"
+                        >
+                          <FileSearch size={12} />
+                          Inspect
+                        </button>
+                      )}
+                      <button type="button" className="px-2 py-1 rounded text-[12px] text-on-surface-variant hover:bg-surface-container-high transition-colors">
+                        Details
+                      </button>
+                    </div>
                   </td>
                 </tr>
               ))}
@@ -234,6 +273,14 @@ const HistoryPage = () => {
       </div>
 
       {runDetailId && <RunDetailDrawer runId={runDetailId} />}
+
+      {inspectorOpen && (
+        <ArchiveInspectorModal
+          onClose={() => setInspectorOpen(false)}
+          expectedChecksum={inspectTarget.checksum}
+          initialJobName={inspectTarget.jobName}
+        />
+      )}
     </Page>
   )
 }

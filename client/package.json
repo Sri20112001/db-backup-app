@@ -5,6 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
+    "build:wasm": "cd ../wasm && set GOOS=js&& set GOARCH=wasm&& go build -trimpath -ldflags=\"-s -w\" -o ../client/public/vaultguard.wasm .",
     "build": "tsc -b && vite build",
     "lint": "eslint .",
     "test": "vitest run",
