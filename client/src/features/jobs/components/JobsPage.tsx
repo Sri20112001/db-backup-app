@@ -10,7 +10,7 @@ import Pagination from "@/components/Pagination";
 import { useDebouncedValue } from "@/hooks/useDebouncedValue";
 import EditJobModal from "./EditJobModal";
 import NewJobModal from "./NewJobModal";
-import { useRealtimeStore } from "@/stores/realtimeStore";
+import { useRealtimeStore } from '@/store/realtimeStore'
 import { SkeletonCard } from "@/components/Skeleton";
 import { Page, PageHeader } from "@/components/Page";
 import SearchInput from "@/components/ui/SearchInput";

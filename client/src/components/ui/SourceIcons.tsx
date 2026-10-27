@@ -1,9 +1,9 @@
 import type { SVGProps, ImgHTMLAttributes } from 'react'
 import { Database } from 'lucide-react'
-import filesystemSvg from '@/icons/filesystem.svg'
-import mssqlSvg from '@/icons/mssql.svg'
-import postgresSvg from '@/icons/postgres.svg'
-import mongodbSvg from '@/icons/mongodb.svg'
+import filesystemSvg from '@/assets/icons/filesystem.svg'
+import mssqlSvg from '@/assets/icons/mssql.svg'
+import postgresSvg from '@/assets/icons/postgres.svg'
+import mongodbSvg from '@/assets/icons/mongodb.svg'
 
 interface IconProps extends ImgHTMLAttributes<HTMLImageElement> {
   size?: number | string

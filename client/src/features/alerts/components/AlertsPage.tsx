@@ -5,7 +5,7 @@ import { useUIStore } from '@/store/uiStore'
 import type { Alert, AlertType, AlertSeverity, AlertStatus } from '@/types'
 import EmptyState from '@/components/EmptyState'
 import Pagination from '@/components/Pagination'
-import { useRealtimeStore } from '@/stores/realtimeStore'
+import { useRealtimeStore } from '@/store/realtimeStore'
 import {
   Bell, ArrowDownWideNarrow, ArrowUpNarrowWide, CheckCheck,
   Download, CheckSquare, Square

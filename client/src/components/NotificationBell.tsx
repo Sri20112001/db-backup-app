@@ -3,7 +3,7 @@ import { useNavigate, useLocation } from 'react-router-dom'
 import { Bell, CheckCheck, ArrowRight } from 'lucide-react'
 import { useAuthStore } from '../store/authStore'
 import { alertApi } from '../services/api'
-import { useRealtimeStore } from '../stores/realtimeStore'
+import { useRealtimeStore } from '../store/realtimeStore'
 import type { Alert, AlertSeverity } from '../types'
 import { formatRelative } from '../utils/format'
 

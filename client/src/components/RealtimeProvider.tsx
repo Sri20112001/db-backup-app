@@ -2,8 +2,8 @@ import { useEffect, useRef } from 'react'
 import { API_BASE_URL, toWebSocketUrl } from '@/CONSTANTS'
 import { useAuthStore } from '@/store/authStore'
 import { useUIStore } from '@/store/uiStore'
-import { useRealtimeStore } from '@/stores/realtimeStore'
-import type { IncomingEvent } from '@/stores/realtimeStore'
+import { useRealtimeStore } from '@/store/realtimeStore'
+import type { IncomingEvent } from '@/store/realtimeStore'
 
 // Derive ws(s)://host/<base>/ws from the REST base URL so proxies and
 // basenames (e.g. /vaultguard/api) carry over automatically.

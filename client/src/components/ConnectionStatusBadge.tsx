@@ -1,4 +1,4 @@
-import { useRealtimeStore } from '@/stores/realtimeStore'
+import { useRealtimeStore } from '@/store/realtimeStore'
 import { WifiOff, Loader2 } from 'lucide-react'
 
 export const ConnectionStatusBadge = () => {

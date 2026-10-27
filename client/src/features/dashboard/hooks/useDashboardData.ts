@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { dashboardApi, jobApi } from '@/services/api'
 import { useAuthStore } from '@/store/authStore'
 import { useUIStore } from '@/store/uiStore'
-import { useRealtimeStore } from '@/stores/realtimeStore'
+import { useRealtimeStore } from '@/store/realtimeStore'
 import type { DashboardOverview, JobHealth, PreflightResult } from '@/types'
 
 export interface PreflightState {

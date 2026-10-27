@@ -7,7 +7,7 @@ import StatusBadge from '@/components/StatusBadge'
 import { formatBytes, formatDuration, formatDate, truncate } from '@/utils/format'
 import { X, Check, Loader2, ShieldCheck, Terminal } from 'lucide-react'
 import normalizeWindowsPath from '../../../utils/normalizeWindowsPath';
-import { useRealtimeStore, mergeRunPatch } from '@/stores/realtimeStore'
+import { useRealtimeStore, mergeRunPatch } from '@/store/realtimeStore'
 
 const STATUSES = ['PENDING', 'RUNNING', 'UPLOADING', 'VERIFYING', 'COMPLETED']
 
