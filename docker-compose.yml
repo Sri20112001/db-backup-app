@@ -49,7 +49,7 @@ services:
       dockerfile: Dockerfile
     restart: unless-stopped
     ports:
-      - "127.0.0.1:7541:7541"
+      - "7541:7541"
       # NOTE: gRPC :9090 is intentionally NOT published. No current agent
       # dials it (agents poll REST and hold a WebSocket for cancel/logs);
       # the listener stays for compose-internal/legacy use. Re-add
@@ -91,7 +91,7 @@ services:
       dockerfile: Dockerfile
     restart: unless-stopped
     ports:
-      - "127.0.0.1:7540:80"
+      - "7540:80"
     depends_on:
       - server
 
